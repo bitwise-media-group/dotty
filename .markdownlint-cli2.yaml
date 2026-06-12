@@ -1,0 +1,16 @@
+config:
+    # House prose wraps at 120 columns.
+    MD013:
+        line_length: 120
+        code_blocks: false
+        tables: false
+    # DESIGN.md and command reference pages use multiple top-level headings.
+    MD025: false
+    MD041: false
+ignores:
+    # The original spec is kept verbatim (it duplicates a heading).
+    - "DESIGN.md"
+    - "docs/cli/**"
+    - "node_modules/**"
+    - "dist/**"
+    - ".claude/**"

@@ -1,0 +1,6 @@
+# Build artifacts
+/dotty
+dist/
+
+# Node tooling
+node_modules/

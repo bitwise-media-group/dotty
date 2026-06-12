@@ -1,0 +1,6 @@
+# Generated output — byte-stability matters more than style.
+docs/cli/
+package-lock.json
+dist/
+CLAUDE.md
+.claude/
