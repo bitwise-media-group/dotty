@@ -1,5 +1,8 @@
-# Developer tasks. `make help` lists targets; `make pr` is the full local gate.
+# one -ignore flag per non-empty line in .licenseignore (quoted to avoid shell globbing)
+LICENSE_HOLDER := 'Bitwise Media Group Ltd.'
+LICENSE_IGNORE := $(foreach pattern,$(shell cat .licenseignore 2>/dev/null),-ignore '$(pattern)')
 
+# Developer tasks. `make help` lists targets; `make pr` is the full local gate.
 APP     := dotty
 APP_PKG := ./cmd
 MODULE  := $(shell go list -m)
@@ -32,52 +35,70 @@ NPMBIN := ./node_modules/.bin
 # Do not add a go.work that `use`s tools/ — -modfile cannot be used in workspace mode.
 
 .DEFAULT_GOAL := help
-.PHONY: help pr fmt tidy vet license test fuzz build run docs snapshot release
 
+.PHONY: help
 help: ## List available targets
-	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
+	@ grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
-pr: license tidy fmt vet test fuzz build docs snapshot ## Full local gate — must pass before committing
+.PHONY: pr
+pr: tidy license fmt lint test fuzz build docs snapshot ## full local gate for pull request
+
+.PHONY: ci
+ci: lint test fuzz build docs snapshot ## full ci gate
 
 # Install the pinned Node tools exactly as locked in package-lock.json.
 # Re-runs only when package.json / the lockfile change.
 node_modules: package.json package-lock.json
-	npm ci
-	@touch node_modules
+	@ npm ci --ignore-scripts --no-fund
+	@ touch node_modules
 
-fmt: node_modules ## Format the Go code, prose, and config (gofmt + prettier)
-	go fmt ./...
-	$(NPMBIN)/prettier --write .
+.PHONY: fmt
+fmt: node_modules ## format the go codebase
+	@ go fmt ./...
+	@ go tool -modfile=tools/go.mod golangci-lint run --fix
+	@ npm run lint:fix
+	@ npm run format
 
-tidy: ## Tidy the Go module references
-	rm -f go.sum; go mod tidy
+.PHONY: tidy
+tidy: ## tidy go mod/sum
+	@ rm -f go.sum; go mod tidy
 
-vet: node_modules ## Vet the Go code and lint Markdown (go vet + markdownlint-cli2)
-	go vet ./...
-	$(NPMBIN)/markdownlint-cli2 "**/*.md"
+.PHONY: lint
+lint: ## lint the golang codebase
+	@ go tool -modfile=tools/go.mod addlicense -l mit -c $(LICENSE_HOLDER) -s=only $(LICENSE_IGNORE) -check .
+	@	go tool -modfile=tools/go.mod golangci-lint run
+	@ npm run lint
 
-license: ## Inject license headers into the Go source (addlicense, pinned in tools/go.mod)
-	go tool -modfile=tools/go.mod addlicense -l mit -s -v cmd internal
+.PHONY: license
+license: ## inject SPDX license headers (addlicense, pinned in tools/go.mod)
+	@ go tool -modfile=tools/go.mod addlicense -l mit -c $(LICENSE_HOLDER) -s=only $(LICENSE_IGNORE) .
 
-test: ## Run the unit tests (+ fuzz seed corpora)
-	go test ./...
+.PHONY: test
+test: ## run the unit tests (+ fuzz seed corpora)
+	@ go test ./...
 
-fuzz: ## Fuzz one target (FUZZ=FuzzExtractFlags FUZZTIME=20s FUZZ_PKG=./internal/cli)
-	go test -run '^$$' -fuzz '^$(FUZZ)$$' -fuzztime $(FUZZTIME) $(FUZZ_PKG)
+.PHONY: fuzz
+fuzz: ## fuzz one target (FUZZ=FuzzExtractFlags FUZZTIME=20s FUZZ_PKG=./internal/cli)
+	@ go test -run '^$$' -fuzz '^$(FUZZ)$$' -fuzztime $(FUZZTIME) $(FUZZ_PKG)
 
-build: ## Build the binary (./$(APP)) with version ldflags
-	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(APP) $(APP_PKG)
+.PHONY: build
+build: ## build the binary (./$(APP)) with version ldflags
+	@ CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(APP) $(APP_PKG)
 
-run: build ## Build and run locally (override args via ARGS=...)
+.PHONY: run
+run: build ## build and run locally (override args via ARGS=...)
 	./$(APP) $(ARGS)
 
-docs: build ## Regenerate the CLI reference (docs/cli) from the cobra command tree
+.PHONY: docs
+docs: build ## regenerate the CLI reference (docs/cli) from the cobra command tree
 	./$(APP) docs --out docs/cli --format markdown
 	./$(APP) docs --out docs/man --format man
 
-snapshot: ## Local GoReleaser snapshot (binaries + archives, no publish)
-	go tool -modfile=tools/go.mod goreleaser release --snapshot --clean
+.PHONY: snapshot
+snapshot: ## build local release snapshot (binaries + archives, no publish)
+	@ go tool -modfile=tools/go.mod goreleaser release --snapshot --clean
 
-release: ## Build & publish a GoReleaser release (needs a vX.Y.Z tag + creds)
-	go tool -modfile=tools/go.mod goreleaser release --clean
+.PHONY: release
+release: ## build and publish a release (needs a vX.Y.Z tag + creds)
+	@ go tool -modfile=tools/go.mod goreleaser release --clean

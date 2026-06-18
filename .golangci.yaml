@@ -1,0 +1,57 @@
+version: "2"
+run:
+    allow-parallel-runners: true
+linters:
+    default: none
+    enable:
+        - copyloopvar
+        - dupl
+        - errcheck
+        - gocyclo
+        - govet
+        - ineffassign
+        - lll
+        - misspell
+        - nakedret
+        - prealloc
+        - revive
+        - staticcheck
+        - unconvert
+        - unparam
+        - unused
+    settings:
+        gocyclo:
+            min-complexity: 20
+        revive:
+            rules:
+                - name: comment-spacings
+                - name: import-shadowing
+                - name: use-any
+                - name: unreachable-code
+                - name: struct-tag
+                  arguments:
+                      - "json,inline"
+                - name: file-header
+                  arguments:
+                      - "SPDX-License-Identifier: MIT"
+        staticcheck:
+            checks:
+                - all
+    exclusions:
+        generated: lax
+        paths:
+            - third_party$
+            - builtin$
+            - examples$
+            - node_modules
+formatters:
+    enable:
+        - gofmt
+        - goimports
+    exclusions:
+        generated: lax
+        paths:
+            - third_party$
+            - builtin$
+            - examples$
+            - node_modules

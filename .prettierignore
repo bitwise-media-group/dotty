@@ -2,5 +2,6 @@
 docs/cli/
 package-lock.json
 dist/
+AGENTS.md
 CLAUDE.md
 .claude/
