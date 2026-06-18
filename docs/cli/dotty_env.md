@@ -36,7 +36,7 @@ process with the namespace's secrets in its environment (like op run).
 ### SEE ALSO
 
 * [dotty](dotty.md)	 - Utilities for a terminal-driven workflow and dotfiles.
-* [dotty env add](dotty_env_add.md)	 - Store a credential in a namespace.
+* [dotty env add](dotty_env_add.md)	 - Store a credential, or capture a whole .env file.
 * [dotty env get](dotty_env_get.md)	 - Print a credential value.
 * [dotty env list](dotty_env_list.md)	 - List the credential names in a namespace.
 * [dotty env remove](dotty_env_remove.md)	 - Remove credentials from a namespace.

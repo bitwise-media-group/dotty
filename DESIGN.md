@@ -305,8 +305,14 @@ Store a credential under KEY in the namespace. With a terminal attached the valu
 input is piped, it is read from stdin. The value is never taken from a flag, so it stays out of shell history and the
 process list.
 
+With `--in-file`, KEY is omitted and a `.env` file is captured instead — the inverse of `use`: every `KEY=value`
+assignment is stored in the namespace and its value is replaced with a `{{ dotty://<namespace>/KEY }}` reference.
+The result is written to `--out-file`, which defaults to `--in-file`; replacing an existing file is confirmed first.
+Blank lines, comments, empty values, and values that are already references are left untouched.
+
 ```text
 dotty env [--namespace=<ns>] add <KEY>
+dotty env [--namespace=<ns>] add --in-file=<file> [--out-file=<file>]
 ```
 
 ## Remove a credential

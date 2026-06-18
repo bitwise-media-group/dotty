@@ -81,6 +81,33 @@ func (s *Store) Set(ctx context.Context, namespace, key, value string) error {
 	return s.save(ctx, namespace, values)
 }
 
+// SetAll stores every key=value in values into namespace as a single
+// read-modify-write, creating the namespace if needed and overwriting any keys
+// that already exist. Every key is validated before anything is written, so a
+// bad key fails the whole batch rather than leaving it half-applied. An empty
+// map is a no-op.
+func (s *Store) SetAll(ctx context.Context, namespace string, values map[string]string) error {
+	if err := ValidateNamespace(namespace); err != nil {
+		return err
+	}
+	for key := range values {
+		if err := ValidateKey(key); err != nil {
+			return err
+		}
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	current, err := s.load(ctx, namespace)
+	if err != nil {
+		return err
+	}
+	for key, value := range values {
+		current[key] = value
+	}
+	return s.save(ctx, namespace, current)
+}
+
 // Get returns the value of key in namespace, or ErrKeyNotFound.
 func (s *Store) Get(ctx context.Context, namespace, key string) (string, error) {
 	values, err := s.load(ctx, namespace)

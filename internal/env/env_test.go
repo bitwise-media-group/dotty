@@ -190,6 +190,41 @@ func TestStoreAll(t *testing.T) {
 	}
 }
 
+func TestStoreSetAll(t *testing.T) {
+	ctx := context.Background()
+	kc := newFakeKeychain()
+	s := NewStore(kc)
+
+	if err := s.Set(ctx, "ns", "EXISTING", "old"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetAll(ctx, "ns", map[string]string{"EXISTING": "new", "A": "1", "B": "2"}); err != nil {
+		t.Fatalf("SetAll: %v", err)
+	}
+	all, err := s.All(ctx, "ns")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"EXISTING": "new", "A": "1", "B": "2"}
+	if !reflect.DeepEqual(all, want) {
+		t.Errorf("after SetAll, All = %v, want %v", all, want)
+	}
+
+	// A bad key fails the batch before any write lands.
+	writes := len(kc.items)
+	if err := s.SetAll(ctx, "fresh", map[string]string{"OK": "v", "1BAD": "v"}); !errors.Is(err, ErrInvalidKey) {
+		t.Errorf("SetAll invalid key err = %v, want ErrInvalidKey", err)
+	}
+	if _, ok := kc.items["fresh"]; ok || len(kc.items) != writes {
+		t.Error("SetAll wrote a namespace despite an invalid key in the batch")
+	}
+
+	// An empty batch is a no-op, not an error.
+	if err := s.SetAll(ctx, "ns", nil); err != nil {
+		t.Errorf("SetAll(nil) = %v, want nil", err)
+	}
+}
+
 func TestStoreResolver(t *testing.T) {
 	ctx := context.Background()
 	s := NewStore(newFakeKeychain())
