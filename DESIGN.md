@@ -283,3 +283,85 @@ Opens the brewfile in the default editor
 ```text
 dotty [--profile=<profile>] brewfile edit [--sync | --upgrade]
 ```
+
+# Generic Credentials
+
+Command: env
+
+Store generic credentials in the operating system keychain and inject them into templates and processes — the way the
+1Password CLI does, but with no external service. Credentials are grouped into namespaces; each namespace is a single
+keychain item under the service name `dotty:<namespace>`, which isolates groups of secrets that belong together. Every
+verb takes a `--namespace` flag (default `default`).
+
+Keychain access is platform-specific and lives behind an interface in GOOS-tagged files; macOS shells out to
+`security`, with a stub on other platforms until a Linux backend (e.g. `secret-tool`) is added. References use the form
+`{{ dotty://<namespace>/<key> }}`, or a bare `{{ <key> }}` resolved against `--namespace`.
+
+## Add a credential
+
+Command: add
+
+Store a credential under KEY in the namespace. With a terminal attached the value is read from a hidden prompt; when
+input is piped, it is read from stdin. The value is never taken from a flag, so it stays out of shell history and the
+process list.
+
+```text
+dotty env [--namespace=<ns>] add <KEY>
+```
+
+## Remove a credential
+
+Command: remove
+Aliases: rm
+
+Remove one credential by KEY, the whole namespace with `--all`, or pick several from a filterable checklist when no KEY
+is given. Removing the last credential also removes the namespace's keychain item.
+
+```text
+dotty env [--namespace=<ns>] remove [<KEY>] [--all]
+```
+
+## List credentials
+
+Command: list
+Aliases: ls
+
+Print the key names in the namespace, one per line, sorted. Values are never printed.
+
+```text
+dotty env [--namespace=<ns>] list
+```
+
+## Get a credential
+
+Command: get
+
+Print a single credential value to stdout, like `op read`. The argument is either a KEY in `--namespace` or a full
+`dotty://<namespace>/<key>` reference. A trailing newline is printed unless `--no-newline`.
+
+```text
+dotty env [--namespace=<ns>] get <KEY | dotty://<namespace>/<key>> [--no-newline]
+```
+
+## Inject into a template
+
+Command: use
+
+Replace every reference in a template with its value, like `op inject`. The template is read from `--in-file` or stdin
+and written to `--out-file` (created with 0600) or stdout. An unknown or malformed reference is an error.
+
+```text
+dotty env [--namespace=<ns>] use [--in-file=<file>] [--out-file=<file>]
+```
+
+## Run with credentials in the environment
+
+Command: run
+
+Launch a command with every credential in the namespace exported as an environment variable, like `op run`. dotty parses
+its own `--namespace` (and `--help`); everything after `--` is the command and its arguments, passed through untouched.
+The command inherits the terminal, and dotty exits with its exit code.
+
+```text
+dotty env [--namespace=<ns>] run -- <command> [args...]
+```

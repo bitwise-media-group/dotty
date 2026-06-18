@@ -1,24 +1,5 @@
-// MIT License
-//
-// Copyright (c) 2026 Bitwise Media Group
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// Copyright 2026 Bitwise Media Group Ltd.
+// SPDX-License-Identifier: MIT
 
 package tui
 
@@ -67,6 +48,35 @@ func Input(ios cli.IOStreams, title, placeholder string, validate func(string) e
 		return "", err
 	}
 	return value, nil
+}
+
+// Password asks for a single secret line with masked input, re-prompting until
+// validate accepts it. validate may be nil.
+func Password(ios cli.IOStreams, title string, validate func(string) error) (string, error) {
+	var value string
+	field := huh.NewInput().Title(title).EchoMode(huh.EchoModePassword).Value(&value)
+	if validate != nil {
+		field = field.Validate(validate)
+	}
+	if err := runForm(ios, field); err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+// MultiSelect presents a fuzzy-filterable checklist and returns the Values of
+// the chosen options, in option order.
+func MultiSelect(ios cli.IOStreams, title string, options []Option) ([]string, error) {
+	huhOpts := make([]huh.Option[string], len(options))
+	for i, o := range options {
+		huhOpts[i] = huh.NewOption(o.Label, o.Value)
+	}
+	var values []string
+	field := huh.NewMultiSelect[string]().Title(title).Options(huhOpts...).Filterable(true).Value(&values)
+	if err := runForm(ios, field); err != nil {
+		return nil, err
+	}
+	return values, nil
 }
 
 // Select presents a fuzzy-filterable picklist (huh filters on "/" and typing)
