@@ -24,6 +24,11 @@ the keychain and every plain KEY=value assignment is passed through, the way env
 use fills a template — but the secrets are handed straight to the process and
 never written to disk.
 
+.PP
+With neither --namespace nor --in-file, the template defaults to a .env.dotty in
+the working directory (the same form as --in-file); if there is none, run
+reports an error with usage.
+
 
 .SH OPTIONS
 \fB-h\fP, \fB--help\fP[=false]
@@ -44,6 +49,7 @@ never written to disk.
   dotty env run --namespace=aws -- aws s3 ls
   dotty env run --namespace=ci -- ./deploy.sh
   dotty env run --in-file=.env.tmpl -- ./serve
+  dotty env run -- ./serve   # builds the environment from ./.env.dotty
 .EE
 
 

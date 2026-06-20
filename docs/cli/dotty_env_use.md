@@ -6,9 +6,12 @@ Fill a template with credential references.
 
 Replace every {{ dotty://<namespace>/<key> }} reference (and bare {{ KEY }}
 resolved against --namespace) in a template with its value, the way op inject
-does. The template is read from --in-file or stdin and written to --out-file
-(created with 0600) or stdout. An unknown or malformed reference is an error,
-and an --out-file is written atomically so a failed run leaves no partial file.
+does. The template is read from --in-file or stdin; with neither --namespace nor
+--in-file and nothing piped in, it falls back to a .env.dotty in the working
+directory, and reports an error with usage when there is none. Output is written
+to --out-file (created with 0600) or stdout. An unknown or malformed reference
+is an error, and an --out-file is written atomically so a failed run leaves no
+partial file.
 
 ```
 dotty env use [--in-file=<file>] [--out-file=<file>] [flags]
@@ -19,6 +22,7 @@ dotty env use [--in-file=<file>] [--out-file=<file>] [flags]
 ```
   dotty env use --in-file=.env.tmpl --out-file=.env
   echo 'token={{ dotty://ci/GITHUB_TOKEN }}' | dotty env use
+  dotty env use --out-file=.env   # fills ./.env.dotty
 ```
 
 ### Options
