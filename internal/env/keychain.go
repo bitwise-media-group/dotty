@@ -35,10 +35,3 @@ var (
 	// ErrUnsupported reports a platform with no keychain backend wired up.
 	ErrUnsupported = errors.New("dotty env is only supported on macOS (Linux keychain support is planned)")
 )
-
-// serviceName is the keychain service that isolates a namespace's credentials.
-// The "dotty:" prefix keeps these items from colliding with anything else in
-// the keychain.
-func serviceName(namespace string) string {
-	return "dotty:" + namespace
-}

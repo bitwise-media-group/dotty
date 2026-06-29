@@ -74,3 +74,10 @@ func isNotFound(err error) bool {
 	var ee *exec.ExitError
 	return errors.As(err, &ee) && ee.ExitCode() == errSecItemNotFound
 }
+
+// serviceName is the keychain service that isolates a namespace's credentials.
+// The "dotty:" prefix keeps these items from colliding with anything else in
+// the keychain.
+func serviceName(namespace string) string {
+	return "dotty:" + namespace
+}
