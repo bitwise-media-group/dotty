@@ -30,6 +30,7 @@ signing keys that live on those keys (including git commit signing).
 * [dotty brewfile](dotty_brewfile.md)	 - Manage the profile's Brewfile for reproducible brews.
 * [dotty completion](dotty_completion.md)	 - Generate the autocompletion script for the specified shell
 * [dotty env](dotty_env.md)	 - Store and inject credentials from the macOS Keychain.
+* [dotty git](dotty_git.md)	 - Git helpers built on dotty's commit signing.
 * [dotty profile](dotty_profile.md)	 - Manage system profiles that travel across machines.
 * [dotty security-key](dotty_security-key.md)	 - Manage hardware security keys.
 * [dotty signing-key](dotty_signing-key.md)	 - Create and use SSH signing keys on hardware security keys.
