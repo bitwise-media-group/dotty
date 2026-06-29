@@ -1,36 +1,67 @@
 # Copyright 2026 Bitwise Media Group Ltd.
 # SPDX-License-Identifier: MIT
 
-# Tag-driven release. Pushing a vX.Y.Z tag runs GoReleaser: binary archives +
-# checksums + SBOMs on the GitHub release. No container images — dotty drives
-# local hardware and Homebrew.
-name: release
+# Release pipeline — thin caller for the org's reusable release workflow.
+# release-please watches main and keeps a release PR current from the Conventional
+# Commit history; when that PR merges the workflow cuts the draft GitHub release +
+# vX.Y.Z tag and GoReleaser adopts it — binary archives + checksums + SBOMs +
+# keyless cosign signatures, the Homebrew cask pushed to
+# bitwise-media-group/homebrew-tap, and a SLSA build-provenance attestation over
+# everything in checksums.txt. Because a zensical.toml lives at the repo root, the
+# reusable workflow's docs job also rebuilds the Zensical site and publishes it to
+# GitHub Pages on each release (needs Settings → Pages → Source → GitHub Actions).
+#
+# vanity-tags is left at its default (false): dotty is a versioned Go binary whose
+# consumers pin exact vX.Y.Z tags, not floating v1 / v1.1 majors.
+#
+# app-client-id/app-private-key author the release-please PR as the "FF Merge" App
+# instead of the GITHUB_TOKEN. A GITHUB_TOKEN-authored push fires no workflow_run,
+# so a release PR opened that way never triggers the auto-merge in merge.yaml;
+# authoring it as the App makes the release PR auto-merge once approved and green,
+# like any other.
+#
+# The reusable workflow is pinned to a full commit SHA (tag in the comment) so a
+# moved tag can never change what runs; Dependabot keeps the pin fresh.
+name: Release
 
 on:
     push:
-        tags: ["v*"]
+        branches: [main]
+    # allow cutting a release manually from the Actions tab
+    workflow_dispatch:
 
-permissions:
-    contents: write # create the GitHub release
+permissions: {}
 
 jobs:
-    goreleaser:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-              with:
-                  fetch-depth: 0 # GoReleaser needs full history + tags for the changelog
-
-            - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-              with:
-                  go-version-file: go.mod
-                  cache: true
-
-            # SBOMs use the syft pinned in tools/go.mod (invoked via `go tool` by
-            # the sboms config) — no separate syft install step.
-            - uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
-              with:
-                  version: latest
-                  args: release --clean
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    release:
+        uses: bitwise-media-group/github-workflows/.github/workflows/release.yaml@4a154ffd7efbb6aff856386ec1def4b6dc364672 # v4.0.0
+        # ceiling for the reusable workflow's release-please + goreleaser + docs jobs.
+        # GitHub resolves a reusable workflow's permissions as the union of every job
+        # and ignores `if:`, so the caller must grant the goreleaser job's id-token /
+        # attestations / artifact-metadata and the docs job's pages even on a release
+        # that skips them.
+        permissions:
+            # create the release/tag and upload assets
+            contents: write
+            # release-please creates pr labels via the issues api
+            issues: write
+            # release-please opens the release pull request
+            pull-requests: write
+            # cosign keyless signing (goreleaser) + the docs job's Pages OIDC deploy
+            id-token: write
+            # github build-provenance attestation
+            attestations: write
+            # artifact storage record for the attestation
+            artifact-metadata: write
+            # publish the docs site to GitHub Pages (docs job, gated on zensical.toml)
+            pages: write
+        with:
+            # author the release PR as the FF Merge App so it can auto-merge (a
+            # GITHUB_TOKEN-authored push fires no workflow_run to trigger the merge)
+            app-client-id: ${{ vars.FF_MERGE_CLIENT_ID }}
+        secrets:
+            # private key for the App that authors the release PR (same App as /merge)
+            app-private-key: ${{ secrets.FF_MERGE_PRIVATE_KEY }}
+            # PAT with write access to bitwise-media-group/homebrew-tap — the default
+            # GITHUB_TOKEN cannot push the cask to another repository.
+            homebrew-tap-token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

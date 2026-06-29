@@ -1,43 +1,34 @@
 # Copyright 2026 Bitwise Media Group Ltd.
 # SPDX-License-Identifier: MIT
 
-# Continuous integration. Builds, vets, tests with the race detector, and scans
-# for known vulnerabilities on every push and pull request. The Go version comes
-# from go.mod, never the workflow.
+# Continuous integration — thin caller for the org's reusable ci workflow. It runs
+# the canonical Makefile gates (lint, build, test) as one parallel job each, then
+# Codecov uploads from coverage/cobertura-coverage.xml (coverage) and
+# coverage/junit.xml (test results) — both emitted by `make test`. `make lint`
+# carries all check-mode static analysis — golangci-lint, govulncheck, addlicense,
+# markdownlint, prettier --check. The Go version comes from go.mod and the Node
+# version from package.json (no .node-version pin).
 #
-# Every action is pinned to a full commit SHA (tag in the comment) so a moved
-# tag can never change what runs; Dependabot keeps the pins fresh.
-name: ci
+# The reusable workflow is pinned to a full commit SHA (tag in the comment) so a
+# moved tag can never change what runs; Dependabot keeps the pin fresh.
+name: Continuous Integration
 
 on:
     push:
         branches: [main]
     pull_request:
 
+# the reusable workflow's jobs only need contents:read; grant just that ceiling
 permissions:
     contents: read
 
 jobs:
-    test:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-            - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-              with:
-                  go-version-file: go.mod
-                  cache: true
-
-            - name: Build
-              run: go build ./...
-
-            - name: Vet
-              run: go vet ./...
-
-            - name: Test
-              run: go test -race ./...
-
-            - name: govulncheck
-              run: |
-                  go install golang.org/x/vuln/cmd/govulncheck@latest
-                  govulncheck ./...
+    ci:
+        uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@4a154ffd7efbb6aff856386ec1def4b6dc364672 # v4.0.0
+        with:
+            # Default is go.sum; list every lockfile that affects the build. `make
+            # lint`/`make test` run the tools/ CLIs (golangci-lint, govulncheck,
+            # addlicense, gotestsum, gocover-cobertura) pinned in tools/go.mod.
+            cache-dependency-path: |
+                go.sum
+                tools/go.sum

@@ -1,64 +1,74 @@
 # Copyright 2026 Bitwise Media Group Ltd.
 # SPDX-License-Identifier: MIT
 
-# Dependabot config. Daily checks with a 7-day cooldown; minor and patch bumps
-# are grouped into one PR per ecosystem. tools/go.mod gets its own gomod entry
-# so developer-tool bumps never ride along with application dependency PRs.
+# Keep module deps, pinned dev tools, npm lint tools, and SHA-pinned actions fresh.
 version: 2
-
 updates:
+    - package-ecosystem: gomod
+      directory: /
+      cooldown:
+          default-days: 7
+      commit-message:
+          include: scope
+          prefix: deps
+          prefix-development: deps
+      schedule:
+          interval: daily
+
+    - package-ecosystem: gomod
+      directory: /tools
+      # The pinned tools sit in `tool (...)` directives, so every require entry
+      # is `// indirect`. Dependabot only updates direct deps by default, so allow
+      # indirect ones too or these updates would never fire.
+      allow:
+          - dependency-type: all
+      cooldown:
+          default-days: 7
+      commit-message:
+          include: scope
+          prefix: build
+          prefix-development: build
+      schedule:
+          interval: daily
+      groups:
+          tools:
+              patterns: ["*"]
+
     - package-ecosystem: github-actions
       directory: /
       schedule:
           interval: daily
+      commit-message:
+          prefix: build
+          prefix-development: build
+          include: scope
       cooldown:
           default-days: 7
+          # our own actions ship straight through — no cooldown wait
+          exclude:
+              - bitwise-media-group/*
       groups:
-          all-minor-and-patch:
+          actions:
               patterns:
-                  - "*"
-              update-types:
-                  - minor
-                  - patch
-
-    - package-ecosystem: gomod
-      directory: /
-      schedule:
-          interval: daily
-      cooldown:
-          default-days: 7
-      groups:
-          all-minor-and-patch:
+                  - actions/*
+          github:
               patterns:
-                  - "*"
-              update-types:
-                  - minor
-                  - patch
-
-    - package-ecosystem: gomod
-      directory: /tools
-      schedule:
-          interval: daily
-      cooldown:
-          default-days: 7
-      groups:
-          tools:
+                  - github/*
+          bitwise-media-group:
               patterns:
-                  - "*"
-              update-types:
-                  - minor
-                  - patch
+                  - bitwise-media-group/*
 
     - package-ecosystem: npm
       directory: /
       schedule:
-          interval: daily
+          interval: weekly
+      commit-message:
+          prefix: build
+          prefix-development: build
+          include: scope
       cooldown:
           default-days: 7
       groups:
-          all-minor-and-patch:
+          dev-tooling:
               patterns:
                   - "*"
-              update-types:
-                  - minor
-                  - patch

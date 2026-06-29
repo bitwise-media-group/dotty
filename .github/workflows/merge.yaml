@@ -1,0 +1,55 @@
+# Copyright 2026 Bitwise Media Group Ltd.
+# SPDX-License-Identifier: MIT
+
+# Fast-forward merge — thin caller for the org's reusable merge workflow. It drives
+# both fast-forward flows from one caller: a maintainer comments `/merge` to merge
+# an approved, green PR now, or arms it (`/auto-merge` comment or the `auto-merge`
+# label) to merge automatically the moment it is approved and every required check
+# is green. Either way the base branch is fast-forwarded to the PR head: the commit
+# objects are untouched, so the original signature is preserved and release-please
+# sees each Conventional Commit individually.
+#
+# Every trigger here is one that does NOT attach a check run to the PR's head commit
+# (issue_comment, workflow_run, schedule), so the merge machinery leaves no
+# skipped-job clutter on the PR's checks list. issue_comment runs in the base-repo
+# context (so `/merge` and `/auto-merge` work even for fork PRs). The approval signal
+# is captured by the companion merge-review-ack.yaml, whose completed run re-enters
+# via workflow_run; that is what turns an approval into a merge attempt for fork and
+# same-repo PRs alike. The workflow_run list names every workflow that must pass —
+# "Continuous Integration" (ci.yaml) and "Security Analysis" (security.yaml) — plus
+# "Merge Review Ack" (merge-review-ack.yaml); whichever finishes last triggers the
+# attempt, and ff-merge re-verifies all checks before moving the ref. The hourly
+# schedule sweeps armed PRs as a backstop for any missed event. None of these run PR
+# code.
+#
+# Org prerequisites (see bitwise-media-group/ff-merge): the FF_MERGE_CLIENT_ID
+# variable + FF_MERGE_PRIVATE_KEY secret, and the "FF Merge" App installed on this
+# repo and in main's ruleset bypass list.
+#
+# The reusable workflow is pinned to a full commit SHA (tag in the comment);
+# Dependabot keeps the pin fresh.
+name: Merge
+
+on:
+    issue_comment:
+        types: [created]
+    workflow_run:
+        workflows:
+            - "Continuous Integration"
+            - "Security Analysis"
+            - "Merge Review Ack"
+        types: [completed]
+    schedule:
+        # hourly backstop sweep of armed PRs for any missed event trigger
+        - cron: "17 * * * *"
+
+# the App token does the privileged work; the caller grants nothing
+permissions: {}
+
+jobs:
+    merge:
+        uses: bitwise-media-group/github-workflows/.github/workflows/merge.yaml@4a154ffd7efbb6aff856386ec1def4b6dc364672 # v4.0.0
+        with:
+            app-client-id: ${{ vars.FF_MERGE_CLIENT_ID }}
+        secrets:
+            app-private-key: ${{ secrets.FF_MERGE_PRIVATE_KEY }}
