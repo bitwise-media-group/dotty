@@ -2,8 +2,19 @@
 /dotty
 dist/
 
+# Docs site (zensical build output)
+/site/
+
+# Python (zensical via uv)
+/.venv/
+
+# Coverage (make test)
+coverage/
+
 # Node tooling
 node_modules/
 
 # Claude Plans
 .claude/plans/
+.claude/*.md
+settings.local.json

@@ -2,3 +2,9 @@
 node_modules/**
 .claude/**
 docs/**
+dist/**
+coverage/**
+.venv/**
+site/**
+
+commit.sh

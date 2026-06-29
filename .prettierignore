@@ -1,7 +1,15 @@
 # Generated output — byte-stability matters more than style.
 docs/cli/
+docs/man/
 package-lock.json
 dist/
 AGENTS.md
 CLAUDE.md
 .claude/
+
+# goreleaser config carries Go templates and a Ruby cask hook prettier mangles
+.goreleaser.yaml
+
+# release-please writes both; its release PRs must not trip the format gate
+CHANGELOG.md
+.release-please-manifest.json
