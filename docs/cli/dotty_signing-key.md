@@ -39,6 +39,7 @@ and need no touch per signature.
 * [dotty signing-key authorize](dotty_signing-key_authorize.md)	 - Authorize a signing key for SSH login on a remote host.
 * [dotty signing-key get](dotty_signing-key_get.md)	 - Print a signing key's stub and public key.
 * [dotty signing-key import](dotty_signing-key_import.md)	 - Import existing SSH signing-key stubs that match a connected security key.
+* [dotty signing-key link](dotty_signing-key_link.md)	 - Symlink a stable path at the plugged-in key's stub, for ssh.
 * [dotty signing-key list](dotty_signing-key_list.md)	 - List the signing keys on plugged-in security keys.
 * [dotty signing-key new](dotty_signing-key_new.md)	 - Create a resident SSH signing key on a security key.
 * [dotty signing-key sign](dotty_signing-key_sign.md)	 - Sign a payload with a signing key (ssh-keygen proxy).
