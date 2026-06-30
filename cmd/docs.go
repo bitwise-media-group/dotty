@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
@@ -18,6 +19,11 @@ type DocsFlags struct {
 }
 
 var docsFlags = DocsFlags{}
+
+// manDate pins the man-page .TH date so generation is byte-for-byte
+// reproducible. Cobra otherwise stamps time.Now(), churning every page's date
+// header on each regeneration. Bump this on a meaningful documentation revision.
+var manDate = time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
 
 // docsCmd regenerates the committed CLI reference. It lives as a hidden
 // command (rather than the usual standalone docgen helper) because the flat
@@ -35,7 +41,7 @@ var docsCmd = &cobra.Command{
 		case "markdown":
 			return doc.GenMarkdownTree(rootCmd, docsFlags.Out)
 		case "man":
-			return doc.GenManTree(rootCmd, &doc.GenManHeader{Title: "DOTTY", Section: "1"}, docsFlags.Out)
+			return doc.GenManTree(rootCmd, &doc.GenManHeader{Title: "DOTTY", Section: "1", Date: &manDate}, docsFlags.Out)
 		case "rest":
 			return doc.GenReSTTree(rootCmd, docsFlags.Out)
 		default:
