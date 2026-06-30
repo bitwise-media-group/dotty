@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/sahilm/fuzzy"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
@@ -109,7 +109,7 @@ func (m tableModel) Init() tea.Cmd { return nil }
 // Update implements tea.Model: typing filters, arrows navigate, enter
 // selects, esc cancels.
 func (m tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
 	}
@@ -135,8 +135,8 @@ func (m tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.refilter()
 		}
 	default:
-		if key.Type == tea.KeyRunes {
-			m.filter += string(key.Runes)
+		if key.Text != "" {
+			m.filter += key.Text
 			m.refilter()
 		}
 	}
@@ -144,9 +144,9 @@ func (m tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model.
-func (m tableModel) View() string {
+func (m tableModel) View() tea.View {
 	if m.accepted {
-		return ""
+		return tea.NewView("")
 	}
 	widths := columnWidths(m.headers, m.rows)
 	var b strings.Builder
@@ -173,7 +173,7 @@ func (m tableModel) View() string {
 		b.WriteString(treeDimStyle.Render("    no matches\n"))
 	}
 	b.WriteString(treeDimStyle.Render("\n  type to filter · enter select · esc quit\n"))
-	return b.String()
+	return tea.NewView(b.String())
 }
 
 func columnWidths(headers []string, rows []TableRow) []int {

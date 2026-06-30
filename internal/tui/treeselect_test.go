@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func testNodes() []TreeNode {
@@ -20,22 +20,22 @@ func testNodes() []TreeNode {
 
 func press(m treeModel, keys ...string) treeModel {
 	for _, k := range keys {
-		var msg tea.KeyMsg
+		var msg tea.KeyPressMsg
 		switch k {
 		case "space":
-			msg = tea.KeyMsg{Type: tea.KeySpace, Runes: []rune(" ")}
+			msg = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 		case "enter":
-			msg = tea.KeyMsg{Type: tea.KeyEnter}
+			msg = tea.KeyPressMsg{Code: tea.KeyEnter}
 		case "esc":
-			msg = tea.KeyMsg{Type: tea.KeyEsc}
+			msg = tea.KeyPressMsg{Code: tea.KeyEsc}
 		case "backspace":
-			msg = tea.KeyMsg{Type: tea.KeyBackspace}
+			msg = tea.KeyPressMsg{Code: tea.KeyBackspace}
 		default:
 			if len(k) == 1 {
-				msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
+				msg = tea.KeyPressMsg{Code: []rune(k)[0], Text: k}
 			} else {
-				t := map[string]tea.KeyType{"up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft, "right": tea.KeyRight}[k]
-				msg = tea.KeyMsg{Type: t}
+				code := map[string]rune{"up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft, "right": tea.KeyRight}[k]
+				msg = tea.KeyPressMsg{Code: code}
 			}
 		}
 		next, _ := m.Update(msg)
@@ -128,7 +128,7 @@ func TestTreeModelAcceptAndAbort(t *testing.T) {
 }
 
 func TestTreeModelView(t *testing.T) {
-	view := newTreeModel("Remove which aliases?", testNodes()).View()
+	view := newTreeModel("Remove which aliases?", testNodes()).View().Content
 	for _, want := range []string{"Remove which aliases?", "111", "work — main", "[ ]"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q:\n%s", want, view)

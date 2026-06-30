@@ -7,22 +7,27 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
 )
 
 // Theme returns the huh theme every dotty form uses, so prompts look the same
-// across commands.
-func Theme() *huh.Theme {
-	return huh.ThemeCharm()
+// across commands. ThemeFunc lets huh resolve the light/dark variants against
+// the terminal background it detects when the form runs.
+func Theme() huh.Theme {
+	return huh.ThemeFunc(huh.ThemeCharm)
 }
 
+// lipgloss v2 dropped AdaptiveColor, so these accent colours are the dark-
+// background variants of the former pairs. huh's own forms stay adaptive via
+// Theme above; these only style the standalone notices and custom prompts,
+// which are dark-terminal oriented.
 var (
-	successStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#02BA84", Dark: "#02BF87"}).Bold(true)
-	infoStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"})
-	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#FF6F00", Dark: "#FFB454"}).Bold(true)
+	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#02BF87")).Bold(true)
+	infoStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#7571F9"))
+	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB454")).Bold(true)
 )
 
 // Successf prints a styled success notice to ErrOut.

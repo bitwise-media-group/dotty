@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/sahilm/fuzzy"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
@@ -69,7 +69,7 @@ type treeModel struct {
 var (
 	treeTitleStyle  = lipgloss.NewStyle().Bold(true)
 	treeNodeStyle   = lipgloss.NewStyle().Bold(true)
-	treeCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7571F9"})
+	treeCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#7571F9"))
 	treeDimStyle    = lipgloss.NewStyle().Faint(true)
 )
 
@@ -129,7 +129,7 @@ func (m treeModel) Init() tea.Cmd { return nil }
 // Update implements tea.Model: navigation, collapse/expand, selection
 // toggling, filtering, accept, and abort.
 func (m treeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
+	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
 	}
@@ -151,8 +151,8 @@ func (m treeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.aborted = true
 			return m, tea.Quit
 		default:
-			if key.Type == tea.KeyRunes {
-				m.filter += string(key.Runes)
+			if key.Text != "" {
+				m.filter += key.Text
 				m.rebuildRows()
 			}
 		}
@@ -178,7 +178,7 @@ func (m treeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.collapseAtCursor()
 	case "right", "l":
 		m.expandAtCursor()
-	case " ":
+	case "space":
 		m.toggleAtCursor()
 	case "/":
 		m.filtering = true
@@ -253,9 +253,9 @@ func (m treeModel) selectedValues() []string {
 }
 
 // View implements tea.Model.
-func (m treeModel) View() string {
+func (m treeModel) View() tea.View {
 	if m.accepted || m.aborted {
-		return ""
+		return tea.NewView("")
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n  %s\n", treeTitleStyle.Render(m.title))
@@ -283,5 +283,5 @@ func (m treeModel) View() string {
 		fmt.Fprintf(&b, "  %s  %s %s\n", cursor, check, leaf.Label)
 	}
 	b.WriteString(treeDimStyle.Render("\n  space toggle · h/l collapse/expand · / filter · enter accept · esc cancel\n"))
-	return b.String()
+	return tea.NewView(b.String())
 }

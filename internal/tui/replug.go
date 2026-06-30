@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
 )
@@ -61,7 +61,7 @@ func (m pollModel) tick() tea.Cmd {
 // down the timeout.
 func (m pollModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c", "q":
 			m.result = ErrAborted
@@ -93,9 +93,9 @@ func (m pollModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the spinner line and hint.
-func (m pollModel) View() string {
+func (m pollModel) View() tea.View {
 	if m.done {
-		return ""
+		return tea.NewView("")
 	}
-	return fmt.Sprintf("\n  %s %s\n  %s\n", m.spinner.View(), m.title, infoStyle.Render(m.hint))
+	return tea.NewView(fmt.Sprintf("\n  %s %s\n  %s\n", m.spinner.View(), m.title, infoStyle.Render(m.hint)))
 }
