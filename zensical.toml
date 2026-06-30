@@ -20,6 +20,7 @@ extra_css = ["stylesheets/extra.css"]
 
 nav = [
   { "Home" = "index.md" },
+  { "Install" = "install.md" },
   { "CLI reference" = "cli/dotty.md" },
 ]
 

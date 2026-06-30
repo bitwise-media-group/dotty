@@ -46,10 +46,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                 </div>
                 <div class="dt-copy">
                     <span class="dt-p">$</span>
-                    <code
-                        >go install
-                        github.com/bitwise-media-group/dotty/cmd@latest</code
-                    >
+                    <code>brew install bitwise-media-group/tap/dotty</code>
                     <div class="md-code__nav">
                         <button
                             class="md-code__button"
@@ -382,7 +379,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                     Every command is
                     <code>dotty &lt;noun&gt; &lt;verb&gt;</code>. No services,
                     no daemons — terminal-native, install once with
-                    <code>go install</code>.
+                    <code>brew</code>.
                 </p>
             </div>
         </div>
@@ -497,16 +494,28 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                     <div class="dt-step__num">01</div>
                     <h3>Install</h3>
                     <p>
-                        go install, or download an archive from the releases
-                        page.
+                        Install the Homebrew cask — it carries the binary, man
+                        pages and completions.
                     </p>
+                    <a class="dt-step__alt" href="{{ 'install/' | url }}"
+                        >Alternative methods
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M5 12h14" />
+                            <path d="m12 5 7 7-7 7" />
+                        </svg>
+                    </a>
                 </div>
                 <div class="dt-cmd">
                     <span class="dt-p">$</span>
-                    <code
-                        >go install
-                        github.com/bitwise-media-group/dotty/cmd@latest</code
-                    >
+                    <code>brew install bitwise-media-group/tap/dotty</code>
                     <div class="md-code__nav">
                         <button
                             class="md-code__button"

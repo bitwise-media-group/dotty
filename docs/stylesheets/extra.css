@@ -931,6 +931,25 @@
     line-height: 1.6;
     color: var(--dt-muted);
 }
+/* "Alternative methods →" link in the Install step, pointing at install.md. */
+.dt-step__alt {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    color: var(--dt-yellow);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.dt-step__alt svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.15s ease;
+}
+.dt-step__alt:hover svg {
+    transform: translateX(3px);
+}
 .dt-cmd {
     position: relative;
     display: flex;
