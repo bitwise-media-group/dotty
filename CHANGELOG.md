@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.1](https://github.com/bitwise-media-group/dotty/compare/v0.1.0...v0.1.1) (2026-07-01)
+
+
+### Features
+
+* **signing-key:** add import command for existing key stubs ([2f2ed30](https://github.com/bitwise-media-group/dotty/commit/2f2ed30cca45a00790340164629887e849e4228f))
+* **signing-key:** add link verb to select the plugged-in key for ssh ([246421c](https://github.com/bitwise-media-group/dotty/commit/246421cc0ca637e52ae61a1a0454ea63149dff2c))
+* **signing-key:** authorize a key on a remote host's authorized_keys ([d917296](https://github.com/bitwise-media-group/dotty/commit/d917296dc2dac0720e7933ec1e833fca560af475))
+* **signing-key:** cache the YubiKey PIN in the macOS keychain ([248d1f6](https://github.com/bitwise-media-group/dotty/commit/248d1f6f820f613806c3fdce1b59a9ab7e6e6ce0))
+
+
+### Bug Fixes
+
+* **docs:** pin man-page .TH date for reproducible generation ([56586a8](https://github.com/bitwise-media-group/dotty/commit/56586a83387f51274a6d8d47ed51fcb6dec22c2c))
+
 ## 0.1.0 (2026-06-29)
 
 
