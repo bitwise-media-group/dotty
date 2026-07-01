@@ -35,6 +35,7 @@ func TreeMultiSelect(ios cli.IOStreams, title string, nodes []TreeNode) ([]strin
 		return nil, ErrNotInteractive
 	}
 	m := newTreeModel(title, nodes)
+	m.hasDarkBg = detectDark(ios)
 	p := tea.NewProgram(m, tea.WithInput(ios.In), tea.WithOutput(ios.ErrOut))
 	final, err := p.Run()
 	if err != nil {
@@ -64,13 +65,16 @@ type treeModel struct {
 	filtering bool
 	accepted  bool
 	aborted   bool
+	hasDarkBg bool // terminal background, for the ink-accent cursor/checks
 }
 
+// These carry no accent colour, so they're background-independent. The cursor
+// and check glyphs are the ink accent, resolved per render from hasDarkBg via
+// accentStyle.
 var (
-	treeTitleStyle  = lipgloss.NewStyle().Bold(true)
-	treeNodeStyle   = lipgloss.NewStyle().Bold(true)
-	treeCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#7571F9"))
-	treeDimStyle    = lipgloss.NewStyle().Faint(true)
+	treeTitleStyle = lipgloss.NewStyle().Bold(true)
+	treeNodeStyle  = lipgloss.NewStyle().Bold(true)
+	treeDimStyle   = lipgloss.NewStyle().Faint(true)
 )
 
 func newTreeModel(title string, nodes []TreeNode) treeModel {
@@ -79,6 +83,7 @@ func newTreeModel(title string, nodes []TreeNode) treeModel {
 		nodes:     nodes,
 		collapsed: map[int]bool{},
 		selected:  map[string]bool{},
+		hasDarkBg: true, // default to dotty's dark surface until detected
 	}
 	m.rebuildRows()
 	return m
@@ -258,6 +263,7 @@ func (m treeModel) View() tea.View {
 		return tea.NewView("")
 	}
 	var b strings.Builder
+	accent := accentStyle(m.hasDarkBg)
 	fmt.Fprintf(&b, "\n  %s\n", treeTitleStyle.Render(m.title))
 	if m.filtering || m.filter != "" {
 		fmt.Fprintf(&b, "  / %s\n", m.filter)
@@ -265,7 +271,7 @@ func (m treeModel) View() tea.View {
 	for i, row := range m.rows {
 		cursor := "  "
 		if i == m.cursor {
-			cursor = treeCursorStyle.Render("❯ ")
+			cursor = accent.Render("❯ ")
 		}
 		if row.leaf == -1 {
 			marker := "▾"
@@ -278,7 +284,7 @@ func (m treeModel) View() tea.View {
 		leaf := m.nodes[row.node].Leaves[row.leaf]
 		check := "[ ]"
 		if m.selected[leaf.Value] {
-			check = treeCursorStyle.Render("[x]")
+			check = accent.Render("[x]")
 		}
 		fmt.Fprintf(&b, "  %s  %s %s\n", cursor, check, leaf.Label)
 	}

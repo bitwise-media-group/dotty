@@ -101,7 +101,7 @@ func runForm(ios cli.IOStreams, field huh.Field) error {
 		return ErrNotInteractive
 	}
 	form := huh.NewForm(huh.NewGroup(field)).
-		WithTheme(Theme()).
+		WithTheme(Theme(detectDark(ios))).
 		WithInput(ios.In).
 		WithOutput(ios.ErrOut)
 	if err := form.Run(); err != nil {
