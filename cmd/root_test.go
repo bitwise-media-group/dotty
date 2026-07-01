@@ -58,7 +58,8 @@ func TestFlagBeforeVerb(t *testing.T) {
 
 // TestDispatchArgs pins the SSH-entry argv rewrites: gpg.ssh.program may be the
 // dotty binary itself (git passes -Y first) or a dotty-ssh-sign symlink, and an
-// $SSH_ASKPASS invocation is recognized by the DOTTY_ASKPASS sentinel.
+// $SSH_ASKPASS invocation is recognized by a dotty-ssh-askpass symlink or the
+// DOTTY_ASKPASS sentinel.
 func TestDispatchArgs(t *testing.T) {
 	noEnv := func(string) string { return "" }
 	askPassEnv := func(k string) string {
@@ -95,6 +96,14 @@ func TestDispatchArgs(t *testing.T) {
 			name:   "askpass invocation rewritten by sentinel",
 			argv:   []string{"/usr/local/bin/dotty", "Enter PIN for ED25519-SK key: "},
 			getenv: askPassEnv,
+			want:   []string{"signing-key", "ask-pass", "Enter PIN for ED25519-SK key: "},
+		},
+		{
+			// The shell points $SSH_ASKPASS at a dotty-ssh-askpass symlink, so the
+			// basename alone must route to ask-pass with no sentinel in the env.
+			name:   "askpass symlink rewritten by basename",
+			argv:   []string{"/Users/x/.local/share/scripts/dotty-ssh-askpass", "Enter PIN for ED25519-SK key: "},
+			getenv: noEnv,
 			want:   []string{"signing-key", "ask-pass", "Enter PIN for ED25519-SK key: "},
 		},
 		{

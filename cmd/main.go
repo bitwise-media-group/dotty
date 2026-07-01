@@ -81,15 +81,17 @@ func main() {
 }
 
 // dispatchArgs rewrites the argv for the SSH entry points that exec a single
-// program with no shell and so cannot name a subcommand. When dotty is invoked
-// as $SSH_ASKPASS it carries DOTTY_ASKPASS=1 (a PIN prompt argument can't
-// otherwise be told from a mistyped command), routing to `signing-key ask-pass`.
+// program with no shell and so cannot name a subcommand. It routes to
+// `signing-key ask-pass` when dotty is the $SSH_ASKPASS program — recognised
+// either by a dotty-ssh-askpass symlink (how the shell points OpenSSH at it) or
+// by the DOTTY_ASKPASS=1 sentinel `signing-key sign` sets for its own child (a
+// bare PIN prompt argument can't otherwise be told from a mistyped command).
 // Otherwise gpg.ssh.program is either the dotty binary (git always passes -Y
 // first) or a dotty-ssh-sign symlink, routing to `signing-key sign`.
 func dispatchArgs(argv []string, getenv func(string) string) []string {
 	rest := argv[1:]
 	switch {
-	case getenv(signingkey.AskPassEnv) == "1":
+	case getenv(signingkey.AskPassEnv) == "1" || filepath.Base(argv[0]) == "dotty-ssh-askpass":
 		return append([]string{"signing-key", "ask-pass"}, rest...)
 	case filepath.Base(argv[0]) == "dotty-ssh-sign" || (len(rest) > 0 && rest[0] == "-Y"):
 		return append([]string{"signing-key", "sign"}, rest...)
