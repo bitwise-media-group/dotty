@@ -30,6 +30,7 @@ func FilterTable(
 		return "", false, ErrNotInteractive
 	}
 	m := newTableModel(title, headers, rows)
+	m.hasDarkBg = detectDark(ios)
 	p := tea.NewProgram(m, tea.WithInput(ios.In), tea.WithOutput(ios.ErrOut))
 	final, err := p.Run()
 	if err != nil {
@@ -65,18 +66,19 @@ func RenderTable(headers []string, rows []TableRow) string {
 }
 
 type tableModel struct {
-	title    string
-	headers  []string
-	rows     []TableRow
-	haystack []string // concatenated cells per row, for filtering
-	visible  []int    // indexes into rows, post-filter
-	cursor   int
-	filter   string
-	accepted bool
+	title     string
+	headers   []string
+	rows      []TableRow
+	haystack  []string // concatenated cells per row, for filtering
+	visible   []int    // indexes into rows, post-filter
+	cursor    int
+	filter    string
+	accepted  bool
+	hasDarkBg bool // terminal background, for the ink-accent cursor
 }
 
 func newTableModel(title string, headers []string, rows []TableRow) tableModel {
-	m := tableModel{title: title, headers: headers, rows: rows}
+	m := tableModel{title: title, headers: headers, rows: rows, hasDarkBg: true}
 	m.haystack = make([]string, len(rows))
 	for i, row := range rows {
 		m.haystack[i] = strings.Join(row.Cells, " ")
@@ -149,6 +151,7 @@ func (m tableModel) View() tea.View {
 		return tea.NewView("")
 	}
 	widths := columnWidths(m.headers, m.rows)
+	accent := accentStyle(m.hasDarkBg)
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n  %s\n", treeTitleStyle.Render(m.title))
 	fmt.Fprintf(&b, "  filter: %s\n\n", m.filter)
@@ -161,7 +164,7 @@ func (m tableModel) View() tea.View {
 	for vi, ri := range m.visible {
 		cursor := "  "
 		if vi == m.cursor {
-			cursor = treeCursorStyle.Render("❯ ")
+			cursor = accent.Render("❯ ")
 		}
 		fmt.Fprintf(&b, "  %s", cursor)
 		for i, cell := range m.rows[ri].Cells {
