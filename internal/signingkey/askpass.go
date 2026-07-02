@@ -28,7 +28,12 @@ type assuanRunner interface {
 // (from $DOTTY_SSH_KEYINFO) and read the file probe resolveKeyInfo uses to
 // fingerprint the key file a client-auth prompt names — together they identify
 // the key so pinentry can cache its PIN in the macOS keychain.
-func AskPassReply(ctx context.Context, r assuanRunner, prompt, keyinfo string, read func(string) ([]byte, error)) string {
+func AskPassReply(
+	ctx context.Context,
+	r assuanRunner,
+	prompt, keyinfo string,
+	read func(string) ([]byte, error),
+) string {
 	// FIDO2 user-presence: ssh only needs a non-error reply, not a PIN.
 	if strings.HasPrefix(prompt, "Confirm user presence") {
 		return ""
