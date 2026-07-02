@@ -72,8 +72,7 @@ func main() {
 	rootCmd.SetArgs(dispatchArgs(os.Args, os.Getenv))
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "dotty: %v\n", err)
-		var exitErr *cli.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*cli.ExitError](err); ok {
 			os.Exit(exitErr.Code) // proxied child's code; git inspects it
 		}
 		os.Exit(1)
@@ -81,17 +80,22 @@ func main() {
 }
 
 // dispatchArgs rewrites the argv for the SSH entry points that exec a single
-// program with no shell and so cannot name a subcommand. When dotty is invoked
-// as $SSH_ASKPASS it carries DOTTY_ASKPASS=1 (a PIN prompt argument can't
-// otherwise be told from a mistyped command), routing to `signing-key ask-pass`.
+// program with no shell and so cannot name a subcommand. A PIN prompt argument
+// can't be told apart from a mistyped command, so an $SSH_ASKPASS invocation is
+// recognized two ways, either routing to `signing-key ask-pass`: the
+// DOTTY_ASKPASS=1 sentinel dotty's own sign path sets on its ssh-keygen child,
+// or a dotty-ssh-askpass argv[0] — the basename a globally-exported SSH_ASKPASS
+// points at, so every OpenSSH PIN prompt routes here, including the ssh-keygen
+// that `signing-key new` and import spawn (which inherits no sentinel).
 // Otherwise gpg.ssh.program is either the dotty binary (git always passes -Y
 // first) or a dotty-ssh-sign symlink, routing to `signing-key sign`.
 func dispatchArgs(argv []string, getenv func(string) string) []string {
 	rest := argv[1:]
+	base := filepath.Base(argv[0])
 	switch {
-	case getenv(signingkey.AskPassEnv) == "1":
+	case getenv(signingkey.AskPassEnv) == "1" || base == "dotty-ssh-askpass":
 		return append([]string{"signing-key", "ask-pass"}, rest...)
-	case filepath.Base(argv[0]) == "dotty-ssh-sign" || (len(rest) > 0 && rest[0] == "-Y"):
+	case base == "dotty-ssh-sign" || (len(rest) > 0 && rest[0] == "-Y"):
 		return append([]string{"signing-key", "sign"}, rest...)
 	}
 	return rest

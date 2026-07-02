@@ -102,6 +102,8 @@ build: ## build the binary (./$(APP)) with version ldflags
 .PHONY: link
 link: build ## links the local build
 	@ ln -fs $(CURDIR)/$(APP) /usr/local/bin
+	@ mkdir -p ~/.local/share/dotty
+	@ ln -fs $(CURDIR)/$(APP) ~/.local/share/dotty/dotty-ssh-askpass
 
 .PHONY: run
 run: build ## build and run locally (override args via ARGS=...)

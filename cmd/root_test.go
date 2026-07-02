@@ -98,6 +98,23 @@ func TestDispatchArgs(t *testing.T) {
 			want:   []string{"signing-key", "ask-pass", "Enter PIN for ED25519-SK key: "},
 		},
 		{
+			// A globally-exported SSH_ASKPASS points ssh-keygen at the
+			// dotty-ssh-askpass symlink; the basename routes it here even without
+			// the sentinel, which the `new`/`import` ssh-keygen child never carries.
+			name:   "askpass shim basename rewritten without sentinel",
+			argv:   []string{"/Users/x/.local/share/scripts/dotty-ssh-askpass", "Enter PIN for authenticator: "},
+			getenv: noEnv,
+			want:   []string{"signing-key", "ask-pass", "Enter PIN for authenticator: "},
+		},
+		{
+			// The shim basename wins over the -Y sign heuristic: a PIN prompt that
+			// happens to begin with -Y must still reach ask-pass, not sign.
+			name:   "askpass shim wins over a -Y-looking prompt",
+			argv:   []string{"/Users/x/.local/share/scripts/dotty-ssh-askpass", "-Y is a prompt here"},
+			getenv: noEnv,
+			want:   []string{"signing-key", "ask-pass", "-Y is a prompt here"},
+		},
+		{
 			name: "askpass sentinel wins over a prompt that looks like a shim",
 			argv: []string{"/Users/x/.local/bin/dotty-ssh-sign", "-Y is not a sign request here"},
 			// A PIN prompt reaching the dotty-ssh-sign path must still go to
