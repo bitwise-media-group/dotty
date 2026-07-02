@@ -13,9 +13,12 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/signingkey"
 )
 
-// signingKeyAskPassCmd is the $SSH_ASKPASS bridge `signing-key sign` points
-// ssh-keygen at. It is invoked as `dotty <prompt>` with DOTTY_ASKPASS=1 set, so
-// the argv dispatcher routes it here; it is never run by hand, hence hidden.
+// signingKeyAskPassCmd is the $SSH_ASKPASS bridge that turns an OpenSSH FIDO PIN
+// prompt into a pinentry-mac dialog. dotty's own sign path points ssh-keygen at
+// it with the DOTTY_ASKPASS=1 sentinel; a globally-exported
+// SSH_ASKPASS=<dir>/dotty-ssh-askpass routes every other PIN prompt here by
+// argv[0] basename. Either way the argv dispatcher rewrites the call, so it is
+// never run by hand, hence hidden.
 var signingKeyAskPassCmd = &cobra.Command{
 	Use:    "ask-pass [prompt]",
 	Short:  "Bridge OpenSSH PIN prompts to pinentry-mac (internal).",
@@ -29,7 +32,7 @@ var signingKeyAskPassCmd = &cobra.Command{
 		if len(args) > 0 {
 			prompt = args[0]
 		}
-		reply := signingkey.AskPassReply(cmd.Context(), newRunner(ios), prompt, os.Getenv(signingkey.KeyInfoEnv))
+		reply := signingkey.AskPassReply(cmd.Context(), newRunner(ios), prompt, os.Getenv(signingkey.KeyInfoEnv), os.ReadFile)
 		_, _ = fmt.Fprintln(ios.Out, reply)
 		return nil
 	},
