@@ -223,9 +223,9 @@ dotty signing-key sign [--security-key=[<serial-number>|<name>]] [--username=<us
 
 Command: trust
 
-Append the signing keys on the currently plugged-in security keys to the
-OpenSSH allowed_signers file, so git can verify the commits and tags they sign.
-Each entry pairs the committer email (`git config user.email`) with the key's
+Append the signing keys on the currently plugged-in security keys to the OpenSSH
+allowed_signers file, so git can verify the commits and tags they sign. Each
+entry pairs the committer email (`git config user.email`) with the key's
 algorithm and blob. The file is `gpg.ssh.allowedSignersFile` from git config,
 falling back to `~/.ssh/allowed_signers`; existing entries are preserved and a
 key already trusted for that email is left alone, so it is safe to re-run. The
