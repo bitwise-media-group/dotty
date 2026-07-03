@@ -1,13 +1,26 @@
 /* ============================================================
-   dotty docs — yellow-on-warm-near-black theme for Zensical / Material
-   Sub-brand tokens: design-system/tokens/themes.css (.theme-dotty)
-   Single confident yellow (#F5C518) on warm near-black, JetBrains Mono,
-   sharp 4–6px corners, connected (shared-border) grids.
-   Dark  -> Material "slate" scheme
-   Light -> Material "default" scheme
+   dotty docs — dotty theme for Zensical / Material
+   Sub-brand tokens: design-system/tokens/themes.css
+   (.theme-dotty dark / .theme-dotty-light warm paper)
+   Single confident yellow (#F5C518), JetBrains Mono, sharp 4–6px
+   corners, connected (shared-border) grids.
+   Dark  -> Material "slate"   scheme (warm near-black)
+   Light -> Material "default" scheme (warm paper)
+
+   Accent split, per the design system:
+   - The YELLOW RAMP (--dt-yellow/-2/--dt-amber/--dt-butter) is a
+     FILL colour (buttons, dots, icon tiles, the header underline).
+     It stays bright in BOTH modes; dark --dt-on-accent text always
+     sits on it.
+   - Accent used as TEXT/strokes is --dt-ink (= --dotty-ink-accent),
+     which equals the yellow in dark mode but drops to a deep amber
+     in light mode where bright yellow is illegible on paper.
+   Terminal depths: --dt-code is the title/footer bars + command
+   rows (= --dotty-code-2), --dt-code-2 the recessed terminal
+   bodies (= --dotty-code).
    ============================================================ */
 
-/* ---------- DARK (slate) ---------- */
+/* ---------- DARK (slate) — warm near-black (.theme-dotty) ---------- */
 [data-md-color-scheme="slate"] {
     --md-default-bg-color: #15140f;
     --md-default-bg-color--light: #1f1d15;
@@ -41,11 +54,13 @@
     --md-footer-bg-color: #100f0b;
     --md-footer-bg-color--dark: #0c0b08;
 
-    /* dotty brand ramp */
+    /* dotty brand ramp — bright fills; ink = yellow on near-black */
     --dt-yellow: #f5c518;
     --dt-yellow-2: #ffd740;
     --dt-amber: #e0a800;
     --dt-butter: #f0dc93;
+    --dt-ink: #f5c518;
+    --dt-on-accent: #15140f;
     --dt-bg: #15140f;
     --dt-surface: #1f1d15;
     --dt-code: #100f0b;
@@ -55,54 +70,67 @@
     --dt-grey: #6e6749;
     --dt-line: #34301f;
     --dt-line-2: #45402b;
-    --dt-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+    --dt-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    --dt-shadow-strong: 0 28px 70px rgba(0, 0, 0, 0.55);
 }
 
-/* ---------- LIGHT (default) ---------- */
+/* ---------- LIGHT (default) — warm paper, near-white cards, sunken
+   cream terminals (.theme-dotty-light) ---------- */
 [data-md-color-scheme="default"] {
-    --md-default-bg-color: #fbfaf4;
-    --md-default-fg-color: #1b1a12;
-    --md-default-fg-color--light: #44402e;
-    --md-default-fg-color--lighter: #6e674c;
-    --md-default-fg-color--lightest: rgba(27, 26, 18, 0.1);
+    --md-default-bg-color: #fbf8ed;
+    --md-default-fg-color: #211e14;
+    --md-default-fg-color--light: #6f6748;
+    --md-default-fg-color--lighter: #847b58;
+    --md-default-fg-color--lightest: rgba(33, 30, 20, 0.08);
 
-    --md-primary-fg-color: #fbfaf4;
-    --md-primary-fg-color--light: #f3efe2;
-    --md-primary-fg-color--dark: #eee9d8;
-    --md-primary-bg-color: #1b1a12;
-    --md-primary-bg-color--light: #44402e;
+    --md-primary-fg-color: #fbf8ed;
+    --md-primary-fg-color--light: #f7f2e4;
+    --md-primary-fg-color--dark: #f3eedf;
+    --md-primary-bg-color: #211e14;
+    --md-primary-bg-color--light: #6f6748;
 
-    --md-accent-fg-color: #8a6b00;
-    --md-accent-fg-color--transparent: rgba(138, 107, 0, 0.1);
-    --md-typeset-a-color: #8a6b00;
+    --md-accent-fg-color: #7e6100;
+    --md-accent-fg-color--transparent: rgba(126, 97, 0, 0.1);
+    --md-typeset-a-color: #7e6100;
 
-    --md-code-bg-color: #f3efe2;
-    --md-code-fg-color: #1b1a12;
-    --md-code-hl-comment-color: #87805f;
-    --md-code-hl-keyword-color: #9a6a00;
+    --md-code-bg-color: #f3eedf;
+    --md-code-fg-color: #211e14;
+    --md-code-hl-comment-color: #847b58;
+    --md-code-hl-keyword-color: #7e6100;
     --md-code-hl-string-color: #6f6100;
     --md-code-hl-number-color: #a85a00;
-    --md-code-hl-function-color: #8a6b00;
+    --md-code-hl-function-color: #9a6a00;
     --md-code-hl-constant-color: #74510a;
-    --md-code-hl-operator-color: #8a6b00;
+    --md-code-hl-name-color: #211e14;
+    --md-code-hl-operator-color: #7e6100;
+    --md-code-hl-punctuation-color: #847b58;
 
-    --md-footer-bg-color: #15140f;
-    --md-footer-bg-color--dark: #100f0b;
+    /* footer follows the paper canvas (the kit's footer is the page
+       surface + a hairline), so the footer fg ramp flips to ink */
+    --md-footer-bg-color: #fbf8ed;
+    --md-footer-bg-color--dark: #f3eedf;
+    --md-footer-fg-color: #211e14;
+    --md-footer-fg-color--light: #6f6748;
+    --md-footer-fg-color--lighter: #847b58;
 
-    --dt-yellow: #b8860b;
-    --dt-yellow-2: #9a6a00;
-    --dt-amber: #a85a00;
-    --dt-butter: #74510a;
-    --dt-bg: #fbfaf4;
-    --dt-surface: #f3efe2;
-    --dt-code: #f3efe2;
-    --dt-code-2: #efe9d8;
-    --dt-fg: #1b1a12;
-    --dt-muted: #6e674c;
-    --dt-grey: #87805f;
-    --dt-line: rgba(27, 26, 18, 0.12);
-    --dt-line-2: rgba(27, 26, 18, 0.2);
-    --dt-shadow: 0 24px 60px rgba(27, 26, 18, 0.16);
+    /* dotty brand ramp — same bright fills as dark; only ink drops */
+    --dt-yellow: #f5c518;
+    --dt-yellow-2: #ffd740;
+    --dt-amber: #e0a800;
+    --dt-butter: #f0dc93;
+    --dt-ink: #7e6100;
+    --dt-on-accent: #15140f;
+    --dt-bg: #fbf8ed;
+    --dt-surface: #fffdf7;
+    --dt-code: #f7f2e4;
+    --dt-code-2: #f3eedf;
+    --dt-fg: #211e14;
+    --dt-muted: #6f6748;
+    --dt-grey: #847b58;
+    --dt-line: #e6decb;
+    --dt-line-2: #d3c8a8;
+    --dt-shadow: 0 20px 50px rgba(83, 68, 20, 0.14);
+    --dt-shadow-strong: 0 28px 70px rgba(83, 68, 20, 0.2);
 }
 
 /* ===== Header: flat, with the dotty yellow underline ===== */
@@ -134,6 +162,12 @@
     letter-spacing: 0.2px;
 }
 
+/* Footer: hairline separation, like the kit's footer (the light footer
+   sits on the paper canvas, so the border is its only edge) */
+.md-footer {
+    border-top: 1px solid var(--dt-line);
+}
+
 /* Header / drawer wordmark: "dotty()" with yellow parens (partials/*.html) */
 .dt-headmark {
     font-family: var(
@@ -148,7 +182,7 @@
     color: var(--md-primary-bg-color, inherit);
 }
 .dt-headmark .dt-paren {
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-headmark:hover {
     opacity: 0.85;
@@ -172,25 +206,12 @@
 
 /* ============================================================
    LANDING PAGE  (.dt) — injected by overrides/home.html.
-   The landing is always the dark dotty canvas: it pins its own
-   brand tokens regardless of the active scheme (see the
-   body:has(.dt) block near the end for the surrounding chrome).
+   The landing reads the scheme-scoped --dt-* tokens (the two
+   blocks at the top of this file), so it follows the dark/light
+   toggle like the design-system kit: warm near-black in dark
+   mode, warm paper in light.
    ============================================================ */
 .dt {
-    --dt-yellow: #f5c518;
-    --dt-yellow-2: #ffd740;
-    --dt-amber: #e0a800;
-    --dt-butter: #f0dc93;
-    --dt-bg: #15140f;
-    --dt-surface: #1f1d15;
-    --dt-code: #100f0b;
-    --dt-code-2: #0e0d09;
-    --dt-fg: #f4efdd;
-    --dt-muted: #a39a77;
-    --dt-grey: #6e6749;
-    --dt-line: #34301f;
-    --dt-line-2: #45402b;
-    --dt-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
     --dt-mono: var(
         --md-code-font-family,
         "JetBrains Mono",
@@ -250,12 +271,12 @@
     background:
         radial-gradient(
             820px 380px at 78% -8%,
-            rgba(245, 197, 24, 0.14),
+            color-mix(in oklab, var(--dt-yellow) 14%, transparent),
             transparent
         ),
         radial-gradient(
             620px 360px at 8% 6%,
-            rgba(224, 168, 0, 0.08),
+            color-mix(in oklab, var(--dt-amber) 8%, transparent),
             transparent
         );
 }
@@ -275,9 +296,9 @@
     font-size: 12px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--dt-yellow);
-    border: 1px solid color-mix(in oklab, #f5c518 40%, transparent);
-    background: color-mix(in oklab, #f5c518 9%, transparent);
+    color: var(--dt-ink);
+    border: 1px solid color-mix(in oklab, var(--dt-yellow) 40%, transparent);
+    background: color-mix(in oklab, var(--dt-yellow) 9%, transparent);
     padding: 5px 12px;
     border-radius: 999px;
 }
@@ -305,7 +326,7 @@
     color: var(--dt-fg);
 }
 .dt-paren {
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 /* "alpha · early preview" — plain-text superscript next to the hero wordmark */
 .dt-alpha {
@@ -323,7 +344,7 @@
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-alpha i {
     font-size: 9px;
@@ -342,7 +363,7 @@
 }
 .dt-tagline em {
     font-style: normal;
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-lede {
     margin: 16px auto 0;
@@ -362,7 +383,7 @@
     background: var(--dt-surface);
     border: 1px solid var(--dt-line);
     border-radius: var(--dt-r);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--dt-shadow);
 }
 .dt-term__bar {
     display: flex;
@@ -397,7 +418,7 @@
 }
 .dt-term__bar span.dt-spacer {
     margin-left: auto;
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 
 /* a copyable command row ($ cmd  + copy button) */
@@ -411,7 +432,7 @@
     border-top: 1px solid var(--dt-line);
 }
 .dt-copy .dt-p {
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
     font-family: var(--dt-mono);
     font-size: 13.5px;
 }
@@ -446,7 +467,7 @@
 }
 .dt-btn--primary {
     background: var(--dt-yellow);
-    color: #15140f;
+    color: var(--dt-on-accent);
     font-weight: 700;
 }
 .dt-btn--primary:hover {
@@ -477,7 +498,7 @@
     border: 1px solid var(--dt-line);
     border-radius: 6px;
     overflow: hidden;
-    box-shadow: var(--dt-shadow);
+    box-shadow: var(--dt-shadow-strong);
 }
 .dt-shot__bar {
     display: flex;
@@ -499,7 +520,7 @@
 .dt-shot__bar .dt-live {
     margin-left: auto;
     font-size: 11px;
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-panes {
     display: grid;
@@ -524,7 +545,7 @@
 .dt-pane__head b {
     font-family: var(--dt-mono);
     font-size: 10px;
-    color: #15140f;
+    color: var(--dt-on-accent);
     background: var(--dt-yellow);
     border-radius: 3px;
     padding: 1px 5px;
@@ -551,14 +572,14 @@
     border-radius: 3px;
 }
 .dt-prow--active {
-    background: rgba(245, 197, 24, 0.1);
+    background: color-mix(in oklab, var(--dt-yellow) 10%, transparent);
 }
 .dt-prow .car {
     width: 8px;
     color: var(--dt-muted);
 }
 .dt-prow--active .car {
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-prow .nm {
     width: 64px;
@@ -575,7 +596,7 @@
     white-space: nowrap;
 }
 .dt-prow .st {
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-blink {
     display: inline-block;
@@ -587,7 +608,7 @@
     animation: dt-blink 1s steps(1) infinite;
 }
 .dt-ok {
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-dim {
     color: var(--dt-muted);
@@ -727,7 +748,7 @@
 .dt-lead code,
 .dt-lead--sm code {
     font-family: var(--dt-mono);
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
     font-size: 0.85em;
     background: none;
 }
@@ -770,7 +791,7 @@
     align-items: center;
     justify-content: center;
     margin-bottom: 14px;
-    color: #15140f;
+    color: var(--dt-on-accent);
 }
 .dt-glyph svg {
     width: 19px;
@@ -859,7 +880,7 @@
 .dt-cmdcard__bar svg {
     width: 14px;
     height: 14px;
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-cmdcard__bar span {
     font-family: var(--dt-mono);
@@ -876,7 +897,7 @@
     flex-wrap: wrap;
 }
 .dt-cmdrow + .dt-cmdrow {
-    border-top: 1px solid rgba(52, 48, 31, 0.5);
+    border-top: 1px solid color-mix(in oklab, var(--dt-line) 50%, transparent);
 }
 .dt-cmdrow code {
     font-family: var(--dt-mono);
@@ -886,7 +907,7 @@
     min-width: 320px;
 }
 .dt-cmdrow code .p {
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
 }
 .dt-cmdrow .cmt {
     font-family: var(--dt-mono);
@@ -916,7 +937,7 @@
 .dt-step__num {
     font-family: var(--dt-mono);
     font-size: 13px;
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
     margin-bottom: 12px;
 }
 .dt-step h3 {
@@ -937,7 +958,7 @@
     align-items: center;
     gap: 5px;
     margin-top: 10px;
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;
@@ -960,7 +981,7 @@
     background: var(--dt-code);
 }
 .dt-cmd .dt-p {
-    color: var(--dt-yellow);
+    color: var(--dt-ink);
     font-family: var(--dt-mono);
     font-size: 12.5px;
 }
@@ -1062,20 +1083,11 @@
 }
 
 /* ============================================================
-   HOME PAGE chrome — keep the whole page on the dark dotty canvas
-   regardless of the active light/dark scheme, and drop the empty
-   article that home.html leaves behind (the landing lives in the
-   `tabs` block above it).
+   HOME PAGE chrome — drop the empty article that home.html leaves
+   behind (the landing lives in the `tabs` block above it). The
+   surrounding chrome follows the active scheme like every other
+   page; the landing itself re-themes via the --dt-* tokens.
    ============================================================ */
-body:has(.dt) {
-    --md-default-bg-color: #15140f;
-    --md-default-fg-color: #f4efdd;
-    --md-primary-fg-color: #15140f;
-    --md-primary-bg-color: #f4efdd;
-    --md-footer-bg-color: #100f0b;
-    --md-footer-bg-color--dark: #0c0b08;
-    --md-typeset-a-color: #e6b400;
-}
 body:has(.dt) .md-content {
     display: none;
 }
