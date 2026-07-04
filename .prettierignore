@@ -13,3 +13,7 @@ CLAUDE.md
 # release-please writes both; its release PRs must not trip the format gate
 CHANGELOG.md
 .release-please-manifest.json
+
+# Shared Makefile library submodule (linted in its own repo) and on-demand tool bin
+make/
+.bin/

@@ -25,3 +25,5 @@ ignores:
     - "dist/**"
     - ".claude/**"
     - "CHANGELOG.md"
+    # Shared Makefile library submodule — linted in its own repo.
+    - "make/**"
