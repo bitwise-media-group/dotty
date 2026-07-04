@@ -24,11 +24,8 @@ permissions:
 
 jobs:
     ci:
+        # The default cache-dependency-path (go.sum) is the only lockfile that
+        # affects the build: the dev CLIs (golangci-lint, govulncheck, addlicense,
+        # gotestsum, gocover-cobertura) are pinned by the make/ submodule's
+        # .<tool>-version files, not a tools/go.sum.
         uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@d8af26d3bb0853bf11faab2c113d7dd9774ae516 # v4.3.0
-        with:
-            # Default is go.sum; list every lockfile that affects the build. `make
-            # lint`/`make test` run the tools/ CLIs (golangci-lint, govulncheck,
-            # addlicense, gotestsum, gocover-cobertura) pinned in tools/go.mod.
-            cache-dependency-path: |
-                go.sum
-                tools/go.sum
