@@ -34,4 +34,5 @@ signing keys that live on those keys (including git commit signing).
 * [dotty profile](dotty_profile.md)	 - Manage system profiles that travel across machines.
 * [dotty security-key](dotty_security-key.md)	 - Manage hardware security keys.
 * [dotty signing-key](dotty_signing-key.md)	 - Create and use SSH signing keys on hardware security keys.
+* [dotty tmux](dotty_tmux.md)	 - Tmux sessions for agent-driven development.
 
