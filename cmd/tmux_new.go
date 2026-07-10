@@ -114,7 +114,7 @@ func pickRepo(ios cli.IOStreams, query string) (string, error) {
 		}
 		options[i] = tui.Option{Label: label, Value: p}
 	}
-	selected, err := tui.Select(ios, "Start a session for which repository?", options)
+	selected, err := tui.FuzzySelect(ios, "Start a session for which repository?", options)
 	if errors.Is(err, tui.ErrAborted) {
 		return "", nil // esc backs out without starting anything
 	}
