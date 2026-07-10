@@ -26,6 +26,14 @@ type Option struct {
 	Value string
 }
 
+// maxPromptRows caps how many rows a picklist field renders. Without a cap
+// huh sizes the viewport to the full option count, so a long list repaints
+// hundreds of lines per frame and floods the terminal. Longer lists scroll
+// inside the viewport, and fuzzy filtering still searches every option, so
+// typing surfaces entries that have not rendered yet. Lists at or under the
+// cap keep huh's auto height (no blank padding rows).
+const maxPromptRows = 14
+
 // Confirm asks a yes/no question. description may be empty.
 func Confirm(ios cli.IOStreams, title, description string) (bool, error) {
 	var ok bool
@@ -67,12 +75,11 @@ func Password(ios cli.IOStreams, title string, validate func(string) error) (str
 // MultiSelect presents a fuzzy-filterable checklist and returns the Values of
 // the chosen options, in option order.
 func MultiSelect(ios cli.IOStreams, title string, options []Option) ([]string, error) {
-	huhOpts := make([]huh.Option[string], len(options))
-	for i, o := range options {
-		huhOpts[i] = huh.NewOption(o.Label, o.Value)
-	}
 	var values []string
-	field := huh.NewMultiSelect[string]().Title(title).Options(huhOpts...).Filterable(true).Value(&values)
+	field := huh.NewMultiSelect[string]().Title(title).Options(huhOptions(options)...).Filterable(true).Value(&values)
+	if len(options) > maxPromptRows {
+		field.Height(maxPromptRows)
+	}
 	if err := runForm(ios, field); err != nil {
 		return nil, err
 	}
@@ -82,16 +89,31 @@ func MultiSelect(ios cli.IOStreams, title string, options []Option) ([]string, e
 // Select presents a fuzzy-filterable picklist (huh filters on "/" and typing)
 // and returns the chosen option's Value.
 func Select(ios cli.IOStreams, title string, options []Option) (string, error) {
-	huhOpts := make([]huh.Option[string], len(options))
-	for i, o := range options {
-		huhOpts[i] = huh.NewOption(o.Label, o.Value)
-	}
 	var value string
-	field := huh.NewSelect[string]().Title(title).Options(huhOpts...).Filtering(true).Value(&value)
+	field := selectField(title, options, &value)
 	if err := runForm(ios, field); err != nil {
 		return "", err
 	}
 	return value, nil
+}
+
+// selectField builds the picklist field Select runs, split out so tests and
+// benchmarks can exercise its sizing and rendering without a terminal.
+func selectField(title string, options []Option, value *string) *huh.Select[string] {
+	field := huh.NewSelect[string]().Title(title).Options(huhOptions(options)...).Filtering(true).Value(value)
+	if len(options) > maxPromptRows {
+		field.Height(maxPromptRows)
+	}
+	return field
+}
+
+// huhOptions converts dotty options to huh's option type.
+func huhOptions(options []Option) []huh.Option[string] {
+	huhOpts := make([]huh.Option[string], len(options))
+	for i, o := range options {
+		huhOpts[i] = huh.NewOption(o.Label, o.Value)
+	}
+	return huhOpts
 }
 
 // runForm wraps a single field in a themed form bound to the IOStreams,
