@@ -95,6 +95,7 @@ func TestHasSession(t *testing.T) {
 func TestNewSession(t *testing.T) {
 	f := &fakeSessionRunner{
 		installed: map[string]string{
+			"grok":   "/opt/homebrew/bin/grok",
 			"codex":  "/opt/homebrew/bin/codex",
 			"claude": "/opt/homebrew/bin/claude",
 		},
@@ -109,13 +110,14 @@ func TestNewSession(t *testing.T) {
 
 	want := [][]string{
 		{"tmux", "-u", "new-session", "-d", "-P", "-F", "#{pane_id}",
-			"-s", "dotty", "-n", "  nvim", "-c", "/repo", "-x", "-", "-y", "-", "nvim", "."},
+			"-s", "dotty", "-n", "  nvim", "-c", "/repo", "-x", "-", "-y", "-", "nvim", "."},
 		{"tmux", "display-message", "-p", "-t", "%1", "#{window_id}"},
 		{"tmux", "split-window", "-t", "%1", "-v", "-l", "10%", "-c", "/repo"},
 		{"tmux", "select-pane", "-t", "%1"},
+		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "  grok", "/opt/homebrew/bin/grok"},
 		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󱙺  codex", "/opt/homebrew/bin/codex"},
 		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󰯉  claude", "/opt/homebrew/bin/claude"},
-		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-n", "  zsh", "-c", "/repo"},
+		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-n", "  zsh", "-c", "/repo"},
 	}
 	if len(f.calls) != len(want) {
 		t.Fatalf("calls = %d, want %d:\n%v", len(f.calls), len(want), f.calls)
@@ -135,7 +137,7 @@ func TestNewSessionEditorArgs(t *testing.T) {
 		t.Fatalf("NewSession: %v", err)
 	}
 	want := []string{"tmux", "-u", "new-session", "-d", "-P", "-F", "#{pane_id}",
-		"-s", "s", "-n", "  code", "-c", "/repo", "-x", "-", "-y", "-", "/usr/local/bin/code", "--wait", "."}
+		"-s", "s", "-n", "  code", "-c", "/repo", "-x", "-", "-y", "-", "/usr/local/bin/code", "--wait", "."}
 	if !slices.Equal(f.calls[0], want) {
 		t.Errorf("new-session call = %v, want %v", f.calls[0], want)
 	}

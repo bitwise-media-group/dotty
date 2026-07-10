@@ -12,7 +12,7 @@ var tmuxCmd = &cobra.Command{
 	Short: "Tmux sessions for agent-driven development.",
 	Long: `Start and attach tmux dev sessions laid out for coding agents: an editor
 window with a small shell split, one window per installed agent (opencode,
-codex, claude), and a shell window, all named after the repository.`,
+grok, codex, claude), and a shell window, all named after the repository.`,
 	Example: `  dotty tmux new
   dotty tmux new dotty`,
 }

@@ -27,6 +27,7 @@ type SessionRunner interface {
 // order is the reverse of this one (with the shell window first).
 var agentWindows = []struct{ bin, window string }{
 	{"opencode", "󰚩  opencode"},
+	{"grok", "  grok"},
 	{"codex", "󱙺  codex"},
 	{"claude", "󰯉  claude"},
 }
