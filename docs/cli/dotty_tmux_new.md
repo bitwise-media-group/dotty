@@ -6,7 +6,7 @@ Start (or attach to) a repository's tmux dev session.
 
 Pick a repository and create-or-attach its tmux session: the editor on the
 first window over a small shell split, one window per installed coding agent
-(opencode, codex, claude), and a shell window. The session is named after the
+(opencode, grok, codex, claude), and a shell window. The session is named after the
 repository, so rerunning the command attaches to the existing session.
 
 Repositories are discovered up to four levels deep under $REPOS_DIR (default

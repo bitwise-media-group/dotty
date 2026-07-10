@@ -6,7 +6,7 @@ Tmux sessions for agent-driven development.
 
 Start and attach tmux dev sessions laid out for coding agents: an editor
 window with a small shell split, one window per installed agent (opencode,
-codex, claude), and a shell window, all named after the repository.
+grok, codex, claude), and a shell window, all named after the repository.
 
 ### Examples
 
