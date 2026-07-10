@@ -1,0 +1,45 @@
+# Copyright 2026 Bitwise Media Group Ltd.
+# SPDX-License-Identifier: MIT
+#
+# ---- repo-local tasks (the long tail the library intentionally omits) -------
+
+# Regenerate the CLI reference from the cobra command tree, then render the
+# site. (Kept repo-local: generating a CLI reference is app-specific; `serve`,
+# `sync`, and `docs-build` come from the archetype.)
+[docs]
+description = "regenerate the CLI reference (docs/cli, docs/man) and build the site"
+dir = "{{cwd}}"
+run = [
+  { task = "build" },
+  "./dotty docs --out docs/cli --format markdown",
+  "./dotty docs --out docs/man --format man",
+  { task = "docs-build" },
+]
+
+[link]
+description = "symlink the local build into PATH (+ the ssh-askpass helper)"
+dir = "{{cwd}}"
+run = [
+  { task = "build" },
+  "ln -fs $PWD/dotty /usr/local/bin",
+  "mkdir -p ~/.local/share/dotty",
+  "ln -fs $PWD/dotty ~/.local/share/dotty/dotty-ssh-askpass",
+]
+
+# raw: dotty is an interactive TUI, so connect it straight to the terminal.
+[run]
+description = "build and run locally (override args via ARGS=...)"
+dir = "{{cwd}}"
+raw = true
+run = [{ task = "build" }, './dotty ${ARGS:-}']
+
+# Redefines the archetype's fuzz task (whole-task replacement) to bake in this
+# repo's default target/package; FUZZ/FUZZTIME/FUZZ_PKG env still override.
+# `go test -fuzz` accepts a single package, so FUZZ_PKG must name one.
+[fuzz]
+description = "fuzz one target (FUZZ=FuzzExtractFlags FUZZTIME=20s FUZZ_PKG=./internal/cli)"
+dir = "{{cwd}}"
+run = """
+set -eu
+go test -run '^$' -fuzz "^${FUZZ:-FuzzExtractFlags}$" -fuzztime "${FUZZTIME:-20s}" "${FUZZ_PKG:-./internal/cli}"
+"""

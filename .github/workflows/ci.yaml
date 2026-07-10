@@ -1,13 +1,14 @@
 # Copyright 2026 Bitwise Media Group Ltd.
 # SPDX-License-Identifier: MIT
 
-# Continuous integration — thin caller for the org's reusable ci workflow. It runs
-# the canonical Makefile gates (lint, build, test) as one parallel job each, then
-# Codecov uploads from coverage/cobertura-coverage.xml (coverage) and
-# coverage/junit.xml (test results) — both emitted by `make test`. `make lint`
-# carries all check-mode static analysis — golangci-lint, govulncheck, addlicense,
-# markdownlint, prettier --check. The Go version comes from go.mod and the Node
-# version from package.json (no .node-version pin).
+# Continuous integration — thin caller for the org's reusable ci workflow (v5+:
+# mise-task aware). It discovers the canonical tasks this repo defines and runs
+# `make lint` / `build` / `test` as one parallel job each, then Codecov uploads
+# from coverage/ — emitted by `make test`. `make lint` carries all check-mode
+# static analysis — golangci-lint, govulncheck, addlicense, markdownlint,
+# prettier --check — with the pinned tools coming from the toolchain submodule
+# at .mise/ (no package.json or .node-version: mise provisions its own Node for
+# the prose linters). The Go version for the product build comes from go.mod.
 #
 # The reusable workflow is pinned to a full commit SHA (tag in the comment) so a
 # moved tag can never change what runs; Dependabot keeps the pin fresh.
@@ -26,6 +27,6 @@ jobs:
     ci:
         # The default cache-dependency-path (go.sum) is the only lockfile that
         # affects the build: the dev CLIs (golangci-lint, govulncheck, addlicense,
-        # gotestsum, gocover-cobertura) are pinned by the make/ submodule's
-        # .<tool>-version files, not a tools/go.sum.
-        uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@176732b8b8ef2598ae0593db728b4415bcc86888 # v4.4.0
+        # gotestsum, ...) are pinned by the toolchain submodule's
+        # config.toml/mise.lock, not a tools/go.sum.
+        uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@ee856f73ecea9b0c2c989d3a6aa585774b0d2a38 # v5.0.0

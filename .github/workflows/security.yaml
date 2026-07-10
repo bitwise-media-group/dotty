@@ -6,9 +6,9 @@
 # module (autobuild; setup-go matches go.mod), on every push and pull request plus a
 # weekly scheduled run so newly published queries reach already-merged code.
 #
-# languages is pinned to "actions,go": root detection would otherwise add an empty
-# javascript-typescript leg from package.json, which is prose-linting tooling only
-# (markdownlint/prettier) with no product JavaScript to scan.
+# languages is pinned to "actions,go": there is no product JavaScript to scan
+# (the prose linters come from the toolchain submodule's mise pins, with no
+# package.json in this repo).
 #
 # The reusable workflow is pinned to a full commit SHA (tag in the comment) so a
 # moved tag can never change what runs; Dependabot keeps the pin fresh.
@@ -34,6 +34,6 @@ permissions:
 
 jobs:
     analyze:
-        uses: bitwise-media-group/github-workflows/.github/workflows/security.yaml@176732b8b8ef2598ae0593db728b4415bcc86888 # v4.4.0
+        uses: bitwise-media-group/github-workflows/.github/workflows/security.yaml@ee856f73ecea9b0c2c989d3a6aa585774b0d2a38 # v5.0.0
         with:
             languages: actions,go

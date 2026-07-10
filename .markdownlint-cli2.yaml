@@ -15,6 +15,10 @@ config:
     # repo's fenced code blocks. Material renders the admonitions natively, so
     # turn off the code-block-style consistency check.
     MD046: false
+# All markdown; the old package.json script passed this glob on the CLI.
+globs:
+    - "**/*.md"
+
 ignores:
     # The original spec is kept verbatim (it duplicates a heading).
     - "DESIGN.md"
@@ -25,5 +29,5 @@ ignores:
     - "dist/**"
     - ".claude/**"
     - "CHANGELOG.md"
-    # Shared Makefile library submodule — linted in its own repo.
-    - "make/**"
+    # Shared toolchain submodule — linted in its own repo.
+    - ".mise/**"

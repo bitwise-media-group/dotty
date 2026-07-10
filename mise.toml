@@ -1,0 +1,17 @@
+# Copyright 2026 Bitwise Media Group Ltd.
+# SPDX-License-Identifier: MIT
+#
+# dotty consumes the shared toolchain (bitwise-media-group/toolchain) as the
+# .mise/ submodule: pinned tools + the go-cli task archetype come from there,
+# and the Makefile is a thin forwarder (.mise/mise.mk). Structural knobs live
+# in [vars]; repo-local tasks live in tasks.toml (see [task_config] below).
+
+[vars]
+app = "dotty"
+app_pkg = "./cmd"
+
+[task_config]
+# Repo-local tasks live in tasks.toml, included AFTER the archetype so a
+# same-named task there (fuzz) replaces the archetype's definition — an
+# included file wins over this config's own [tasks] on name collisions.
+includes = [".mise/tasks/go-cli.toml", "tasks.toml"]
