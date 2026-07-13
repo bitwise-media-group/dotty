@@ -125,6 +125,21 @@ func TestRewriteTrailers(t *testing.T) {
 			msg:  "subject\n\nCo-authored-by: Different Name <old@example.com>\n",
 			want: "subject\n\nCo-authored-by: Different Name <old@example.com>\n",
 		},
+		{
+			name: "empty email with old name is populated",
+			msg:  "subject\n\nSigned-off-by: Old Name <>\n",
+			want: "subject\n\nSigned-off-by: New Name <new@example.com>\n",
+		},
+		{
+			name: "empty email with new name is populated",
+			msg:  "subject\n\nSigned-off-by: New Name <>\n",
+			want: "subject\n\nSigned-off-by: New Name <new@example.com>\n",
+		},
+		{
+			name: "empty email with unrelated name is untouched",
+			msg:  "subject\n\nSigned-off-by: Someone Else <>\n",
+			want: "subject\n\nSigned-off-by: Someone Else <>\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -134,6 +149,14 @@ func TestRewriteTrailers(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("empty old author email still rewrites the trailer", func(t *testing.T) {
+		msg := "subject\n\nSigned-off-by: Old Name <>\n"
+		want := "subject\n\nSigned-off-by: New Name <new@example.com>\n"
+		if got := rewriteTrailers(msg, oldName, "", newName, newEmail); got != want {
+			t.Errorf("rewriteTrailers() =\n%q\nwant\n%q", got, want)
+		}
+	})
 
 	t.Run("identical identity is a no-op", func(t *testing.T) {
 		msg := "subject\n\nSigned-off-by: Old Name <old@example.com>\n"

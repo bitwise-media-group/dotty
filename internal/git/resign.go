@@ -130,21 +130,36 @@ var trailerLine = regexp.MustCompile(`^[A-Za-z][A-Za-z-]*: `)
 
 // rewriteTrailers replaces the "Name <email>" identity of oldName/oldEmail with
 // newName/newEmail on every trailer line that contains it, leaving body prose
-// and other lines untouched.
+// and other lines untouched. An empty-email identity ("Name <>", left behind
+// when the trailer was generated without user.email set) is matched by name
+// alone — for the old and new names both — so the email gets populated.
 func rewriteTrailers(msg, oldName, oldEmail, newName, newEmail string) string {
-	if oldName == "" || oldEmail == "" {
-		return msg
-	}
-	oldID := oldName + " <" + oldEmail + ">"
 	newID := newName + " <" + newEmail + ">"
-	if oldID == newID || !strings.Contains(msg, oldID) {
-		return msg
+	var oldIDs []string
+	if oldName != "" && oldEmail != "" {
+		oldIDs = append(oldIDs, oldName+" <"+oldEmail+">")
+	}
+	if oldName != "" {
+		oldIDs = append(oldIDs, oldName+" <>")
+	}
+	if newName != "" && newName != oldName {
+		oldIDs = append(oldIDs, newName+" <>")
 	}
 	lines := strings.Split(msg, "\n")
+	changed := false
 	for i, line := range lines {
-		if trailerLine.MatchString(line) && strings.Contains(line, oldID) {
-			lines[i] = strings.ReplaceAll(line, oldID, newID)
+		if !trailerLine.MatchString(line) {
+			continue
 		}
+		for _, oldID := range oldIDs {
+			if oldID != newID && strings.Contains(lines[i], oldID) {
+				lines[i] = strings.ReplaceAll(lines[i], oldID, newID)
+				changed = true
+			}
+		}
+	}
+	if !changed {
+		return msg
 	}
 	return strings.Join(lines, "\n")
 }
