@@ -47,8 +47,23 @@ func TestFormatStackMap(t *testing.T) {
 	if !strings.Contains(md, "[x]") || !strings.Contains(md, "you are here") {
 		t.Fatalf("map = %s", md)
 	}
-	if !strings.Contains(md, "https://example.com/pull/11") {
-		t.Fatalf("missing PR link: %s", md)
+	if !strings.Contains(md, "[#11](https://example.com/pull/11) — feat: two") {
+		t.Fatalf("missing PR link row: %s", md)
+	}
+	// The PR reference plus title identifies the row; branch names stay out.
+	if strings.Contains(md, "b1") || strings.Contains(md, "b2") {
+		t.Fatalf("branch name leaked into map: %s", md)
+	}
+}
+
+func TestFormatStackMapWithoutPR(t *testing.T) {
+	s := Stack{ID: "abc", Layers: []Layer{{Branch: "b1", TitleHint: "feat: one"}, {Branch: "b2"}}}
+	md := FormatStackMap(s, "b1", func(int) string { return "" }, nil)
+	if !strings.Contains(md, "* [ ] `b1` — feat: one") {
+		t.Fatalf("unproposed layer should keep its branch name: %s", md)
+	}
+	if !strings.Contains(md, "* [ ] `b2`\n") {
+		t.Fatalf("titleless layer should render the branch alone: %s", md)
 	}
 }
 

@@ -103,19 +103,20 @@ func FormatStackMap(s Stack, currentBranch string, prURL func(pr int) string, me
 		if l.Branch == currentBranch && !merged[l.Branch] {
 			here = "  ← **you are here**"
 		}
-		label := l.TitleHint
-		if label == "" {
-			label = l.Branch
-		}
-		link := fmt.Sprintf("`%s`", l.Branch)
+		// A PR reference identifies the row on its own — the title hint says the
+		// rest — so the branch name only appears for layers with no PR yet.
+		ref := fmt.Sprintf("`%s`", l.Branch)
 		if l.PR > 0 {
+			ref = fmt.Sprintf("#%d", l.PR)
 			if u := prURL(l.PR); u != "" {
-				link = fmt.Sprintf("[#%d](%s) `%s`", l.PR, u, l.Branch)
-			} else {
-				link = fmt.Sprintf("#%d `%s`", l.PR, l.Branch)
+				ref = fmt.Sprintf("[#%d](%s)", l.PR, u)
 			}
 		}
-		fmt.Fprintf(&b, "* %s %s — %s%s%s\n", check, link, label, suffix, here)
+		label := ""
+		if l.TitleHint != "" {
+			label = " — " + l.TitleHint
+		}
+		fmt.Fprintf(&b, "* %s %s%s%s%s\n", check, ref, label, suffix, here)
 	}
 	b.WriteString("\n")
 	b.WriteString("> Each PR targets `main`. Diffs are cumulative from trunk through this layer.\n")
