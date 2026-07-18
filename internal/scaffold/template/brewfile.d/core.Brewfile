@@ -1,3 +1,5 @@
+tap "bitwise-media-group/tap"
+
 brew "bat"
 brew "curl"
 brew "fd"
@@ -17,6 +19,7 @@ brew "zsh"
 
 brew "jandedobbeleer/oh-my-posh/oh-my-posh", args: ["formula"], trusted: true
 
+cask "bitwise-media-group/tap/dotty"
 cask "font-iosevka-nerd-font"
 cask "font-symbols-only-nerd-font"
 cask "ghostty"

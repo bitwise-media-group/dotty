@@ -113,9 +113,11 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-// runInit is the whole init flow: collect answers, confirm, then render,
-// git, link, activate, identity, keys, font, macOS — in an order where every
-// question that gates a write precedes the first write.
+// runInit is the whole init flow: collect every answer — the wizard, the
+// git identity, the security-key plan — confirm once, then render, git,
+// link, activate, identity, keys, font, macOS. Nothing is written before
+// the confirmation, so backing out of any question leaves the machine
+// untouched.
 func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -124,6 +126,24 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	answers, repo, rerun, err := wizard.Collect(ios, flags, home)
 	if errors.Is(err, tui.ErrAborted) {
 		return nil // esc backs out before anything is written
+	}
+	if err != nil {
+		return err
+	}
+
+	// The rest of the interview — questions only, so the confirmation below
+	// is the wizard's last stop.
+	identity, err := collectGitIdentity(ios, flags, home)
+	if errors.Is(err, tui.ErrAborted) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	hadAllowlist := answers.AllowedSerials != nil
+	plan, err := collectKeyPlan(ctx, ios, flags, &answers)
+	if errors.Is(err, tui.ErrAborted) {
+		return nil
 	}
 	if err != nil {
 		return err
@@ -169,16 +189,22 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	}
 	tui.Successf(ios, "Profile %s active", answers.ProfileName)
 	tui.Infof(ios, "Install everything with: dotty brewfile sync")
-
-	if err := git.EnsureIdentityFile(ios, flags.GitName, flags.GitEmail, answers.SecurityKeys, home); err != nil {
-		return err
+	if !hadAllowlist && len(answers.AllowedSerials) > 0 {
+		tui.Successf(ios, "Profile %s allows only these security keys: %s",
+			answers.ProfileName, strings.Join(answers.AllowedSerials, ", "))
 	}
-	if answers.SecurityKeys {
-		if err := setUpSecurityKeys(ctx, ios, flags, home); err != nil {
+
+	if identity.write {
+		if err := git.WriteIdentityFile(ios, identity.name, identity.email, answers.SecurityKeys, home); err != nil {
 			return err
 		}
-		if err := setUpKeyAllowlist(ctx, ios, flags, &answers, repo); err != nil {
-			return err
+	}
+	if answers.SecurityKeys {
+		// A canceled or failed hardware step must not strand init midway —
+		// the machine is already rendered, linked, and active, and the key
+		// verbs can finish the job later.
+		if err := applyKeyPlan(ctx, ios, plan, home); err != nil {
+			tui.Warnf(ios, "Signing-key setup did not finish: %v (retry with dotty signing-key new / import)", err)
 		}
 	}
 
@@ -192,13 +218,178 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	return nil
 }
 
-// setUpSecurityKeys wires the hardware-key plumbing: the dotty-ssh-askpass
-// applet symlink OpenSSH PIN prompts route through (its basename is how
-// dispatchArgs recognizes the invocation), and optionally a signing key —
-// imported from existing stubs or enrolled fresh — via the same flows the
-// signing-key verbs run. It stays in cmd because those flows (enroll,
-// import, trust) live with the signing-key verbs.
-func setUpSecurityKeys(ctx context.Context, ios cli.IOStreams, flags wizard.Flags, home string) error {
+// gitIdentity is the interview's git-identity answer; write is false when
+// the private identity file already exists (it is never touched) or the
+// user left the question unanswered.
+type gitIdentity struct {
+	name, email string
+	write       bool
+}
+
+// collectGitIdentity asks for the git identity when the private identity
+// file is missing and the flags leave it open; the write happens only after
+// the summary is confirmed. No terminal or a blank answer skips the file
+// with a warning; esc backs out of init.
+func collectGitIdentity(ios cli.IOStreams, flags wizard.Flags, home string) (gitIdentity, error) {
+	needed, err := git.NeedsIdentity(home)
+	if err != nil || !needed {
+		return gitIdentity{}, err
+	}
+	id := gitIdentity{name: flags.GitName, email: flags.GitEmail, write: true}
+	if id.name == "" {
+		if id.name, err = askIdentity(ios, "Git identity: your name?", "Ada Lovelace"); err != nil {
+			return gitIdentity{}, err
+		}
+	}
+	if id.name != "" && id.email == "" {
+		if id.email, err = askIdentity(ios, "Git identity: your email?", "ada@example.com"); err != nil {
+			return gitIdentity{}, err
+		}
+	}
+	if id.name == "" || id.email == "" {
+		tui.Warnf(ios, "No git identity configured; commits need %s (or pass --git-name/--git-email)",
+			git.IdentityPath(home))
+		id.write = false
+	}
+	return id, nil
+}
+
+// askIdentity prompts for one identity field; no terminal means no answer,
+// which the caller turns into a skip.
+func askIdentity(ios cli.IOStreams, title, placeholder string) (string, error) {
+	got, err := tui.Input(ios, title, placeholder, nil)
+	if errors.Is(err, tui.ErrNotInteractive) {
+		return "", nil
+	}
+	return got, err
+}
+
+// keyPlan is the security-key portion of the interview: which signing-key
+// action applyKeyPlan runs once the summary is confirmed, and its input.
+type keyPlan struct {
+	action     string // "existing", "import", "new", or "" for none
+	importPath string
+	existing   []signingkey.KeyRef
+}
+
+// collectKeyPlan asks the security-key questions — how to set up a signing
+// key, and whether to restrict the profile to specific keys — without doing
+// any of it. Keys enrolled earlier (stubs in the private data dir, from a
+// previous init, the legacy tooling, or a synced private repo) beat
+// re-importing, filtered by the allowlist the profile will enforce; --yes
+// reuses that enrollment the way a scripted re-run does, while with nothing
+// on disk the question has no stored answer, so it is asked.
+func collectKeyPlan(ctx context.Context, ios cli.IOStreams, flags wizard.Flags,
+	answers *scaffold.Answers) (keyPlan, error) {
+	var plan keyPlan
+	if !answers.SecurityKeys || flags.SkipKeys {
+		return plan, nil
+	}
+	dataDir, err := cli.DataDir()
+	if err != nil {
+		return plan, err
+	}
+	existing, err := existingKeyRefs(dataDir)
+	if err != nil {
+		return plan, err
+	}
+	if len(answers.AllowedSerials) > 0 {
+		existing = slices.DeleteFunc(existing, func(ref signingkey.KeyRef) bool {
+			return !slices.Contains(answers.AllowedSerials, ref.Serial)
+		})
+	}
+	plan.existing = existing
+
+	switch {
+	case !ios.IsInteractive():
+		if len(existing) > 0 {
+			plan.action = "existing"
+		}
+		return plan, nil
+	case flags.Yes && len(existing) > 0:
+		plan.action = "existing"
+	default:
+		options := make([]tui.Option, 0, 4)
+		if len(existing) > 0 {
+			options = append(options, tui.Option{
+				Label: fmt.Sprintf("use the profile's existing keys (%d on disk)", len(existing)),
+				Value: "existing",
+			})
+		}
+		options = append(options,
+			tui.Option{Label: "import an existing resident-key stub", Value: "import"},
+			tui.Option{Label: "create a new key on a YubiKey", Value: "new"},
+			tui.Option{Label: "later (dotty signing-key new / import)", Value: "later"},
+		)
+		picked, err := tui.FuzzySelect(ios, "Set up a signing key on this machine?", options)
+		if err != nil {
+			return plan, err
+		}
+		switch picked {
+		case "existing", "new":
+			plan.action = picked
+		case "import":
+			path, err := tui.Input(ios, "Where are the key stubs?", "~/keys or a stub file", nil)
+			if err != nil {
+				return plan, err
+			}
+			if path == "" {
+				break // no path, nothing to import
+			}
+			if path, err = cli.ExpandHome(path); err != nil {
+				return plan, err
+			}
+			plan.action = "import"
+			plan.importPath = path
+		}
+	}
+	return plan, collectAllowlistAnswer(ctx, ios, answers)
+}
+
+// collectAllowlistAnswer asks whether to restrict the profile to specific
+// security-key serials. The answer lands in answers.AllowedSerials, which
+// the render persists with the rest of the profile; a non-nil list —
+// including the answered-empty one a declined offer stores — means the
+// question was answered before, so only a profile that has never been asked
+// gets the offer.
+func collectAllowlistAnswer(ctx context.Context, ios cli.IOStreams, answers *scaffold.Answers) error {
+	if answers.AllowedSerials != nil {
+		return nil
+	}
+	prompt := fmt.Sprintf("Restrict profile %s to specific security keys?", answers.ProfileName)
+	ok, err := tui.Confirm(ios, prompt,
+		"other keys are refused for signing, linking, enrollment, and import on this machine class")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		// Remember the "no" as an answered-empty allowlist (empty means
+		// unrestricted) so re-runs stop asking; dotty security-key allow
+		// can still restrict the profile later.
+		answers.AllowedSerials = []string{}
+		return nil
+	}
+	store, err := keyStore()
+	if err != nil {
+		return err
+	}
+	serials, err := pickAllowSerials(ctx, ios, store, *answers)
+	if err != nil || len(serials) == 0 {
+		return err
+	}
+	slices.Sort(serials)
+	answers.AllowedSerials = serials
+	return nil
+}
+
+// applyKeyPlan wires the hardware-key plumbing chosen during the interview:
+// the dotty-ssh-askpass applet symlink OpenSSH PIN prompts route through
+// (its basename is how dispatchArgs recognizes the invocation), then the
+// planned signing-key action — existing stubs, an import, or a fresh
+// enrollment — via the same flows the signing-key verbs run. It stays in
+// cmd because those flows (enroll, import, trust) live with the signing-key
+// verbs.
+func applyKeyPlan(ctx context.Context, ios cli.IOStreams, plan keyPlan, home string) error {
 	dataDir, err := cli.DataDir()
 	if err != nil {
 		return err
@@ -206,61 +397,11 @@ func setUpSecurityKeys(ctx context.Context, ios cli.IOStreams, flags wizard.Flag
 	if err := linkAskpassApplet(ios, dataDir); err != nil {
 		return err
 	}
-
-	if flags.SkipKeys {
-		return nil
-	}
-
-	// Keys enrolled earlier — stubs in the private data dir, from a previous
-	// init, the legacy tooling, or a synced private repo — beat re-importing.
-	// The profile's allowlist still filters what this machine class may use.
-	existing, err := existingKeyRefs(dataDir)
-	if err != nil {
-		return err
-	}
-	if !ios.IsInteractive() {
-		if len(existing) > 0 {
-			return useExistingKeys(ctx, ios, home, existing)
-		}
-		return nil
-	}
-	// --yes reuses the machine's enrollment the way a scripted re-run does;
-	// with nothing on disk the question has no stored answer, so it is asked.
-	if flags.Yes && len(existing) > 0 {
-		return useExistingKeys(ctx, ios, home, existing)
-	}
-
-	options := make([]tui.Option, 0, 4)
-	if len(existing) > 0 {
-		options = append(options, tui.Option{
-			Label: fmt.Sprintf("use the profile's existing keys (%d on disk)", len(existing)),
-			Value: "existing",
-		})
-	}
-	options = append(options,
-		tui.Option{Label: "import an existing resident-key stub", Value: "import"},
-		tui.Option{Label: "create a new key on a YubiKey", Value: "new"},
-		tui.Option{Label: "later (dotty signing-key new / import)", Value: "later"},
-	)
-	picked, err := tui.FuzzySelect(ios, "Set up a signing key on this machine?", options)
-	if errors.Is(err, tui.ErrAborted) || errors.Is(err, tui.ErrNotInteractive) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	switch picked {
+	switch plan.action {
 	case "existing":
-		return useExistingKeys(ctx, ios, home, existing)
+		return useExistingKeys(ctx, ios, home, plan.existing)
 	case "import":
-		path, err := tui.Input(ios, "Where are the key stubs?", "~/keys or a stub file", nil)
-		if err != nil || path == "" {
-			return nil
-		}
-		if path, err = cli.ExpandHome(path); err != nil {
-			return err
-		}
-		return importSigningKeys(ctx, ios, path, "", false)
+		return importSigningKeys(ctx, ios, plan.importPath, "", false)
 	case "new":
 		return enrollSigningKey(ctx, ios, "ed25519", "", "")
 	}
@@ -318,51 +459,5 @@ func useExistingKeys(ctx context.Context, ios cli.IOStreams, home string, refs [
 		return err
 	}
 	tui.Successf(ios, "Using %d existing signing key(s); %s -> YubiKey %s", len(refs), linkPath, refs[0].Serial)
-	return nil
-}
-
-// setUpKeyAllowlist restricts the profile to specific security-key serials —
-// after enrollment on purpose, so a freshly enrolled key is connected and
-// offered. The list is part of the profile's answers: it travels with the
-// repository and activating another profile swaps it.
-func setUpKeyAllowlist(ctx context.Context, ios cli.IOStreams, flags wizard.Flags,
-	answers *scaffold.Answers, repo string) error {
-	// The flag path was already validated and persisted with the render, and
-	// a non-nil list — including the answered-empty one a declined offer
-	// stores — means the question was answered before; only a profile that
-	// has never been asked gets the interactive offer.
-	if answers.AllowedSerials != nil || !ios.IsInteractive() || flags.SkipKeys {
-		return nil
-	}
-	prompt := fmt.Sprintf("Restrict profile %s to specific security keys?", answers.ProfileName)
-	ok, err := tui.Confirm(ios, prompt,
-		"other keys are refused for signing, linking, enrollment, and import on this machine class")
-	if err != nil {
-		return err
-	}
-	repoProfileDir := profile.Dir(scaffold.ProfilesDir(repo), answers.ProfileName)
-	if !ok {
-		// Remember the "no" as an answered-empty allowlist (empty means
-		// unrestricted) so re-runs stop asking; dotty security-key allow
-		// can still restrict the profile later.
-		answers.AllowedSerials = []string{}
-		return scaffold.SaveAnswers(repoProfileDir, *answers)
-	}
-	store, err := keyStore()
-	if err != nil {
-		return err
-	}
-	serials, err := pickAllowSerials(ctx, ios, store, *answers)
-	if err != nil || len(serials) == 0 {
-		return err
-	}
-	slices.Sort(serials)
-	answers.AllowedSerials = serials
-
-	if err := scaffold.SaveAnswers(repoProfileDir, *answers); err != nil {
-		return err
-	}
-	tui.Successf(ios, "Profile %s allows only these security keys: %s",
-		answers.ProfileName, strings.Join(answers.AllowedSerials, ", "))
 	return nil
 }

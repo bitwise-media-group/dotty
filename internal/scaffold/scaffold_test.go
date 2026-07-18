@@ -412,6 +412,12 @@ func TestComposeBrewfileDedupes(t *testing.T) {
 	if !strings.Contains(string(composed), `brew "lazygit"`) {
 		t.Error("composed Brewfile is missing lazygit (nvim and lazygit both pull it)")
 	}
+	// dotty manages the machine, so every profile's Brewfile installs it.
+	for _, line := range []string{`tap "bitwise-media-group/tap"`, `cask "bitwise-media-group/tap/dotty"`} {
+		if !strings.Contains(string(composed), line) {
+			t.Errorf("composed Brewfile is missing %s", line)
+		}
+	}
 }
 
 func TestMergeBrewfile(t *testing.T) {
