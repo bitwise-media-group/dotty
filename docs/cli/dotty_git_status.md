@@ -1,4 +1,4 @@
-## dotty git stack
+## dotty git status
 
 Show the current stack versus trunk.
 
@@ -12,23 +12,23 @@ obvious linear lineage of at least three nodes (trunk plus two or more feature
 branches), the lineage is detected and saved automatically. A single branch off
 trunk is not treated as a stack.
 
-This is not git status — it is the status of the stacked branch chain managed
-by start / append / propose / sync.
+This is not plain git status — it is the status of the stacked branch chain
+managed by start / append / propose / sync.
 
 ```
-dotty git stack [flags]
+dotty git status [flags]
 ```
 
 ### Examples
 
 ```
-  dotty git stack
+  dotty git status
 ```
 
 ### Options
 
 ```
-  -h, --help   help for stack
+  -h, --help   help for status
 ```
 
 ### Options inherited from parent commands

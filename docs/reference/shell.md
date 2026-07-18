@@ -70,10 +70,11 @@ includes so the repo itself never contains PII:
   `prepare-commit-msg` hook appends a `Signed-off-by` trailer.
 - **Stacked-branch workflow**: aliases onto `dotty git` — `git start`,
   `git append`, `git propose`, `git sync` (fetch trunk, prune merged layers,
-  refresh PR maps, rebase+resign when diverged), `git stack` for stack status,
-  `git up` / `git down` for navigation, `git resign`, and `git browse` (opens
-  the upstream forge, falling back to origin) — signature-preserving,
-  trunk-based stacks with ff-merge (see
+  refresh PR maps, rebase+resign when diverged), `git stack` to pick a layer
+  (stack status is `dotty git status` directly — git cannot alias over the
+  `status` builtin), `git up` / `git down` for navigation, `git resign`, and
+  `git browse` (opens the upstream forge, falling back to origin) —
+  signature-preserving, trunk-based stacks with ff-merge (see
   [Signature-preserving stacks](../guides/stacks.md)).
 - **Conditional includes by host**: GitHub remotes get `gh` as the credential
   helper; Codeberg/Forgejo remotes get Git Credential Manager with OAuth client

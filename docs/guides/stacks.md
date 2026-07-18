@@ -35,18 +35,18 @@ mechanism works.
 dotty git start feat-api            # branch off trunk; new stack
 # … commits (resign if they were agent-unsigned) …
 dotty git append feat-ui            # child of tip
-dotty git stack                     # status of the stack vs trunk
+dotty git status                    # status of the stack vs trunk
 dotty git propose                   # PRs for trunk..current
 dotty git propose --all             # every layer
 dotty git sync                      # cleanup merged; refresh maps; rebase+resign if diverged
 
 # If you never ran start/append but already have a local chain
-# main ← feat-a ← feat-b (3+ nodes), `dotty git stack` discovers it and
+# main ← feat-a ← feat-b (3+ nodes), `dotty git status` discovers it and
 # writes lineage into git config. A lone branch off main is not a stack.
 
 dotty git up [n]                    # toward tip
 dotty git down [n]                  # toward trunk
-dotty git switch                    # fuzzy pick a layer
+dotty git switch                    # fuzzy pick a layer (alias: stack)
 dotty git browse                    # open upstream (else origin) in a browser
 dotty git resign main               # re-sign after agent work or post-rebase
 ```

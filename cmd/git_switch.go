@@ -14,12 +14,14 @@ import (
 )
 
 var gitSwitchCmd = &cobra.Command{
-	Use:   "switch",
-	Short: "Pick a stack layer and check it out.",
+	Use:     "switch",
+	Aliases: []string{"stack"},
+	Short:   "Pick a stack layer and check it out.",
 	Long: `Presents the current stack's layers in a fuzzy picklist and checks
 out the chosen one.`,
-	Example: `  dotty git switch`,
-	Args:    cobra.NoArgs,
+	Example: `  dotty git switch
+  dotty git stack     # alias`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ios := cli.System()
 		r := newRunner(ios)

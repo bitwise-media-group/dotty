@@ -38,13 +38,15 @@
 
 # Stacked-branch workflow via dotty: signature-preserving, trunk-based stacks
 # with ff-merge. sync also cleans up merged layers, so no separate done alias.
+# Stack status is `dotty git status` directly — git never runs an alias named
+# after a builtin, so `status` cannot be aliased.
 [alias]
 	append = "!dotty git append"
 	browse = "!dotty git browse"
 	down = "!dotty git down"
 	propose = "!dotty git propose"
 	resign = "!dotty git resign"
-	stack = "!dotty git stack"
+	stack = "!dotty git switch"
 	start = "!dotty git start"
 	sync = "!dotty git sync"
 	up = "!dotty git up"

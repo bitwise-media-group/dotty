@@ -15,6 +15,7 @@ dotty git switch [flags]
 
 ```
   dotty git switch
+  dotty git stack     # alias
 ```
 
 ### Options

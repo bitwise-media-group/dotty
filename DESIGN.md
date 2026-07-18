@@ -653,22 +653,23 @@ repos that land with ff-merge:
   cumulative diffs), PR body stack maps, merged-layer cleanup (default delete
   local+origin), and prompt-to-rebase+resign when diverged (`sync --continue` /
   `--abort` around conflicts).
-- **stack** — print the current stack versus trunk (not `git status`). When the
-  branch has no config lineage but local tips form an obvious chain of at least
-  three nodes (trunk + two feature branches), lineage is discovered and saved.
+- **status** — print the current stack versus trunk (not plain `git status`).
+  When the branch has no config lineage but local tips form an obvious chain of
+  at least three nodes (trunk + two feature branches), lineage is discovered and
+  saved.
 - **up / down / switch** — navigate the current stack (switch is a fuzzy
-  picklist).
+  picklist, also reachable as `stack`).
 - **browse** — open the upstream (else origin) forge homepage.
 
 ```text
 dotty git start <branch>
 dotty git append <branch>
-dotty git stack
+dotty git status
 dotty git propose [--all]
 dotty git sync [--continue|--abort] [--yes]
 dotty git up [num]
 dotty git down [num]
-dotty git switch
+dotty git switch    # alias: stack
 dotty git browse
 dotty git resign …
 ```
