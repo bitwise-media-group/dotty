@@ -20,10 +20,12 @@ var ErrNotInteractive = errors.New("interactive prompt required but no terminal 
 var ErrAborted = errors.New("aborted")
 
 // Option is one selectable entry: Label is what the user sees, Value is what
-// the caller gets back.
+// the caller gets back. Selected preselects the entry in MultiSelect, for
+// picklists that default to everything on.
 type Option struct {
-	Label string
-	Value string
+	Label    string
+	Value    string
+	Selected bool
 }
 
 // maxPromptRows caps how many rows a picklist renders (the FuzzySelect window
@@ -34,9 +36,15 @@ type Option struct {
 // have not rendered yet.
 const maxPromptRows = 14
 
-// Confirm asks a yes/no question. description may be empty.
+// Confirm asks a yes/no question defaulting to No. description may be empty.
 func Confirm(ios cli.IOStreams, title, description string) (bool, error) {
-	var ok bool
+	return ConfirmDefault(ios, title, description, false)
+}
+
+// ConfirmDefault is Confirm with the preselected answer chosen by the caller
+// — re-runs seed prompts with previously stored answers.
+func ConfirmDefault(ios cli.IOStreams, title, description string, def bool) (bool, error) {
+	ok := def
 	field := huh.NewConfirm().Title(title).Description(description).Value(&ok)
 	if err := runForm(ios, field); err != nil {
 		return false, err
@@ -49,6 +57,21 @@ func Confirm(ios cli.IOStreams, title, description string) (bool, error) {
 func Input(ios cli.IOStreams, title, placeholder string, validate func(string) error) (string, error) {
 	var value string
 	field := huh.NewInput().Title(title).Placeholder(placeholder).Value(&value)
+	if validate != nil {
+		field = field.Validate(validate)
+	}
+	if err := runForm(ios, field); err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+// InputSuggest is Input with tab-completable suggestions — paths, mostly, so
+// the user picks instead of typing. validate may be nil.
+func InputSuggest(ios cli.IOStreams, title, placeholder string, suggestions []string,
+	validate func(string) error) (string, error) {
+	var value string
+	field := huh.NewInput().Title(title).Placeholder(placeholder).Suggestions(suggestions).Value(&value)
 	if validate != nil {
 		field = field.Validate(validate)
 	}
@@ -76,21 +99,28 @@ func Password(ios cli.IOStreams, title string, validate func(string) error) (str
 // the chosen options, in option order.
 func MultiSelect(ios cli.IOStreams, title string, options []Option) ([]string, error) {
 	var values []string
-	field := huh.NewMultiSelect[string]().Title(title).Options(huhOptions(options)...).Filterable(true).Value(&values)
-	if len(options) > maxPromptRows {
-		field.Height(maxPromptRows)
-	}
-	if err := runForm(ios, field); err != nil {
+	if err := runForm(ios, multiSelectField(title, options, &values)); err != nil {
 		return nil, err
 	}
 	return values, nil
+}
+
+// multiSelectField builds the checklist field with an explicit height: huh
+// v2.0.3 sizes an auto-height MultiSelect viewport to the option rows and
+// then subtracts the title row, cutting off the last option — a one-entry
+// list renders empty. An explicit height is treated as the field total, so
+// the extra row covers the title and every option gets a row.
+func multiSelectField(title string, options []Option, values *[]string) *huh.MultiSelect[string] {
+	field := huh.NewMultiSelect[string]().Title(title).Options(huhOptions(options)...).Filterable(true).Value(values)
+	field.Height(min(len(options), maxPromptRows) + 1)
+	return field
 }
 
 // huhOptions converts dotty options to huh's option type.
 func huhOptions(options []Option) []huh.Option[string] {
 	huhOpts := make([]huh.Option[string], len(options))
 	for i, o := range options {
-		huhOpts[i] = huh.NewOption(o.Label, o.Value)
+		huhOpts[i] = huh.NewOption(o.Label, o.Value).Selected(o.Selected)
 	}
 	return huhOpts
 }

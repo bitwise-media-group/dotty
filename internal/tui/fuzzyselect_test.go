@@ -61,6 +61,27 @@ func typeFuzzy(m fuzzyModel, s string) fuzzyModel {
 	return m
 }
 
+// TestFuzzyModelInitialSelection places the cursor on Option.Selected when
+// the filter is empty so callers can default to the current stack layer.
+func TestFuzzyModelInitialSelection(t *testing.T) {
+	opts := testFuzzyOptions()
+	opts[2].Selected = true // dmccaffery/dotfiles
+	m := newFuzzyModel("t", opts)
+	if m.value() != "/r/dmccaffery/dotfiles" {
+		t.Fatalf("initial value = %q, want selected option", m.value())
+	}
+	// Filtering still re-ranks from the top.
+	m = typeFuzzy(m, "bmg")
+	if m.cursor != 0 {
+		t.Fatalf("cursor after filter = %d, want 0", m.cursor)
+	}
+	// Clearing the filter restores the initial selection.
+	m = pressFuzzy(m, "ctrl+u")
+	if m.value() != "/r/dmccaffery/dotfiles" {
+		t.Fatalf("after clear value = %q, want selected option", m.value())
+	}
+}
+
 // TestFuzzyModelSubsequenceMatch pins the fzf-style contract a substring
 // filter cannot satisfy: a scattered subsequence across path separators still
 // matches, and enter accepts the best match without any cursor movement.

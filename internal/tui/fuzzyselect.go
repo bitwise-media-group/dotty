@@ -5,6 +5,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -19,6 +20,9 @@ import (
 // the options (best match first, matched characters highlighted), and long
 // lists scroll inside a bounded window. Enter returns the Value under the
 // cursor; esc aborts with ErrAborted.
+//
+// When exactly one option has Selected set, the cursor starts on that option
+// (while the filter is empty). Filtering still re-ranks from the top.
 func FuzzySelect(ios cli.IOStreams, title string, options []Option) (string, error) {
 	if !ios.IsInteractive() {
 		return "", ErrNotInteractive
@@ -45,27 +49,32 @@ type fuzzyRow struct {
 }
 
 type fuzzyModel struct {
-	title     string
-	options   []Option
-	labels    []string // extracted once for fuzzy.Find
-	rows      []fuzzyRow
-	cursor    int // index into rows
-	offset    int // first row inside the scroll window
-	filter    string
-	accepted  bool
-	aborted   bool
-	hasDarkBg bool // terminal background, for the ink-accent cursor/highlights
+	title         string
+	options       []Option
+	labels        []string // extracted once for fuzzy.Find
+	rows          []fuzzyRow
+	cursor        int // index into rows
+	offset        int // first row inside the scroll window
+	filter        string
+	accepted      bool
+	aborted       bool
+	hasDarkBg     bool // terminal background, for the ink-accent cursor/highlights
+	initialOption int  // options index to select when filter is empty; -1 = none
 }
 
 func newFuzzyModel(title string, options []Option) fuzzyModel {
 	m := fuzzyModel{
-		title:     title,
-		options:   options,
-		labels:    make([]string, len(options)),
-		hasDarkBg: true, // default to dotty's dark surface until detected
+		title:         title,
+		options:       options,
+		labels:        make([]string, len(options)),
+		hasDarkBg:     true, // default to dotty's dark surface until detected
+		initialOption: -1,
 	}
 	for i, o := range options {
 		m.labels[i] = o.Label
+		if o.Selected && m.initialOption < 0 {
+			m.initialOption = i
+		}
 	}
 	m.rebuildRows()
 	return m
@@ -73,7 +82,8 @@ func newFuzzyModel(title string, options []Option) fuzzyModel {
 
 // rebuildRows recomputes the candidate rows for the current filter: every
 // option in the given order when empty, otherwise fuzzy matches best first.
-// The cursor returns to the top so enter always accepts the best match.
+// With an empty filter the cursor returns to initialOption when set; otherwise
+// (or when filtering) it goes to the top so enter accepts the best match.
 func (m *fuzzyModel) rebuildRows() {
 	m.rows = m.rows[:0]
 	if m.filter == "" {
@@ -86,6 +96,12 @@ func (m *fuzzyModel) rebuildRows() {
 		}
 	}
 	m.cursor, m.offset = 0, 0
+	if m.filter == "" && m.initialOption >= 0 {
+		if ri := slices.IndexFunc(m.rows, func(r fuzzyRow) bool { return r.option == m.initialOption }); ri >= 0 {
+			m.cursor = ri
+			m.offset = max(ri-maxPromptRows+1, 0)
+		}
+	}
 }
 
 func (m fuzzyModel) value() string {
@@ -145,12 +161,7 @@ func (m fuzzyModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // cursor visible.
 func (m *fuzzyModel) moveCursor(delta int) {
 	m.cursor = min(max(m.cursor+delta, 0), max(len(m.rows)-1, 0))
-	if m.cursor < m.offset {
-		m.offset = m.cursor
-	}
-	if m.cursor >= m.offset+maxPromptRows {
-		m.offset = m.cursor - maxPromptRows + 1
-	}
+	m.offset = min(max(m.offset, m.cursor-maxPromptRows+1), m.cursor)
 }
 
 // View implements tea.Model.
