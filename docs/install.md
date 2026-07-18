@@ -17,6 +17,8 @@ dotty publishes a cask to
 The tap is tapped automatically the first time you reference it:
 
 ```sh
+# brew v6 requires trust
+brew trust bitwise-media-group/tap/dotty
 brew install bitwise-media-group/tap/dotty
 ```
 
@@ -125,3 +127,8 @@ tool, for example:
 ```sh
 grype sbom:dotty_<version>_darwin_arm64.tar.gz.sbom.json
 ```
+
+## Next step
+
+With dotty installed,
+[initialise your dotfiles repository](getting-started/initialise.md).

@@ -33,11 +33,11 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                 Your whole machine, <em>in one profile.</em>
             </p>
             <p class="dt-lede">
-                Utilities for a terminal-driven workflow and dotfiles: system
-                profiles that travel across machines, reproducible Homebrew
-                Brewfiles, named aliases for hardware security keys, and SSH
-                signing keys that live on YubiKeys — including git commit
-                signing. One Go binary.
+                Utilities for a terminal-driven workflow and dotfiles: one
+                wizard that scaffolds your dotfiles repo, system profiles
+                that travel across machines, reproducible Homebrew Brewfiles,
+                hardened coding agents, and SSH signing keys that live on
+                YubiKeys — including git commit signing. One Go binary.
             </p>
             <div class="dt-term">
                 <div class="dt-term__bar">
@@ -59,7 +59,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                 </div>
                 <div class="dt-copy">
                     <span class="dt-p">$</span>
-                    <code>dotty profile activate</code>
+                    <code>dotty init</code>
                     <div class="md-code__nav">
                         <button
                             class="md-code__button"
@@ -74,7 +74,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
             <div class="dt-cta">
                 <a
                     class="dt-btn dt-btn--primary"
-                    href="{{ 'cli/dotty/' | url }}"
+                    href="{{ 'getting-started/' | url }}"
                 >
                     Get started
                     <svg
@@ -487,7 +487,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
 
     <!-- THREE COMMANDS -->
     <section class="dt-section dt-section--last">
-        <h2 class="dt-eyebrow">// THREE COMMANDS TO YOUR FIRST PROFILE</h2>
+        <h2 class="dt-eyebrow">// THREE COMMANDS TO A NEW MACHINE</h2>
         <div class="dt-conn dt-steps">
             <div class="dt-step">
                 <div class="dt-step__body">
@@ -530,15 +530,32 @@ extends "main.html" %} {% block tabs %} {{ super() }}
             <div class="dt-step">
                 <div class="dt-step__body">
                     <div class="dt-step__num">02</div>
-                    <h3>New profile</h3>
+                    <h3>Initialise</h3>
                     <p>
-                        Create your first profile and dotty offers to activate
-                        it.
+                        One wizard scaffolds your dotfiles repo, links it into
+                        $HOME and activates your first profile.
                     </p>
+                    <a
+                        class="dt-step__alt"
+                        href="{{ 'getting-started/initialise/' | url }}"
+                        >Full guide
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M5 12h14" />
+                            <path d="m12 5 7 7-7 7" />
+                        </svg>
+                    </a>
                 </div>
                 <div class="dt-cmd">
                     <span class="dt-p">$</span>
-                    <code>dotty profile new --name=work</code>
+                    <code>dotty init</code>
                     <div class="md-code__nav">
                         <button
                             class="md-code__button"

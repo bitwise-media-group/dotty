@@ -70,6 +70,8 @@
     --dt-grey: #6e6749;
     --dt-line: #34301f;
     --dt-line-2: #45402b;
+    --dt-ic-bg: #2a2718;
+    --dt-ic-border: rgba(244, 239, 221, 0.14);
     --dt-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
     --dt-shadow-strong: 0 28px 70px rgba(0, 0, 0, 0.55);
 }
@@ -129,6 +131,8 @@
     --dt-grey: #847b58;
     --dt-line: #e6decb;
     --dt-line-2: #d3c8a8;
+    --dt-ic-bg: #f3eedf;
+    --dt-ic-border: rgba(33, 30, 20, 0.12);
     --dt-shadow: 0 20px 50px rgba(83, 68, 20, 0.14);
     --dt-shadow-strong: 0 28px 70px rgba(83, 68, 20, 0.2);
 }
@@ -202,6 +206,145 @@
 .md-typeset .admonition,
 .md-typeset details {
     border-left-width: 2px;
+}
+
+/* ---------- Keycaps (pymdownx.keys ++key++) ----------
+   Two-tone sculpted caps on the dotty yellow ramp, mirroring the evolve docs'
+   Dasher-style treatment: the named/special keys (modifiers, Tab, Esc, Enter,
+   arrows, …) take the bright brand yellow and the character keys (letters,
+   digits, symbols) take the deeper amber, with a dark legend on both.
+
+   pymdownx.keys wraps each chord in <span class="keys"> and emits one
+   <kbd class="key-…"> per key, normalising aliases to a single canonical class
+   (ctrl→key-control, cmd→key-command, a→key-a). So yellow is the DEFAULT cap
+   and only the bounded set of character classes is overridden to amber below —
+   far fewer selectors than enumerating every named key, and any future named
+   key an author types lands yellow automatically.
+
+   The caps are deliberately scheme-agnostic — a physical keycap is the same
+   colour on a dark or light desk — so the yellows are hardcoded rather than
+   wired to the scheme tokens. The 3D cap is three stacked box-shadows: a solid
+   front lip (the darker bottom face), a soft drop shadow, and a thin inner top
+   highlight; the top-lighter gradient gives the dished face. */
+.md-typeset .keys {
+    white-space: nowrap;
+}
+
+/* default cap = named / special key (modifiers, Tab, Esc, arrows…), yellow */
+.md-typeset .keys kbd {
+    --kc-top: #ffd740;
+    --kc-face: #f5c518;
+    --kc-edge: #a88400;
+
+    display: inline-block;
+    min-width: 1.2em;
+    margin: 0 0.05em;
+    padding: 0.16em 0.5em 0.18em;
+    border: 0;
+    border-radius: 4px 4px 5px 5px;
+    font-family: var(
+        --md-code-font-family,
+        "JetBrains Mono",
+        ui-monospace,
+        monospace
+    );
+    font-size: 0.82em;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: center;
+    vertical-align: middle;
+    color: #15140f;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: linear-gradient(180deg, var(--kc-top), var(--kc-face) 68%);
+    box-shadow:
+        0 2px 0 0 var(--kc-edge),
+        0 3px 5px rgba(0, 0, 0, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* character caps (letters, digits, symbols) = deeper amber.
+   Space is intentionally absent — it is a named key and stays yellow. */
+.md-typeset .keys kbd.key-a,
+.md-typeset .keys kbd.key-b,
+.md-typeset .keys kbd.key-c,
+.md-typeset .keys kbd.key-d,
+.md-typeset .keys kbd.key-e,
+.md-typeset .keys kbd.key-f,
+.md-typeset .keys kbd.key-g,
+.md-typeset .keys kbd.key-h,
+.md-typeset .keys kbd.key-i,
+.md-typeset .keys kbd.key-j,
+.md-typeset .keys kbd.key-k,
+.md-typeset .keys kbd.key-l,
+.md-typeset .keys kbd.key-m,
+.md-typeset .keys kbd.key-n,
+.md-typeset .keys kbd.key-o,
+.md-typeset .keys kbd.key-p,
+.md-typeset .keys kbd.key-q,
+.md-typeset .keys kbd.key-r,
+.md-typeset .keys kbd.key-s,
+.md-typeset .keys kbd.key-t,
+.md-typeset .keys kbd.key-u,
+.md-typeset .keys kbd.key-v,
+.md-typeset .keys kbd.key-w,
+.md-typeset .keys kbd.key-x,
+.md-typeset .keys kbd.key-y,
+.md-typeset .keys kbd.key-z,
+.md-typeset .keys kbd.key-0,
+.md-typeset .keys kbd.key-1,
+.md-typeset .keys kbd.key-2,
+.md-typeset .keys kbd.key-3,
+.md-typeset .keys kbd.key-4,
+.md-typeset .keys kbd.key-5,
+.md-typeset .keys kbd.key-6,
+.md-typeset .keys kbd.key-7,
+.md-typeset .keys kbd.key-8,
+.md-typeset .keys kbd.key-9,
+.md-typeset .keys kbd.key-exclam,
+.md-typeset .keys kbd.key-at,
+.md-typeset .keys kbd.key-percent,
+.md-typeset .keys kbd.key-minus,
+.md-typeset .keys kbd.key-plus,
+.md-typeset .keys kbd.key-equal,
+.md-typeset .keys kbd.key-underscore,
+.md-typeset .keys kbd.key-bracket-left,
+.md-typeset .keys kbd.key-bracket-right,
+.md-typeset .keys kbd.key-brace-left,
+.md-typeset .keys kbd.key-brace-right,
+.md-typeset .keys kbd.key-backslash,
+.md-typeset .keys kbd.key-bar,
+.md-typeset .keys kbd.key-semicolon,
+.md-typeset .keys kbd.key-colon,
+.md-typeset .keys kbd.key-single-quote,
+.md-typeset .keys kbd.key-double-quote,
+.md-typeset .keys kbd.key-comma,
+.md-typeset .keys kbd.key-period,
+.md-typeset .keys kbd.key-less,
+.md-typeset .keys kbd.key-greater,
+.md-typeset .keys kbd.key-slash,
+.md-typeset .keys kbd.key-question,
+.md-typeset .keys kbd.key-grave,
+.md-typeset .keys kbd.key-tilde {
+    --kc-top: #f0b400;
+    --kc-face: #dc9e00;
+    --kc-edge: #8f6b00;
+}
+
+/* the "+" joining chord keys: a small muted connector, not a cap */
+.md-typeset .keys > span {
+    margin: 0 0.15em;
+    color: var(--dt-grey);
+    font-weight: 600;
+}
+
+/* Inline-code chips. Material's default --md-code-bg-color sits *darker* than
+   the page in dark mode, so a bare inline chip nearly vanishes against it;
+   --dt-ic-bg gives it a lighter raised surface with a hairline border instead.
+   Scoped to inline code (a <code> not inside a <pre>) so fenced blocks keep
+   their own sunken panel (--md-code-bg-color). */
+.md-typeset :not(pre) > code {
+    background-color: var(--dt-ic-bg);
+    border: 1px solid var(--dt-ic-border);
 }
 
 /* ============================================================
