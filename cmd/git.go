@@ -4,6 +4,9 @@
 package main
 
 import (
+	"errors"
+	"strconv"
+
 	"github.com/spf13/cobra"
 )
 
@@ -18,4 +21,16 @@ up first with ` + "`dotty signing-key sign --print-git-config`" + `.`,
 
 func init() {
 	rootCmd.AddCommand(gitCmd)
+}
+
+// stackHops parses the optional [num] argument shared by up/down (default 1).
+func stackHops(args []string) (int, error) {
+	if len(args) == 0 {
+		return 1, nil
+	}
+	n, err := strconv.Atoi(args[0])
+	if err != nil || n < 1 {
+		return 0, errors.New("num must be a positive integer")
+	}
+	return n, nil
 }

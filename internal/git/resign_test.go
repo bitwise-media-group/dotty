@@ -30,6 +30,8 @@ func (f *fakeRunner) Output(_ context.Context, _ string, args ...string) ([]byte
 	return f.output(args)
 }
 
+func (f *fakeRunner) Run(context.Context, string, ...string) error { return nil }
+
 func (f *fakeRunner) RunInteractive(_ context.Context, _ string, args ...string) error {
 	c := interactiveCall{args: args}
 	for i := 0; i+1 < len(args); i++ {
@@ -187,9 +189,9 @@ func amendOutput(msg string) func([]string) ([]byte, error) {
 		switch {
 		case len(args) >= 3 && args[0] == "log" && args[2] == "--format=%an%x00%ae":
 			return []byte("Old Name\x00old@example.com\n"), nil
-		case len(args) >= 3 && args[0] == "config" && args[2] == "user.name":
+		case args[0] == "config" && args[len(args)-1] == "user.name":
 			return []byte("New Name\n"), nil
-		case len(args) >= 3 && args[0] == "config" && args[2] == "user.email":
+		case args[0] == "config" && args[len(args)-1] == "user.email":
 			return []byte("new@example.com\n"), nil
 		case len(args) >= 3 && args[0] == "log" && args[2] == "--format=%B":
 			return []byte(msg), nil

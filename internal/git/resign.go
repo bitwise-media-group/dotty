@@ -12,14 +12,6 @@ import (
 	"strings"
 )
 
-// Runner runs git. Output captures stdout for the small read-only queries;
-// RunInteractive wires the full terminal so the rebase shows progress and the
-// signing program can prompt, and so a non-zero exit surfaces as *cli.ExitError.
-type Runner interface {
-	Output(ctx context.Context, name string, args ...string) ([]byte, error)
-	RunInteractive(ctx context.Context, name string, args ...string) error
-}
-
 // Options parameterize one resign. Exactly one of Root or Base selects the
 // range: Root rebases from the very first commit, Base rebases Base..HEAD.
 // ResetAuthor additionally rewrites each commit's author; Exe is the dotty
@@ -178,15 +170,14 @@ func headAuthor(ctx context.Context, r Runner) (name, email string, err error) {
 }
 
 // configValue reads a non-empty git config value, turning an unset key into a
-// clear error.
+// clear error while passing genuine git failures through.
 func configValue(ctx context.Context, r Runner, key string) (string, error) {
-	out, err := r.Output(ctx, "git", "config", "--get", key)
+	v, found, err := ConfigLookup(ctx, r, key)
 	if err != nil {
-		return "", fmt.Errorf("git config %s is not set: %w", key, err)
+		return "", err
 	}
-	v := strings.TrimSpace(string(out))
-	if v == "" {
-		return "", fmt.Errorf("git config %s is empty", key)
+	if !found {
+		return "", fmt.Errorf("git config %s is not set", key)
 	}
 	return v, nil
 }
