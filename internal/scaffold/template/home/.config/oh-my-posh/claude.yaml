@@ -1,0 +1,92 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+# yaml-language-server: $schema=https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json
+version: 4
+final_space: true
+streaming: 100
+
+palette:
+  base: "#16181A"
+  blue: "#5EA1FF"
+  crust: "#1E2124"
+  diff_add: "#24462A"
+  diff_rem: "#442927"
+  flamingo: "#FFACF6"
+  green: "#5EFF6C"
+  lavender: "#BD5EFF"
+  mantle: "#1E2124"
+  maroon: "#A12400"
+  mauve: "#FF5EA0"
+  overlay_0: "#3C4048"
+  overlay_1: "#3C4048"
+  overlay_2: "#1E2124"
+  peach: "#FFBD5E"
+  pink: "#FF5EF1"
+  red: "#FF6E5E"
+  rosewater: "#FFEAFC"
+  sapphire: "#007CDE"
+  sky: "#ABC7FF"
+  subtext_0: "#7B8496"
+  subtext_1: "#7B8496"
+  surface_0: "#3C4048"
+  surface_1: "#1E2124"
+  surface_2: "#1E2124"
+  teal: "#5EF1FF"
+  text: "#FFFFFF"
+  yellow: "#F1FF5E"
+
+blocks:
+  - type: prompt
+    alignment: left
+    segments:
+      - type: os
+        template: "{{ .Icon }} "
+        foreground: p:base
+        background: p:blue
+        style: diamond
+        leading_diamond: 
+        trailing_diamond: 
+
+      - type: path
+        template: "  {{ .Path }} "
+        foreground: p:base
+        background: p:pink
+        style: diamond
+        leading_diamond: <p:base></>
+        trailing_diamond: 
+        cache:
+          duration: none
+        options:
+          folder_icon: "  "
+          home_icon: 
+          style: folder
+
+      - type: claude
+        foreground: p:base
+        background: p:red
+        style: diamond
+        leading_diamond: <p:base></>
+        trailing_diamond: 
+        template: " 󰯉  {{ .Model.DisplayName }}{{ if .Effort.Level }} • {{ .Effort.Level }} {{ end }}󰻞 {{ .TokenUsagePercent }}% 󰕶 {{ .SevenDayUsage }}% 󱤓 {{ .FormattedTokens }} • {{ .FormattedCost }} "
+
+      - type: git
+        template: " {{ .UpstreamIcon }}{{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }}  {{ .Working.String }}{{ end }}{{ if and (.Working.Changed) (.Staging.Changed) }} |{{ end }}{{ if .Staging.Changed }}  {{ .Staging.String }}{{ end }} "
+        foreground: p:base
+        background: p:green
+        style: diamond
+        leading_diamond: <p:base></>
+        trailing_diamond: 
+        cache:
+          duration: none
+        options:
+          branch_icon: " "
+          cherry_pick_icon: " "
+          commit_icon: " "
+          fetch_status: true
+          fetch_upstream_icon: false
+          merge_icon: " "
+          no_commits_icon: " "
+          rebase_icon: " "
+          revert_icon: " "
+          tag_icon: " "

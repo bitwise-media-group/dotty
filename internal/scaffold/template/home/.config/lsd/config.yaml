@@ -1,0 +1,6 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+color:
+  when: auto
+  theme: custom

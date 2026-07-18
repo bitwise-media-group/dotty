@@ -1,0 +1,50 @@
+# platform specific options
+macos-option-as-alt = true
+macos-titlebar-style = hidden
+
+# application
+quit-after-last-window-closed = true
+quit-after-last-window-closed-delay = 5s
+auto-update = download
+
+# theme
+theme = dark:cyberdream,light:cyberdream-light
+font-family = "Iosevka NF"
+font-size = 15
+background-opacity = 0.95
+background-blur = 16
+font-thicken=true
+font-thicken-strength=1
+adjust-cell-height=1
+
+# AI/LLM brand glyphs (lobe-icons-font — installed by `dotty init` into ~/Library/Fonts)
+font-codepoint-map = U+F4000-U+F47FF=lobe-icons
+
+# mouse
+mouse-hide-while-typing = true
+mouse-shift-capture = true
+focus-follows-mouse = true
+
+# cursor
+cursor-click-to-move = true
+
+# window
+window-padding-x = 5,5
+window-padding-y = 5,5
+window-decoration = true
+window-colorspace = display-p3
+window-save-state = always
+
+# positioning (fill by default)
+window-height = 5000
+window-width = 5000
+
+# splits
+unfocused-split-opacity = 0.50
+
+# links
+link-url = true
+
+# clipboard
+clipboard-read = allow
+clipboard-write = allow

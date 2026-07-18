@@ -1,0 +1,41 @@
+#!/usr/bin/env sh
+
+set -eu
+
+# Grok PreToolUse deny-hook — recovers the credential protection that Claude
+# Code gets from sandbox.filesystem.denyRead/denyWrite and its keychain block
+# (no com.apple.SecurityServer mach lookup). Grok's [permission] rules treat
+# ~/ as literal glob text, so home-anchored credential paths (~/.ssh, ~/.aws,
+# ~/.azure, ~/.config/gcloud, ~/.gnupg, and .env files) cannot be
+# fully denied at the rules layer. This hook blocks them at the tool layer
+# instead — the same set OpenCode denies in its `bash` rules
+# (.config/opencode/opencode.jsonc) and Codex denies with its twin hook
+# (.config/codex/hooks/pre-tool-use-policy).
+#
+# Grok pipes the PreToolUse event as JSON on stdin. We only run for the Bash
+# tool (matcher "^Bash$" in hooks/pre-tool-use-policy.json), so
+# .tool_input.command is the shell line about to execute. Emitting
+# permissionDecision "deny" stops it before it runs; printing nothing (exit 0)
+# lets the [permission] allow/deny rules decide.
+
+input=$(cat)
+command=$(printf '%s' "${input}" | jq -r '.tool_input.command // empty' 2> /dev/null || true)
+
+# No command to inspect (non-Bash payload, or parse miss) — defer, don't block.
+[ -n "${command}" ] || exit 0
+
+deny() {
+	# PreToolUse deny decision (Grok hooks protocol). A reason is surfaced to
+	# the model so it can adjust instead of silently failing.
+	printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$1"
+	exit 0
+}
+
+# Credential paths (~/.ssh, ~/.aws, ~/.azure, ~/.config/gcloud, ~/.gnupg, any
+# .env*) and the macOS `security` keychain tool. Matched case-insensitively
+# against the whole command so it catches the path wherever it appears in the line.
+if printf '%s' "${command}" | grep -qiE '(^|[^[:alnum:]_])\.env|\.ssh([/[:space:]]|$)|\.aws([/[:space:]]|$)|\.azure([/[:space:]]|$)|\.config/gcloud|\.gnupg([/[:space:]]|$)|(^|[;&|/[:space:]])security([[:space:]]|$)'; then
+	deny "blocked by grok policy: command references a credential path (~/.ssh, ~/.aws, ~/.azure, ~/.config/gcloud, ~/.gnupg, .env) or the macOS keychain"
+fi
+
+exit 0

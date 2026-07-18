@@ -130,8 +130,10 @@ func List(configDir string) ([]Profile, error) {
 	}
 	var profiles []Profile
 	for _, e := range entries {
-		// Symlinks (active-profile) report !IsDir from ReadDir.
-		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+		// Profiles are usually symlinks into the repository, so resolve each
+		// entry rather than trusting ReadDir; the active-profile symlink is
+		// excluded by name, and a dangling symlink resolves to not-a-profile.
+		if e.Name() == activeLink || strings.HasPrefix(e.Name(), ".") || !Exists(configDir, e.Name()) {
 			continue
 		}
 		p, err := Load(configDir, e.Name())

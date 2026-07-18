@@ -1,0 +1,71 @@
+[core]
+    autocrlf = input
+    excludesFile = ~/.config/git/ignore
+
+[checkout]
+	defaultRemote = origin
+
+[log]
+	showSignature = false
+
+[pull]
+	ff = only
+	rebase = true
+
+[rebase]
+	autoStash = true
+	autoSquash = true
+	interactive = true
+
+[init]
+	defaultBranch = main
+	templatedir = ~/.config/git/template
+
+[lfs]
+	locksverify = true
+
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+
+# Machine-specific signing config (gpg/ssh when this machine uses security
+# keys) rendered into the active dotty profile; git silently skips a missing
+# include, so machines without keys sign nothing.
+[include]
+	path = ~/.config/dotty/active-profile/git.gitconfig
+
+# Stacked-branch workflow via dotty: signature-preserving, trunk-based stacks
+# with ff-merge. sync also cleans up merged layers, so no separate done alias.
+[alias]
+	append = "!dotty git append"
+	browse = "!dotty git browse"
+	down = "!dotty git down"
+	propose = "!dotty git propose"
+	resign = "!dotty git resign"
+	stack = "!dotty git stack"
+	start = "!dotty git start"
+	sync = "!dotty git sync"
+	up = "!dotty git up"
+
+[includeIf "hasconfig:remote.*.url:https://github.com/**"]
+	path = ~/.config/git/github.gitconfig
+
+[includeIf "hasconfig:remote.*.url:https://codeberg.org/**"]
+	path = ~/.config/git/forgejo.gitconfig
+
+[includeIf "hasconfig:remote.*.url:https://code.forgejo.org/**"]
+    path = ~/.config/git/forgejo.gitconfig
+
+# we recommend setting user and email in a private repository
+# that uses stow to symlink to here
+[include]
+	path = ~/.config/private/git/config
+
+# Agent worktrees disable commit/tag signing so sandboxed agents don't block
+# on a security key. The worktree location is configurable per profile, so
+# the gitdir condition renders there; loaded last so it overrides anything
+# in the private overlay.
+[include]
+	path = ~/.config/dotty/active-profile/worktrees.gitconfig

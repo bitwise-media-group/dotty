@@ -1,0 +1,23 @@
+brew "bat"
+brew "curl"
+brew "fd"
+brew "fzf"
+brew "gh"
+brew "git"
+brew "git-delta"
+brew "git-lfs"
+brew "jq"
+brew "ripgrep"
+brew "vivid"
+brew "wget"
+brew "yq"
+brew "zinit"
+brew "zoxide"
+brew "zsh"
+
+brew "jandedobbeleer/oh-my-posh/oh-my-posh", args: ["formula"], trusted: true
+
+cask "font-iosevka-nerd-font"
+cask "font-symbols-only-nerd-font"
+cask "ghostty"
+cask "git-credential-manager"

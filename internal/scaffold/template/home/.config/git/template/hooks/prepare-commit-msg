@@ -1,0 +1,8 @@
+#! /usr/bin/env sh
+
+__name=$(git config user.name)
+__email=$(git config user.email)
+
+git interpret-trailers --if-exists doNothing --trailer \
+    "Signed-off-by: ${__name} <${__email}>" \
+    --in-place "${1}"

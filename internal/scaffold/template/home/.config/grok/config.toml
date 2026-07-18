@@ -1,0 +1,213 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+# Grok Build (grok CLI) configuration — mirrors Claude Code (.config/claude/settings.json)
+# the same way OpenCode and Codex do: same guardrails, expressed in Grok-native form.
+#
+# Loaded from ~/.config/grok/config.toml (via GROK_HOME). Grok also merges Claude Code compatibility
+# sources by default ([compat.claude]); this file is the explicit native mirror so Grok
+# stays aligned when Claude settings are absent or diverge.
+#
+# What mirrors what:
+#   [sandbox] profile = "dotfiles"          <- sandbox.filesystem + sandbox.enabled
+#   [permission] allow / deny               <- permissions.allow / permissions.deny
+#   ~/.config/grok/hooks/tmux-status.json          <- Stop/Notification/PostToolUse/… hooks
+#   ~/.config/grok/hooks/pre-tool-use-policy       <- denyRead/denyWrite + keychain block (tool layer)
+#   [ui] simple_mode / screen_mode          <- editorMode: vim, tui: fullscreen
+#   [tools] respect_gitignore               <- respectGitignore
+#   [memory] enabled                        <- autoMemoryEnabled
+#   [marketplace] + [plugins]               <- extraKnownMarketplaces + enabledPlugins
+#   AGENTS.md                               <- CLAUDE.md (shared global agent rules)
+#
+# Validate:  grok inspect
+# Sandbox:   grok --sandbox dotfiles …
+
+# ── Models ───────────────────────────────────────────────────────────────────
+[models]
+default = "grok-4.5"
+
+[harness]
+disable_codebase_upload = true
+
+# ── UI (Claude: editorMode vim, tui fullscreen, theme cyberdream) ────────────
+# Grok has no custom hex theme file; cyberdream comes from Ghostty's ANSI palette
+# (same approach as Codex theme = "ansi"). simple_mode = false is vim prompt editing.
+[ui]
+simple_mode = false
+vim_mode = true
+screen_mode = "fullscreen"
+compact_mode = false
+permission_mode = "auto"
+yolo = false
+max_thoughts_width = 120
+remember_tool_approvals = false
+show_thinking_blocks = true
+group_tool_verbs = true
+fork_secondary_model = "grok-4.5"
+
+[hints]
+new_session_worktree_mode = "never"
+fork_worktree_mode = "ask"
+
+# ── Tools ────────────────────────────────────────────────────────────────────
+[tools]
+respect_gitignore = true
+
+# ── Memory (Claude: autoMemoryEnabled) ───────────────────────────────────────
+[memory]
+enabled = true
+
+[memory.session]
+save_on_end = true
+
+# ── Features ─────────────────────────────────────────────────────────────────
+[features]
+feedback = false
+telemetry = false
+
+{{- if .Harden }}
+# ── Sandbox (see sandbox.toml profile "dotfiles") ────────────────────────────
+# Default every new session to the custom profile that mirrors Claude Code's
+# filesystem allowWrite / denyRead. Override per-invocation with --sandbox.
+[sandbox]
+profile = "dotfiles"
+
+{{- end }}
+{{- if .Harden }}
+# ── Permissions (Claude: permissions.allow / .deny, defaultMode auto) ────────
+# Grok has no "auto" mode; default prompt policy + explicit allow rules is the
+# closest match to Claude's allowlist with autoAllowBashIfSandboxed = false.
+# Path patterns: Grok treats ~/ as literal glob text in Read/Edit rules, so
+# credential denies use **/… forms (plus the PreToolUse hook for home paths).
+[permission]
+allow = [
+  "Read",
+  "Glob",
+  "Grep",
+  "WebSearch",
+  "Edit(/tmp/**)",
+  "Edit({{.WorktreesRoot}}/**)",
+  "Bash(pwd)",
+  "Bash(hostname)",
+  "Bash(whoami)",
+  "Bash(id)",
+  "Bash(id *)",
+  "Bash(uptime)",
+  "Bash(uname)",
+  "Bash(uname *)",
+  "Bash(date)",
+  "Bash(date *)",
+  "Bash(ls)",
+  "Bash(ls *)",
+  "Bash(stat *)",
+  "Bash(file *)",
+  "Bash(wc *)",
+  "Bash(tree)",
+  "Bash(tree *)",
+  "Bash(which *)",
+  "Bash(type *)",
+  "Bash(command -v *)",
+  "Bash(echo *)",
+  "Bash(printf *)",
+  "Bash(cat *)",
+  "Bash(head *)",
+  "Bash(tail *)",
+  "Bash(grep *)",
+  "Bash(rg *)",
+  "Bash(find *)",
+  "Bash(jq *)",
+  "Bash(yq *)",
+  "Bash(brew list)",
+  "Bash(brew list *)",
+  "Bash(brew search *)",
+  "Bash(brew info *)",
+  "Bash(brew bundle check)",
+  "Bash(brew bundle check *)",
+  "Bash(git status)",
+  "Bash(git status *)",
+  "Bash(git diff)",
+  "Bash(git diff *)",
+  "Bash(git log)",
+  "Bash(git log *)",
+  "Bash(git show *)",
+  "Bash(git blame *)",
+  "Bash(git ls-files)",
+  "Bash(git ls-files *)",
+  "Bash(git rev-parse *)",
+  "Bash(git config --get *)",
+  "Bash(git branch)",
+  "Bash(git branch --list)",
+  "Bash(git branch --list *)",
+  "Bash(git stash list)",
+  "Bash(git worktree list)",
+  "Bash(git remote)",
+  "Bash(git remote -v)",
+  "Bash(git remote get-url *)",
+  "Bash(git add *)",
+  "Bash(git restore *)",
+  "Bash(git checkout *)",
+  "Bash(git switch *)",
+  "Bash(git commit *)",
+  "Bash(chmod +x commit.sh)",
+]
+deny = [
+  "Read(**/.aws)",
+  "Read(**/.aws/**)",
+  "Read(**/.azure)",
+  "Read(**/.azure/**)",
+  "Read(**/.config/gcloud)",
+  "Read(**/.config/gcloud/**)",
+  "Read(**/.ssh)",
+  "Read(**/.ssh/**)",
+  "Read(**/.gnupg)",
+  "Read(**/.gnupg/**)",
+  "Read(**/.env*)",
+  "Edit(**/.aws)",
+  "Edit(**/.aws/**)",
+  "Edit(**/.azure)",
+  "Edit(**/.azure/**)",
+  "Edit(**/.config/gcloud)",
+  "Edit(**/.config/gcloud/**)",
+  "Edit(**/.ssh)",
+  "Edit(**/.ssh/**)",
+  "Edit(**/.gnupg)",
+  "Edit(**/.gnupg/**)",
+  "Edit(**/.env*)",
+  # Claude Code blocks the keychain at the sandbox layer (no
+  # com.apple.SecurityServer mach lookup); Grok cannot, so deny the CLI here.
+  "Bash(security *)",
+]
+
+{{- end }}
+# ── Marketplace + plugins (Claude: extraKnownMarketplaces + enabledPlugins) ──
+[marketplace]
+official_marketplace_auto_installed = false
+
+[[marketplace.sources]]
+name = "xAI Official"
+git = "https://github.com/xai-org/plugin-marketplace.git"
+{{- if .Marketplace }}
+
+[[marketplace.sources]]
+name = "bitwise"
+git = "https://github.com/bitwise-media-group/skills.git"
+
+# Enable the same bitwise plugins Claude Code turns on. Install once with:
+#   grok plugin install bitwise/skills#plugins/terraform --trust
+#   grok plugin install bitwise/skills#plugins/workflow --trust
+# (or from the /marketplace modal). Names match `grok plugin list`.
+[plugins]
+enabled = ["workflow"]
+{{- end }}
+
+# ── Claude / Cursor compatibility ────────────────────────────────────────────
+# Keep scanning Claude sources so project CLAUDE.md and any remaining Claude
+# settings still apply. Hooks from claude settings.json may fire alongside
+# ~/.config/grok/hooks/ (dotty tmux set-status is idempotent).
+[compat.claude]
+agents = true
+sessions = true
+skills = false
+rules = false
+mcps = false
+hooks = false

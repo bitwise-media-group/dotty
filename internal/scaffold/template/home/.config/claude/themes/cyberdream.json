@@ -1,0 +1,62 @@
+{
+  "name": "Cyberdream",
+  "base": "dark",
+  "overrides": {
+    "claude": "#FF5EA0",
+    "claudeShimmer": "#FF5EF1",
+    "text": "#FFFFFF",
+    "inverseText": "#16181A",
+    "inactive": "#3C4048",
+    "inactiveShimmer": "#5A6069",
+    "subtle": "#3C4048",
+    "suggestion": "#5EA1FF",
+    "permission": "#BD5EFF",
+    "permissionShimmer": "#D08FFF",
+    "remember": "#BD5EFF",
+
+    "success": "#5EFF6C",
+    "error": "#FF6E5E",
+    "warning": "#F1FF5E",
+    "warningShimmer": "#F7FF8F",
+    "merged": "#BD5EFF",
+
+    "promptBorder": "#5EA1FF",
+    "promptBorderShimmer": "#8FBDFF",
+    "planMode": "#5EF1FF",
+    "autoAccept": "#5EFF6C",
+    "bashBorder": "#FF5EA0",
+    "ide": "#5EA1FF",
+    "fastMode": "#FFBD5E",
+    "fastModeShimmer": "#FFD08F",
+
+    "diffAdded": "#16301B",
+    "diffRemoved": "#301818",
+    "diffAddedDimmed": "#10200F",
+    "diffRemovedDimmed": "#201010",
+    "diffAddedWord": "#2D6B36",
+    "diffRemovedWord": "#6B2D2D",
+
+    "rate_limit_fill": "#5EA1FF",
+    "rate_limit_empty": "#3C4048",
+
+    "briefLabelYou": "#5EA1FF",
+    "briefLabelClaude": "#FF5EA0",
+
+    "red_FOR_SUBAGENTS_ONLY": "#FF6E5E",
+    "blue_FOR_SUBAGENTS_ONLY": "#5EA1FF",
+    "green_FOR_SUBAGENTS_ONLY": "#5EFF6C",
+    "yellow_FOR_SUBAGENTS_ONLY": "#F1FF5E",
+    "purple_FOR_SUBAGENTS_ONLY": "#BD5EFF",
+    "orange_FOR_SUBAGENTS_ONLY": "#FFBD5E",
+    "pink_FOR_SUBAGENTS_ONLY": "#FF5EA0",
+    "cyan_FOR_SUBAGENTS_ONLY": "#5EF1FF",
+
+    "rainbow_red": "#FF6E5E",
+    "rainbow_orange": "#FFBD5E",
+    "rainbow_yellow": "#F1FF5E",
+    "rainbow_green": "#5EFF6C",
+    "rainbow_blue": "#5EA1FF",
+    "rainbow_indigo": "#007CDE",
+    "rainbow_violet": "#BD5EFF"
+  }
+}

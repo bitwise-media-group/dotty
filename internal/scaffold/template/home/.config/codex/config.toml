@@ -1,0 +1,123 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+#:schema https://developers.openai.com/codex/config-schema.json
+
+# Codex CLI configuration — the OpenAI agent, brought to the same guardrails as
+# Claude Code (.config/claude/settings.json) and OpenCode (.config/opencode/opencode.jsonc).
+#
+# Loaded from $CODEX_HOME/config.toml. CODEX_HOME is set to ~/.config/codex in
+# .config/zsh/.zshenv so this whole package lives under XDG config like every
+# other tool in this repo (CLAUDE_CONFIG_DIR relocates Claude Code the same way).
+#
+# What mirrors what:
+#   sandbox_mode + [sandbox_workspace_write]  <- sandbox.filesystem / sandbox.network
+#   approval_policy + rules/default.rules     <- permissions.allow / permissions.deny
+#   hooks/pre-tool-use-policy                 <- sandbox.filesystem.denyRead/denyWrite + keychain block
+#   [[hooks.*]] -> dotty tmux set-status      <- the Claude Code "needs you" tmux indicator
+#   [tui]                                      <- theme: custom:cyberdream (inherited via ANSI)
+#
+# Validate edits with:  codex doctor   (config.toml parse + sandbox summary)
+
+{{- if .Harden }}
+# Prompt before anything that execpolicy hasn't explicitly trusted — the analog
+# of Claude Code's "ask unless allow-listed" default (autoAllowBashIfSandboxed=false).
+approval_policy = "untrusted"
+
+{{- end }}
+{{- if not .Harden }}
+# Without hardening, prompt on request like a stock install.
+approval_policy = "on-request"
+{{- end }}
+{{- if .Harden }}
+# ── Sandbox ──────────────────────────────────────────────────────────────────
+# workspace-write: read broadly, write only to cwd + writable_roots; everything
+# else needs approval. macOS enforces this with Seatbelt, the same primitive
+# Claude Code's sandbox uses.
+sandbox_mode = "workspace-write"
+{{- end }}
+approvals_reviewer = "auto_review"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+
+{{- if .Harden }}
+[sandbox_workspace_write]
+# Mirror of sandbox.filesystem.allowWrite. cwd is always writable, so working
+# inside ~/Repos/<repo> needs no entry here; these cover writes that land
+# outside the current repo (agent worktrees + language/tool caches).
+writable_roots = [
+  "{{.ReposDir}}",
+{{- if .WorktreesAbs }}
+  "{{.WorktreesAbs}}",
+{{- end }}
+  "~/.cache",
+  "~/.local/share/go",
+  "~/.local/share/mise",
+  "~/.npm",
+]
+# Claude Code allow-lists ~20 network hosts (npm, pypi, github, …). Codex's
+# sandbox can only toggle network as a whole, so we enable it to keep installs
+# and fetches working. It is broader than Claude Code's allow-list; the
+# pre-tool-use-policy hook still blocks credential reads regardless.
+network_access = true
+# Keep /tmp and $TMPDIR writable (false = included). Matches Claude Code's
+# allowWrite of /tmp and the global "$TMPDIR for temp files" convention.
+exclude_slash_tmp = false
+exclude_tmpdir_env_var = false
+
+{{- end }}
+# ── Theme ────────────────────────────────────────────────────────────────────
+# Codex has no custom hex palette like Claude Code's cyberdream.json — its UI
+# chrome renders with the terminal's 16 ANSI colors, which Ghostty already paints
+# cyberdream. `theme = "ansi"` makes code-block syntax highlighting follow those
+# same ANSI colors too, so the whole TUI stays on-palette without a fork.
+[tui]
+theme = "ansi"
+
+# ── Status hooks: the tmux "needs you" indicator ─────────────────────────────
+# Reuse the shared, tool-agnostic `dotty tmux set-status` (also driven by
+# Claude Code's hooks and OpenCode's plugin). It sets a per-window
+# @agent_status token that .config/tmux/conf/theme.conf renders as a colour +
+# glyph. Mapping mirrors claude settings.json:
+#   Stop             -> waiting    (turn finished, awaiting you)        Claude: Stop
+#   PermissionRequest-> attention  (approval needed)                    Claude: Notification
+#   PostToolUse      -> clear      (a tool ran after approval)          Claude: PostToolUse
+#   UserPromptSubmit -> clear      (you replied)                        Claude: UserPromptSubmit
+# Codex has no SessionEnd hook; the four above cover the indicator lifecycle.
+
+[[hooks.Stop]]
+[[hooks.Stop.hooks]]
+type = "command"
+command = "dotty tmux set-status waiting"
+
+[[hooks.PermissionRequest]]
+[[hooks.PermissionRequest.hooks]]
+type = "command"
+command = "dotty tmux set-status attention"
+
+[[hooks.PostToolUse]]
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "dotty tmux set-status clear"
+
+[[hooks.UserPromptSubmit]]
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "dotty tmux set-status clear"
+
+# ── Credential-read guard ────────────────────────────────────────────────────
+{{- if .Harden }}
+# Codex's Seatbelt sandbox grants broad filesystem READ (workspace-write only
+# restricts writes), so it has no equivalent of Claude Code's denyRead/denyWrite.
+# Recover that protection at the tool layer: a PreToolUse hook inspects every
+# shell command and denies any that touch ~/.ssh, ~/.aws, ~/.azure,
+# ~/.config/gcloud, ~/.gnupg, a .env file, or the macOS `security` keychain tool
+# (Claude blocks the keychain by dropping the com.apple.SecurityServer mach
+# lookup, which Codex's sandbox cannot express) — the OpenCode bash-deny set.
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "~/.config/codex/hooks/pre-tool-use-policy"
+{{- end }}

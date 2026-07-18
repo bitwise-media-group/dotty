@@ -1,0 +1,23 @@
+# cyberdream theme for ghostty
+palette = 0=#16181A
+palette = 1=#FF6E5E
+palette = 2=#5EFF6C
+palette = 3=#F1FF5E
+palette = 4=#5EA1FF
+palette = 5=#BD5EFF
+palette = 6=#5EF1FF
+palette = 7=#FFFFFF
+palette = 8=#3C4048
+palette = 9=#FF6E5E
+palette = 10=#5EFF6C
+palette = 11=#F1FF5E
+palette = 12=#5EA1FF
+palette = 13=#BD5EFF
+palette = 14=#5EF1FF
+palette = 15=#FFFFFF
+
+background = #16181A
+foreground = #FFFFFF
+cursor-color = #FFFFFF
+selection-background = #3C4048
+selection-foreground = #FFFFFF

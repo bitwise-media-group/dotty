@@ -1,0 +1,78 @@
+# Codex execution policy — the analog of Claude Code's permissions.allow / .deny
+# and OpenCode's `bash` rule map. Auto-discovered from $CODEX_HOME/rules/*.rules.
+#
+# `prefix_rule` matches a leading run of command tokens, so ["ls"] covers `ls -la`
+# and ["git","status"] covers `git status --short`. decision = "allow" auto-runs
+# without a prompt; "forbidden" blocks outright; anything unmatched falls through
+# to approval_policy = "untrusted" (prompt), mirroring Claude Code's "ask unless
+# allow-listed" default.
+#
+# Validate:  codex execpolicy check --rules ~/.config/codex/rules/default.rules -- git status
+
+# ── Read-only inspection (always safe) ───────────────────────────────────────
+prefix_rule(pattern = ["pwd"], decision = "allow")
+prefix_rule(pattern = ["hostname"], decision = "allow")
+prefix_rule(pattern = ["whoami"], decision = "allow")
+prefix_rule(pattern = ["id"], decision = "allow")
+prefix_rule(pattern = ["uptime"], decision = "allow")
+prefix_rule(pattern = ["uname"], decision = "allow")
+prefix_rule(pattern = ["date"], decision = "allow")
+prefix_rule(pattern = ["ls"], decision = "allow")
+prefix_rule(pattern = ["stat"], decision = "allow")
+prefix_rule(pattern = ["file"], decision = "allow")
+prefix_rule(pattern = ["wc"], decision = "allow")
+prefix_rule(pattern = ["tree"], decision = "allow")
+prefix_rule(pattern = ["which"], decision = "allow")
+prefix_rule(pattern = ["type"], decision = "allow")
+prefix_rule(pattern = ["command", "-v"], decision = "allow")
+prefix_rule(pattern = ["echo"], decision = "allow")
+prefix_rule(pattern = ["printf"], decision = "allow")
+prefix_rule(pattern = ["cat"], decision = "allow")
+prefix_rule(pattern = ["head"], decision = "allow")
+prefix_rule(pattern = ["tail"], decision = "allow")
+prefix_rule(pattern = ["grep"], decision = "allow")
+prefix_rule(pattern = ["rg"], decision = "allow")
+prefix_rule(pattern = ["find"], decision = "allow")
+prefix_rule(pattern = ["jq"], decision = "allow")
+prefix_rule(pattern = ["yq"], decision = "allow")
+prefix_rule(pattern = ["test"], decision = "allow")
+
+# ── Homebrew (read-only queries) ─────────────────────────────────────────────
+prefix_rule(pattern = ["brew", "list"], decision = "allow")
+prefix_rule(pattern = ["brew", "search"], decision = "allow")
+prefix_rule(pattern = ["brew", "info"], decision = "allow")
+prefix_rule(pattern = ["brew", "bundle", "check"], decision = "allow")
+
+# ── Git: read-only history/state ─────────────────────────────────────────────
+prefix_rule(pattern = ["git", "status"], decision = "allow")
+prefix_rule(pattern = ["git", "diff"], decision = "allow")
+prefix_rule(pattern = ["git", "log"], decision = "allow")
+prefix_rule(pattern = ["git", "show"], decision = "allow")
+prefix_rule(pattern = ["git", "blame"], decision = "allow")
+prefix_rule(pattern = ["git", "ls-files"], decision = "allow")
+prefix_rule(pattern = ["git", "rev-parse"], decision = "allow")
+prefix_rule(pattern = ["git", "config", "--get"], decision = "allow")
+prefix_rule(pattern = ["git", "branch"], decision = "allow")
+prefix_rule(pattern = ["git", "stash", "list"], decision = "allow")
+prefix_rule(pattern = ["git", "worktree", "list"], decision = "allow")
+prefix_rule(pattern = ["git", "remote"], decision = "allow")
+
+# ── Git: staging / branch moves the agent routinely needs ────────────────────
+prefix_rule(pattern = ["git", "add"], decision = "allow")
+prefix_rule(pattern = ["git", "restore"], decision = "allow")
+prefix_rule(pattern = ["git", "checkout"], decision = "allow")
+prefix_rule(pattern = ["git", "switch"], decision = "allow")
+prefix_rule(pattern = ["git", "commit"], decision = "allow")
+
+# ── The commit.sh hand-off (see ~/.config/claude/CLAUDE.md) ─────────────────────────
+prefix_rule(pattern = ["chmod", "+x", "commit.sh"], decision = "allow")
+
+# ── Forbidden: macOS keychain dump path ──────────────────────────────────────
+# Claude Code blocks the keychain at the sandbox layer (no com.apple.SecurityServer
+# mach lookup); Codex's sandbox cannot express that, so forbid the CLI here.
+# Credential-path reads are blocked separately by hooks/pre-tool-use-policy
+# (a prefix rule can't catch a secret passed as a later argument).
+prefix_rule(pattern = ["security"], decision = "forbidden")
+prefix_rule(pattern=["codex", "--help"], decision="allow")
+prefix_rule(pattern=["codex", "doctor", "--help"], decision="allow")
+prefix_rule(pattern=["codex", "exec", "--help"], decision="allow")

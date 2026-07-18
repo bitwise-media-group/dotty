@@ -1,0 +1,33 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+gui:
+  border: rounded
+  showBottomLine: false
+  showRandomTip: false
+  theme:
+    activeBorderColor:
+      - "#5EF1FF"
+    inactiveBorderColor:
+      - "#7B8496"
+    searchingActiveBorderColor:
+      - "#FF5EF1"
+    optionsTextColor:
+      - "#3C4048"
+    selectedLineBgColor:
+      - "#3C4048"
+    cherryPickedCommitBgColor:
+      - "#3C4048"
+    cherryPickedCommitFgColor:
+      - "#FF5EA0"
+    unstagedChangesColor:
+      - "#FFBD5E"
+    defaultFgColor:
+      - "#FFFFFF"
+quitOnTopLevelReturn: true
+git:
+  pagers:
+    - pager: delta --dark --paging=never --diff-so-fancy --line-numbers --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+  overrideGpg: true
+os:
+  editPreset: "nvim-remote"

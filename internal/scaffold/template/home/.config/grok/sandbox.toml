@@ -1,0 +1,50 @@
+# Copyright 2026 BitWise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
+# Custom sandbox profiles for Grok Build.
+#
+# Selected by default via [sandbox] profile = "dotfiles" in config.toml
+# (or: grok --sandbox dotfiles … / GROK_SANDBOX=dotfiles).
+#
+# Mirrors claude settings.json sandbox.filesystem:
+#   allowWrite            -> read_write (on top of the workspace profile's CWD + temp)
+#   denyRead + denyWrite  -> deny (kernel-enforced read + write/rename on macOS Seatbelt)
+#
+# Paths must be absolute. Grok does NOT expand ~ or $HOME in sandbox.toml —
+# a leading ~/ is treated as a workspace-relative path and creates a literal
+# "~" directory under CWD (and mis-aims deny at $CWD/~/.ssh instead of $HOME).
+#
+# Limits vs Claude Code:
+#   - No per-domain network allowlist (Claude sandbox.network.allowedDomains).
+#     Child network is unrestricted on macOS for workspace-class profiles.
+#   - workspace already reads broadly; Claude's allowRead list is narrower.
+#     deny recovers the credential boundary Claude enforces with denyRead.
+
+[profiles.dotfiles]
+extends = "workspace"
+
+# Extra writable roots beyond CWD / ~/.config/grok / temp — Claude allowWrite.
+read_write = [
+  "{{.ReposDir}}",
+  "{{.Home}}/.cache",
+  "{{.Home}}/.local/share/go",
+  "{{.Home}}/.local/share/mise",
+  "{{.Home}}/.local/bin",
+  "{{.Home}}/.npm",
+  "{{.Home}}/.config/helm",
+  "{{.Home}}/.kubescape",
+  "{{.Home}}/.sigstore",
+  "/tmp",
+]
+
+# Kernel-deny credential paths and env files — Claude denyRead + denyWrite.
+# Globs with * ? [ are gitignore-style; ** spans directories.
+deny = [
+  "{{.Home}}/.aws",
+  "{{.Home}}/.azure",
+  "{{.Home}}/.config/gcloud",
+  "{{.Home}}/.ssh",
+  "{{.Home}}/.gnupg",
+  "**/.env",
+  "**/.env.*",
+]

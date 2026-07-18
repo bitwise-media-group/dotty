@@ -1,0 +1,5 @@
+brew "chafa"
+brew "ffmpeg"
+brew "poppler"
+brew "resvg"
+brew "yazi"

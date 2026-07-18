@@ -1,0 +1,21 @@
+# ignore commit.sh
+commit.sh
+
+# local claude settings
+/.claude/settings.local.json
+/CLAUDE.local.md
+/.claude/plans
+
+# macos files
+.DS_Store
+
+# env files
+.env.*
+!.env.dotty
+
+**/.claude/.cc-writes/
+{{- if not .WorktreesAbs }}
+
+# agent worktrees live inside each repository
+{{.Worktrees}}/
+{{- end }}

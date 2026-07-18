@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "respectGitignore": true,
+  "cleanupPeriodDays": 7,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeGitInstructions": false,
+{{- if .Harden }}
+  "permissions": {
+    "allow": [
+      "Read(*)",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "Edit(/tmp/**)",
+      "Edit({{.WorktreesRoot}}/**)",
+      "Bash(pwd)",
+      "Bash(hostname)",
+      "Bash(whoami)",
+      "Bash(id)",
+      "Bash(id *)",
+      "Bash(uptime)",
+      "Bash(uname)",
+      "Bash(uname *)",
+      "Bash(date)",
+      "Bash(date *)",
+      "Bash(ls)",
+      "Bash(ls *)",
+      "Bash(stat *)",
+      "Bash(file *)",
+      "Bash(wc *)",
+      "Bash(tree)",
+      "Bash(tree *)",
+      "Bash(which *)",
+      "Bash(type *)",
+      "Bash(command -v *)",
+      "Bash(echo *)",
+      "Bash(printf *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(jq *)",
+      "Bash(yq *)",
+      "Bash(brew list)",
+      "Bash(brew list *)",
+      "Bash(brew search *)",
+      "Bash(brew info *)",
+      "Bash(brew bundle check)",
+      "Bash(brew bundle check *)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff)",
+      "Bash(git diff *)",
+      "Bash(git log)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git blame *)",
+      "Bash(git ls-files)",
+      "Bash(git ls-files *)",
+      "Bash(git rev-parse *)",
+      "Bash(git config --get *)",
+      "Bash(git branch)",
+      "Bash(git branch --list)",
+      "Bash(git branch --list *)",
+      "Bash(git stash list)",
+      "Bash(git worktree list)",
+      "Bash(git remote)",
+      "Bash(git remote -v)",
+      "Bash(git remote get-url *)",
+      "Bash(git add *)",
+      "Bash(git restore *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git commit *)"
+    ],
+    "deny": [
+      "Read(~/.aws)",
+      "Read(~/.azure)",
+      "Read(~/.config/gcloud)",
+      "Read(~/.ssh)",
+      "Read(~/.gnupg)",
+      "Read(**/.env*)",
+
+      "Edit(~/.aws)",
+      "Edit(~/.azure)",
+      "Edit(~/.config/gcloud)",
+      "Edit(~/.ssh)",
+      "Edit(~/.gnupg)",
+      "Edit(**/.env*)"
+    ],
+    "defaultMode": "auto"
+  },
+{{- end }}
+  "model": "claude-fable-5[1m]",
+  "hooks": {
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotty worktree start"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotty worktree end"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotty tmux set-status waiting"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotty tmux set-status attention"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotty tmux set-status clear"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotty tmux set-status clear"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotty tmux set-status clear"
+          }
+        ]
+      }
+    ]
+  },
+  "worktree": {
+    "baseRef": "head"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "oh-my-posh claude --config ~/.config/oh-my-posh/claude.yaml"
+  },
+{{- if .Marketplace }}
+  "enabledPlugins": {
+    "terraform@bitwise": true,
+    "actions@bitwise": false,
+    "golang@bitwise": false,
+    "python@bitwise": false,
+    "workflow@bitwise": true
+  },
+  "extraKnownMarketplaces": {
+    "bitwise": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/bitwise-media-group/skills.git"
+      },
+      "autoUpdate": true
+    }
+  },
+{{- end }}
+{{- if .Harden }}
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": false,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "objects.githubusercontent.com",
+        "raw.githubusercontent.com",
+        "codeload.github.com",
+        "ghcr.io",
+        "codeberg.org",
+        "code.forgejo.org",
+
+        "pypi.org",
+        "files.pythonhosted.org",
+
+        "formulae.brew.sh",
+
+        "nodejs.org",
+        "registry.npmjs.org",
+
+        "proxy.golang.org",
+        "sum.golang.org",
+        "index.golang.org",
+        "vuln.go.dev",
+
+        "mise.jdx.dev",
+
+        "registry.terraform.io",
+
+        "localhost",
+        "127.0.0.1",
+        "::1",
+
+        "fonts.googleapis.com",
+        "fonts.gstatic.com",
+
+        "istio-release.storage.googleapis.com",
+        "prometheus-community.github.io",
+        "registry.istio.io",
+        "registry.k8s.io",
+        "grype.anchore.io",
+        "toolbox-data.anchore.io",
+        "*.sigstore.dev",
+
+        "docker.io",
+        "registry-1.docker.io",
+        "auth.docker.io",
+        "index.docker.io",
+        "quay.io",
+        "*.quay.io",
+        "*.pkg.dev",
+        "production.cloudflare.docker.com",
+
+        "*.s3.dualstack.eu-west-1.amazonaws.com",
+        "*.s3.dualstack.eu-west-2.amazonaws.com",
+        "public.ecr.aws",
+        "*.amazonaws.com"
+      ],
+      "allowUnixSockets": [
+        "/tmp",
+        "/private/tmp"
+      ],
+      "allowLocalBinding": true,
+      "allowMachLookup": [
+        "com.apple.trustd",
+        "com.apple.trustd.agent",
+
+        "com.apple.mDNSResponder",
+        "com.apple.dnssd",
+        "com.apple.system.opendirectoryd.api",
+        "com.apple.system.DirectoryService.api"
+      ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "~/Repos",
+{{- if .WorktreesAbs }}
+        "{{.WorktreesAbs}}",
+{{- end }}
+        "~/.cache",
+        "~/.local/share/go",
+        "~/.local/share/mise",
+        "~/.local/bin",
+        "/tmp",
+        "~/.npm",
+        "~/.config/helm",
+        "~/.kubescape",
+        "~/.sigstore"
+      ],
+      "denyRead": [
+        "~/.aws",
+        "~/.azure",
+        "~/.config/gcloud",
+        "~/.ssh",
+        "~/.gnupg",
+        "**/.env*"
+      ],
+      "denyWrite": [
+        "~/.aws",
+        "~/.azure",
+        "~/.config/gcloud",
+        "~/.ssh",
+        "~/.gnupg",
+        "**/.env*"
+      ],
+      "allowRead": [
+        "~/Repos",
+        "~/.config",
+        "~/.cache",
+        "~/.local/bin",
+        "~/.local/runtime",
+        "~/.local/share",
+        "~/.npm",
+        "/opt/homebrew",
+        "/tmp"
+      ]
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false
+  },
+{{- end }}
+  "feedbackSurveyRate": 0,
+  "effortLevel": "high",
+  "autoUpdatesChannel": "stable",
+  "plansDirectory": "./.claude/plans",
+  "tui": "fullscreen",
+  "autoMemoryEnabled": true,
+  "theme": "custom:cyberdream",
+  "editorMode": "vim",
+  "remoteControlAtStartup": false,
+  "agentPushNotifEnabled": true
+}
