@@ -53,10 +53,9 @@ worktree is discarded, dotty cleans up the branch and tmux session too.
 ## The signing hand-off
 
 Inside agent worktrees, commit and tag signing are **off** — the shared git
-config's final include,
-`~/.config/dotty/active-profile/worktrees.gitconfig`, applies
-`commit.gpgSign=false` to any `gitdir` under `.git/worktrees/`. Agents commit
-freely; nothing blocks on a key that isn't there.
+config's final include, `~/.config/dotty/active-profile/worktrees.gitconfig`,
+applies `commit.gpgSign=false` to any `gitdir` under `.git/worktrees/`. Agents
+commit freely; nothing blocks on a key that isn't there.
 
 Signing is restored two ways:
 

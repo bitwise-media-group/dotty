@@ -22,8 +22,8 @@ All bindings below are pressed **after the prefix** unless marked _(root)_.
 
 ### Panes and windows
 
-| Keys                  | Action                                         |
-| --------------------- | ---------------------------------------------- |
+| Keys                          | Action                                         |
+| ----------------------------- | ---------------------------------------------- |
 | ++bar++                       | Split horizontally, in the current pane's path |
 | ++minus++                     | Split vertically, in the current pane's path   |
 | ++ctrl+p++                    | Previous window                                |
@@ -114,11 +114,11 @@ centre, host and an SSH lock glyph on the right.
 
 Each window's status also renders an `@agent_status` token:
 
-| Status      | Rendered as            | Meaning                                            |
-| ----------- | ---------------------- | -------------------------------------------------- |
+| Status      | Rendered as             | Meaning                                            |
+| ----------- | ----------------------- | -------------------------------------------------- |
 | `attention` | red background, 🔔 bell | The agent needs an approval or answer              |
-| `waiting`   | peach dot ●            | The agent finished its turn and is waiting for you |
-| _(clear)_   | —                      | The agent is working, or idle                      |
+| `waiting`   | peach dot ●             | The agent finished its turn and is waiting for you |
+| _(clear)_   | —                       | The agent is working, or idle                      |
 
 The token is set by the internal `dotty tmux set-status` command, which every
 scaffolded agent calls from its lifecycle hooks (Claude Code and Codex hooks,

@@ -45,8 +45,8 @@ sts        # alias for: dotty tmux new
 ```
 
 Fuzzy-pick a repo, get a tmux session with a window per coding agent, and watch
-the status bar for the ● / 🔔 agent indicators. From Neovim, ++"<leader>"+f+s++ jumps
-between sessions and their agent worktrees.
+the status bar for the ● / 🔔 agent indicators. From Neovim, ++"<leader>"+f+s++
+jumps between sessions and their agent worktrees.
 
 ## A second machine
 

@@ -7,9 +7,9 @@
 
 A profile is a **machine class**, not a machine: `personal` and `work` are
 profiles; your laptop is not. Profiles live inside the dotfiles repository
-(`profiles/<name>/`) and travel with it — clone the repo on a new
-machine, activate the right profile, and the machine adopts that class's package
-set, keys policy, and rendered config.
+(`profiles/<name>/`) and travel with it — clone the repo on a new machine,
+activate the right profile, and the machine adopts that class's package set,
+keys policy, and rendered config.
 
 ## Anatomy
 
@@ -82,6 +82,6 @@ Two security controls are profile content, so they swap on activation:
   [`dotty security-key allow`](../cli/dotty_security-key_allow.md) restricts
   which hardware keys the profile may use; every signing-key operation checks
   it. A work profile can be limited to employer-issued keys.
-- **Signing config** — the profile's `git.gitconfig` turns SSH commit signing
-  on (or not) per class; machines whose profile skips security keys sign
-  nothing and git silently skips the missing include.
+- **Signing config** — the profile's `git.gitconfig` turns SSH commit signing on
+  (or not) per class; machines whose profile skips security keys sign nothing
+  and git silently skips the missing include.

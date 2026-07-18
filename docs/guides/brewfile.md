@@ -15,8 +15,8 @@ At scaffold time, `dotty init` assembles the profile's Brewfile from fragments
 in the repo's `brewfile.d/` — one per selected component (`core.Brewfile`, one
 per addon, one per agent, one for security keys) — plus, with `--dump-brews`,
 whatever is already installed on the machine. The result lives at
-`profiles/<profile>/Brewfile` and is linked to where Homebrew's global
-bundle commands expect it (`HOMEBREW_BUNDLE_FILE_GLOBAL`).
+`profiles/<profile>/Brewfile` and is linked to where Homebrew's global bundle
+commands expect it (`HOMEBREW_BUNDLE_FILE_GLOBAL`).
 
 ## Adding packages
 

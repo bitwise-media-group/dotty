@@ -49,8 +49,8 @@ and applies macOS defaults last.
 Repositories directory (default `~/Repos`) and the repo path (default
 `<repos-dir>/dotfiles`). To adopt an **existing** repository — say, a fresh
 clone on a second machine — run `init` from inside it or point `--repo` at it;
-dotty recognises its own repos by the `.dotty-version` marker. Re-running
-`init` on a repository with the legacy layout migrates it in place.
+dotty recognises its own repos by the `.dotty-version` marker. Re-running `init`
+on a repository with the legacy layout migrates it in place.
 
 ### Profile name
 

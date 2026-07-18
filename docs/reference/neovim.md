@@ -72,9 +72,9 @@ Custom maps on top of LazyVim's defaults (`lua/config/keymaps.lua`):
 - **auto-save** — saves on `InsertLeave` (500 ms debounce); toggle with
   ++"<leader>"+u+v++.
 - **snacks** (customised) — hidden/ignored files visible in the explorer and
-  pickers, and a bespoke **tmux session picker** on ++"<leader>"+f+s++: it renders
-  repo sessions with their agent-worktree sessions nested beneath (worktree root
-  discovered from `$DOTTY_WORKTREES` — see
+  pickers, and a bespoke **tmux session picker** on ++"<leader>"+f+s++: it
+  renders repo sessions with their agent-worktree sessions nested beneath
+  (worktree root discovered from `$DOTTY_WORKTREES` — see
   [Agent worktrees & re-signing](../guides/worktrees.md)), shows a git-status
   preview, and switches the tmux client on confirm.
 - **grug-far** — project-wide search and replace.
