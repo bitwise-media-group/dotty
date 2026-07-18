@@ -12,6 +12,7 @@ Finish a piece of work and reset to a clean, current trunk:
      present, else origin/main), dropping it from any recorded stack
   4. Delete every origin branch already merged into trunk
   5. Fast-forward the local trunk branch to the remote
+  6. Push the trunk branch to origin (keeps a fork's main in step)
 
 Any remaining stack that has diverged from trunk is reported; check it out
 and run `dotty git sync` to rebase and re-sign it.

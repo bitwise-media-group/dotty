@@ -64,6 +64,17 @@ func FastForward(ctx context.Context, r Runner, ref string) error {
 	return nil
 }
 
+// PushTrunk pushes the local trunk branch to remote. After a fast-forward
+// this brings origin in step with the trunk remote — in fork workflows
+// origin/main lags upstream/main until pushed; with a single remote it is a
+// no-op.
+func PushTrunk(ctx context.Context, r Runner, remote string, trunk Trunk) error {
+	if err := r.Run(ctx, "git", "push", remote, trunk.Branch); err != nil {
+		return fmt.Errorf("push %s to %s: %w", trunk.Branch, remote, err)
+	}
+	return nil
+}
+
 // ListStacks loads every stack recorded in local git config, ordered by ID.
 func ListStacks(ctx context.Context, r Runner) ([]Stack, error) {
 	out, err := r.Output(ctx, "git", "config", "--local",

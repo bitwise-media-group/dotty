@@ -122,6 +122,14 @@ func Start(ctx context.Context, r Runner, trunk Trunk, branch string) (Stack, er
 	if err := r.Run(ctx, "git", "checkout", "-b", branch, trunk.Ref()); err != nil {
 		return Stack{}, fmt.Errorf("create branch %s from %s: %w", branch, trunk.Ref(), err)
 	}
+	// Track origin/<branch> from birth so a bare `git push` / `git pull`
+	// targets the push remote before the first push creates it. A repo with
+	// no origin (nothing to push to yet) just skips this.
+	if remote, rerr := PushRemote(ctx, r); rerr == nil {
+		if err := SetUpstream(ctx, r, remote, branch); err != nil {
+			return Stack{}, err
+		}
+	}
 	id, err := newStackID()
 	if err != nil {
 		return Stack{}, err

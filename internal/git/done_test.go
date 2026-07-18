@@ -153,3 +153,40 @@ func TestListStacks(t *testing.T) {
 		}
 	})
 }
+
+// runRecorder captures Run invocations and can fail them; Output is
+// inherited from fakeRunner.
+type runRecorder struct {
+	fakeRunner
+	err  error
+	runs [][]string
+}
+
+func (r *runRecorder) Run(_ context.Context, _ string, args ...string) error {
+	r.runs = append(r.runs, args)
+	return r.err
+}
+
+func TestPushTrunk(t *testing.T) {
+	ctx := context.Background()
+	trunk := Trunk{Remote: "upstream", Branch: "main"}
+
+	t.Run("pushes the trunk branch to the push remote", func(t *testing.T) {
+		r := &runRecorder{}
+		if err := PushTrunk(ctx, r, "origin", trunk); err != nil {
+			t.Fatalf("PushTrunk() error: %v", err)
+		}
+		if len(r.runs) != 1 || !slices.Equal(r.runs[0], []string{"push", "origin", "main"}) {
+			t.Errorf("git invocations = %v, want [[push origin main]]", r.runs)
+		}
+	})
+
+	t.Run("wraps a push failure with the operation", func(t *testing.T) {
+		sentinel := errors.New("remote hung up")
+		r := &runRecorder{err: sentinel}
+		err := PushTrunk(ctx, r, "origin", trunk)
+		if !errors.Is(err, sentinel) || !strings.Contains(err.Error(), "push main to origin") {
+			t.Errorf("PushTrunk() error = %v, want wrapped %v", err, sentinel)
+		}
+	})
+}

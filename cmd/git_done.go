@@ -24,6 +24,7 @@ var gitDoneCmd = &cobra.Command{
      present, else origin/main), dropping it from any recorded stack
   4. Delete every origin branch already merged into trunk
   5. Fast-forward the local trunk branch to the remote
+  6. Push the trunk branch to origin (keeps a fork's main in step)
 
 Any remaining stack that has diverged from trunk is reported; check it out
 and run ` + "`dotty git sync`" + ` to rebase and re-sign it.`,
@@ -64,7 +65,8 @@ and run ` + "`dotty git sync`" + ` to rebase and re-sign it.`,
 			tui.Infof(ios, "Deleted %s", b)
 		}
 
-		if remote, err := git.PushRemote(ctx, r); err == nil {
+		remote, remoteErr := git.PushRemote(ctx, r)
+		if remoteErr == nil {
 			remotes, err := git.MergedRemoteBranches(ctx, r, remote, trunk)
 			if err != nil {
 				return err
@@ -80,6 +82,13 @@ and run ` + "`dotty git sync`" + ` to rebase and re-sign it.`,
 
 		if err := git.FastForward(ctx, r, trunk.Ref()); err != nil {
 			return err
+		}
+		if remoteErr == nil {
+			if err := git.PushTrunk(ctx, r, remote, trunk); err != nil {
+				tui.Warnf(ios, "%v", err)
+			} else {
+				tui.Infof(ios, "Pushed %s to %s", trunk.Branch, remote)
+			}
 		}
 
 		stacks, err := git.ListStacks(ctx, r)

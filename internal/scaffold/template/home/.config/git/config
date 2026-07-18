@@ -37,12 +37,14 @@
 	path = ~/.config/dotty/active-profile/git.gitconfig
 
 # Stacked-branch workflow via dotty: signature-preserving, trunk-based stacks
-# with ff-merge. sync also cleans up merged layers, so no separate done alias.
+# with ff-merge. done returns to a clean trunk, prunes merged branches, and
+# pushes trunk to origin.
 # Stack status is `dotty git status` directly — git never runs an alias named
 # after a builtin, so `status` cannot be aliased.
 [alias]
 	append = "!dotty git append"
 	browse = "!dotty git browse"
+	done = "!dotty git done"
 	down = "!dotty git down"
 	propose = "!dotty git propose"
 	resign = "!dotty git resign"

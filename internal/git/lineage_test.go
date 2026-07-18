@@ -231,3 +231,23 @@ func TestConfigKeysRoundTrip(t *testing.T) {
 		t.Fatal("key")
 	}
 }
+
+func TestStartSetsUpstream(t *testing.T) {
+	m := newMem()
+	trunk := Trunk{Remote: "origin", Branch: "main"}
+
+	s, err := Start(context.Background(), m, trunk, "feat-1")
+	if err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	if s.Tip() != "feat-1" {
+		t.Errorf("stack tip = %q, want feat-1", s.Tip())
+	}
+	// The new branch tracks origin/feat-1 from birth, before any push exists.
+	if got := m.config["branch.feat-1.remote"]; got != "origin" {
+		t.Errorf("branch.feat-1.remote = %q, want origin", got)
+	}
+	if got := m.config["branch.feat-1.merge"]; got != "refs/heads/feat-1" {
+		t.Errorf("branch.feat-1.merge = %q, want refs/heads/feat-1", got)
+	}
+}

@@ -43,6 +43,20 @@ func PushRemote(ctx context.Context, r Runner) (string, error) {
 	return "", errors.New("no origin remote configured (push remote for stack branches)")
 }
 
+// SetUpstream points branch's tracking at remote/branch by writing the
+// config pair directly — `git branch --set-upstream-to` refuses while the
+// remote ref does not exist yet (nothing has been pushed), and the config
+// pair is exactly what it would write.
+func SetUpstream(ctx context.Context, r Runner, remote, branch string) error {
+	if err := configSet(ctx, r, "branch."+branch+".remote", remote); err != nil {
+		return fmt.Errorf("set upstream remote for %s: %w", branch, err)
+	}
+	if err := configSet(ctx, r, "branch."+branch+".merge", "refs/heads/"+branch); err != nil {
+		return fmt.Errorf("set upstream merge ref for %s: %w", branch, err)
+	}
+	return nil
+}
+
 func hasRemote(ctx context.Context, r Runner, name string) bool {
 	out, err := r.Output(ctx, "git", "remote")
 	if err != nil {
