@@ -366,7 +366,9 @@ func collectSelections(ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys
 // collectFeatureConfirms asks the yes/no feature questions that follow the
 // picklists: the marketplace and hardening (which only mean something once
 // at least one agent is selected) and security keys.
-func collectFeatureConfirms(ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys, answers *scaffold.Answers) error {
+func collectFeatureConfirms(
+	ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys, answers *scaffold.Answers,
+) error {
 	if !ios.IsInteractive() {
 		return nil
 	}
