@@ -113,51 +113,20 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-// runInit is the whole init flow: collect every answer — the wizard, the
-// git identity, the security-key plan — confirm once, then render, git,
-// link, activate, identity, keys, font, macOS. Nothing is written before
-// the confirmation, so backing out of any question leaves the machine
-// untouched.
+// runInit is the whole init flow: the interview (every question, ending in
+// the confirmation), then the actions — render, git, link, activate,
+// identity, keys, font, macOS. Nothing is written before the confirmation,
+// so backing out of any question leaves the machine untouched.
 func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("resolve home directory: %w", err)
 	}
-	answers, repo, rerun, err := wizard.Collect(ios, flags, home)
-	if errors.Is(err, tui.ErrAborted) {
-		return nil // esc backs out before anything is written
-	}
-	if err != nil {
+	iv, ok, err := collectInterview(ctx, ios, flags, home)
+	if err != nil || !ok {
 		return err
 	}
-
-	// The rest of the interview — questions only, so the confirmation below
-	// is the wizard's last stop.
-	identity, err := collectGitIdentity(ios, flags, home)
-	if errors.Is(err, tui.ErrAborted) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	hadAllowlist := answers.AllowedSerials != nil
-	plan, err := collectKeyPlan(ctx, ios, flags, &answers)
-	if errors.Is(err, tui.ErrAborted) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	if !flags.Yes {
-		ok, err := wizard.ConfirmSummary(ios, answers, repo, rerun)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return nil
-		}
-	}
+	answers, repo := iv.answers, iv.repo
 
 	runner := newRunner(ios)
 	pruned, err := scaffold.RenderRepository(ctx, ios, runner, answers, repo, home)
@@ -189,13 +158,13 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	}
 	tui.Successf(ios, "Profile %s active", answers.ProfileName)
 	tui.Infof(ios, "Install everything with: dotty brewfile sync")
-	if !hadAllowlist && len(answers.AllowedSerials) > 0 {
+	if !iv.hadAllowlist && len(answers.AllowedSerials) > 0 {
 		tui.Successf(ios, "Profile %s allows only these security keys: %s",
 			answers.ProfileName, strings.Join(answers.AllowedSerials, ", "))
 	}
 
-	if identity.write {
-		if err := git.WriteIdentityFile(ios, identity.name, identity.email, answers.SecurityKeys, home); err != nil {
+	if iv.identity.write {
+		if err := git.WriteIdentityFile(ios, iv.identity.name, iv.identity.email, answers.SecurityKeys, home); err != nil {
 			return err
 		}
 	}
@@ -203,7 +172,7 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 		// A canceled or failed hardware step must not strand init midway —
 		// the machine is already rendered, linked, and active, and the key
 		// verbs can finish the job later.
-		if err := applyKeyPlan(ctx, ios, plan, home); err != nil {
+		if err := applyKeyPlan(ctx, ios, iv.plan, home); err != nil {
 			tui.Warnf(ios, "Signing-key setup did not finish: %v (retry with dotty signing-key new / import)", err)
 		}
 	}
@@ -216,6 +185,52 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 
 	tui.Infof(ios, "Next: cd %s && git commit -m %q, then restart your terminal.", repo, "chore: initial dotfiles")
 	return nil
+}
+
+// initInterview is everything the interview collects before init acts: the
+// wizard answers, the resolved repository, the git identity, and the
+// security-key plan.
+type initInterview struct {
+	answers      scaffold.Answers
+	repo         string
+	rerun        bool
+	identity     gitIdentity
+	plan         keyPlan
+	hadAllowlist bool // the allowlist question was answered before this run
+}
+
+// collectInterview runs the whole interview — the wizard, the git identity,
+// the security-key plan, and the confirmation summary as its last stop.
+// Questions only, so ok=false (esc, or a declined summary) backs out with
+// nothing written.
+func collectInterview(ctx context.Context, ios cli.IOStreams, flags wizard.Flags,
+	home string) (initInterview, bool, error) {
+	var iv initInterview
+	var err error
+	if iv.answers, iv.repo, iv.rerun, err = wizard.Collect(ios, flags, home); err != nil {
+		return iv, false, ignoreAborted(err)
+	}
+	if iv.identity, err = collectGitIdentity(ios, flags, home); err != nil {
+		return iv, false, ignoreAborted(err)
+	}
+	iv.hadAllowlist = iv.answers.AllowedSerials != nil
+	if iv.plan, err = collectKeyPlan(ctx, ios, flags, &iv.answers); err != nil {
+		return iv, false, ignoreAborted(err)
+	}
+	if flags.Yes {
+		return iv, true, nil
+	}
+	ok, err := wizard.ConfirmSummary(ios, iv.answers, iv.repo, iv.rerun)
+	return iv, ok, err
+}
+
+// ignoreAborted turns esc during the interview into a clean back-out —
+// nothing has been written yet — and keeps every other failure an error.
+func ignoreAborted(err error) error {
+	if errors.Is(err, tui.ErrAborted) {
+		return nil
+	}
+	return err
 }
 
 // gitIdentity is the interview's git-identity answer; write is false when
