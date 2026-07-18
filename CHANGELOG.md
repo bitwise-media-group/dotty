@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/bitwise-media-group/dotty/compare/v0.2.1...v0.2.2) (2026-07-18)
+
+
+### Bug Fixes
+
+* **release:** ship static shell completions in the Homebrew cask ([16cb6e9](https://github.com/bitwise-media-group/dotty/commit/16cb6e9a73d90a96555cccac9e61f3a89b5cc1fd))
+
 ## [0.2.1](https://github.com/bitwise-media-group/dotty/compare/v0.2.0...v0.2.1) (2026-07-18)
 
 
