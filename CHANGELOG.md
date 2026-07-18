@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/bitwise-media-group/dotty/compare/v0.2.0...v0.2.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **build:** ignore bin so goreleaer does not detect a dirty branch ([2a2e57e](https://github.com/bitwise-media-group/dotty/commit/2a2e57e9ce2ae010a4a132314918cf5022c43391))
+
 ## [0.2.0](https://github.com/bitwise-media-group/dotty/compare/v0.1.1...v0.2.0) (2026-07-18)
 
 
