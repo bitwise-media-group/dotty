@@ -6,13 +6,20 @@
 # Regenerate the CLI reference from the cobra command tree, then render the
 # site. (Kept repo-local: generating a CLI reference is app-specific; `serve`,
 # `sync`, and `docs-build` come from the archetype.)
+# Shell completions are committed alongside the man pages so releases can ship
+# them as static files — the Homebrew cask must not execute the binary at
+# install time (see homebrew_casks in .goreleaser.yaml).
 [docs]
-description = "regenerate the CLI reference (docs/cli, docs/man) and build the site"
+description = "regenerate the CLI reference (docs/cli, docs/man, completions) and build the site"
 dir = "{{cwd}}"
 run = [
   { task = "build" },
   "./dotty docs --out docs/cli --format markdown",
   "./dotty docs --out docs/man --format man",
+  "mkdir -p completions",
+  "./dotty completion bash > completions/dotty.bash",
+  "./dotty completion zsh > completions/dotty.zsh",
+  "./dotty completion fish > completions/dotty.fish",
   { task = "docs-build" },
 ]
 
