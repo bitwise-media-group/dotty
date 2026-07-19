@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.3](https://github.com/bitwise-media-group/dotty/compare/v0.2.2...v0.2.3) (2026-07-19)
+
+
+### Features
+
+* **brewfile:** dedupe adds and record trusted: true on new entries ([a31c87a](https://github.com/bitwise-media-group/dotty/commit/a31c87a05405950ee9e0b61931c4a9dfb2c7e501))
+* **git:** push trunk from done and track origin from start ([c4d8f16](https://github.com/bitwise-media-group/dotty/commit/c4d8f16d4601ac285f34b057a67a8e4a62284339))
+* **init:** finish the interview before acting, and brew dotty itself ([48ccadd](https://github.com/bitwise-media-group/dotty/commit/48ccadd87b05018f84effaedb130d2060d43869b))
+
 ## [0.2.2](https://github.com/bitwise-media-group/dotty/compare/v0.2.1...v0.2.2) (2026-07-18)
 
 
