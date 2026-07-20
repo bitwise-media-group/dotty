@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.4](https://github.com/bitwise-media-group/dotty/compare/v0.2.3...v0.2.4) (2026-07-20)
+
+
+### Features
+
+* **git:** add --auto-merge flag to propose ([b906b14](https://github.com/bitwise-media-group/dotty/commit/b906b1412949fb0ece3a196228b7c929fbef84a4))
+* **git:** add --browse and --copy flags to propose ([4172f60](https://github.com/bitwise-media-group/dotty/commit/4172f6071195acdedcc47348147853c0324a84c9))
+* **git:** read flag defaults from git configuration ([c9a64e5](https://github.com/bitwise-media-group/dotty/commit/c9a64e5cf531dd09ede3ccc3c39299a47657ed77))
+* **linker:** retire legacy files that shadow the rendered config ([4bf4b6a](https://github.com/bitwise-media-group/dotty/commit/4bf4b6afbae4c75f9a39b978ab35fbe651e89db0))
+* **scaffold:** trust the bitwise-media-group tap in core.Brewfile ([669c341](https://github.com/bitwise-media-group/dotty/commit/669c341eec458e58c99f6f2fe9ed254c26b851ed))
+
+
+### Bug Fixes
+
+* **signing-key:** answer ssh yes/no prompts with CONFIRM, not GETPIN ([4a86b41](https://github.com/bitwise-media-group/dotty/commit/4a86b41634201b14c24b4e13a8e71033d810caef))
+
 ## [0.2.3](https://github.com/bitwise-media-group/dotty/compare/v0.2.2...v0.2.3) (2026-07-19)
 
 
