@@ -18,8 +18,11 @@ rebase + resign, as `dotty git sync` does.
 Each PR body includes a stack map with links. For multi-commit layers you pick
 which commit supplies the title and description.
 
+With --browse, each proposed PR opens in your browser afterwards; with --copy,
+the PR URLs (one per line) land on your clipboard.
+
 ```
-dotty git propose [--all] [flags]
+dotty git propose [--all] [--browse] [--copy] [flags]
 ```
 
 ### Examples
@@ -27,13 +30,16 @@ dotty git propose [--all] [flags]
 ```
   dotty git propose
   dotty git propose --all
+  dotty git propose --browse --copy
 ```
 
 ### Options
 
 ```
-      --all    propose every layer in the stack, not only through the current branch
-  -h, --help   help for propose
+      --all      propose every layer in the stack, not only through the current branch
+      --browse   open each proposed pull request in the browser
+      --copy     copy the proposed pull request URL(s) to the clipboard
+  -h, --help     help for propose
 ```
 
 ### Options inherited from parent commands

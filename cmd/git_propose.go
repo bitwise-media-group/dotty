@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -17,11 +18,13 @@ import (
 )
 
 var gitProposeFlags struct {
-	All bool
+	All    bool
+	Browse bool
+	Copy   bool
 }
 
 var gitProposeCmd = &cobra.Command{
-	Use:   "propose [--all]",
+	Use:   "propose [--all] [--browse] [--copy]",
 	Short: "Open or update trunk-based PRs for the stack.",
 	Long: `Push stack branches and open pull requests against upstream/main
 (or origin/main). Default: layers from the trunk through the current branch.
@@ -35,9 +38,13 @@ the stack has diverged or a lower layer gained commits, you are prompted to
 rebase + resign, as ` + "`dotty git sync`" + ` does.
 
 Each PR body includes a stack map with links. For multi-commit layers you pick
-which commit supplies the title and description.`,
+which commit supplies the title and description.
+
+With --browse, each proposed PR opens in your browser afterwards; with --copy,
+the PR URLs (one per line) land on your clipboard.`,
 	Example: `  dotty git propose
-  dotty git propose --all`,
+  dotty git propose --all
+  dotty git propose --browse --copy`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ios := cli.System()
@@ -110,6 +117,7 @@ which commit supplies the title and description.`,
 			merged = git.MergeMap(rows)
 		}
 
+		var proposedURLs []string
 		for i := 0; i <= through; i++ {
 			layer := &s.Layers[i]
 			if merged[layer.Branch] {
@@ -164,13 +172,37 @@ which commit supplies the title and description.`,
 			}
 			layer.PR = n
 			tui.Successf(ios, "Proposed %s → PR#%d (%s)", layer.Branch, n, title)
+			if u := prURL(n); u != "" {
+				proposedURLs = append(proposedURLs, u)
+			}
 		}
 
 		if err := git.SaveStack(ctx, r, s); err != nil {
 			return err
 		}
 		// Second pass: every stack map now knows every layer's PR number.
-		return refreshOpenPRBodies(ctx, ios, r, s, trunk)
+		if err := refreshOpenPRBodies(ctx, ios, r, s, trunk); err != nil {
+			return err
+		}
+
+		if (gitProposeFlags.Browse || gitProposeFlags.Copy) && len(proposedURLs) == 0 {
+			tui.Warnf(ios, "No PR URLs to open or copy")
+			return nil
+		}
+		if gitProposeFlags.Copy {
+			if err := cli.CopyToClipboard(ctx, strings.Join(proposedURLs, "\n")); err != nil {
+				return err
+			}
+			tui.Infof(ios, "Copied %d PR URL(s) to the clipboard", len(proposedURLs))
+		}
+		if gitProposeFlags.Browse {
+			for _, u := range proposedURLs {
+				if err := git.OpenBrowser(u); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	},
 }
 
@@ -205,5 +237,9 @@ func adoptCurrentBranch(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunne
 func init() {
 	gitProposeCmd.Flags().BoolVar(&gitProposeFlags.All, "all", false,
 		"propose every layer in the stack, not only through the current branch")
+	gitProposeCmd.Flags().BoolVar(&gitProposeFlags.Browse, "browse", false,
+		"open each proposed pull request in the browser")
+	gitProposeCmd.Flags().BoolVar(&gitProposeFlags.Copy, "copy", false,
+		"copy the proposed pull request URL(s) to the clipboard")
 	gitCmd.AddCommand(gitProposeCmd)
 }
