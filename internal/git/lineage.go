@@ -189,6 +189,14 @@ func Append(ctx context.Context, r Runner, child string) (Stack, error) {
 	if err := r.Run(ctx, "git", "checkout", "-b", child); err != nil {
 		return Stack{}, fmt.Errorf("create branch %s: %w", child, err)
 	}
+	// Track origin/<child> from birth so a bare `git push` / `git pull`
+	// targets the push remote before the first push creates it. A repo with
+	// no origin (nothing to push to yet) just skips this.
+	if remote, rerr := PushRemote(ctx, r); rerr == nil {
+		if err := SetUpstream(ctx, r, remote, child); err != nil {
+			return Stack{}, err
+		}
+	}
 	s.Layers = append(s.Layers, Layer{Branch: child})
 	if err := saveStack(ctx, r, s); err != nil {
 		return Stack{}, err

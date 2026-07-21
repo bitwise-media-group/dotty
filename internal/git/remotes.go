@@ -57,6 +57,22 @@ func SetUpstream(ctx context.Context, r Runner, remote, branch string) error {
 	return nil
 }
 
+// PublishBranch pushes a freshly created branch to the push remote with
+// upstream tracking (-u), so the remote branch exists from birth. A repo with
+// no push remote (nothing to push to yet) is skipped. A failed push (offline,
+// auth) is returned for the caller to surface as a warning — the branch
+// already tracks the remote, so a later bare `git push` completes publication.
+func PublishBranch(ctx context.Context, r Runner, branch string) error {
+	remote, err := PushRemote(ctx, r)
+	if err != nil {
+		return nil
+	}
+	if err := r.Run(ctx, "git", "push", "-u", remote, branch); err != nil {
+		return fmt.Errorf("push %s to %s: %w", branch, remote, err)
+	}
+	return nil
+}
+
 func hasRemote(ctx context.Context, r Runner, name string) bool {
 	out, err := r.Output(ctx, "git", "remote")
 	if err != nil {

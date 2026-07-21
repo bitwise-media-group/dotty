@@ -4,8 +4,9 @@ Create a child branch on the stack tip.
 
 ### Synopsis
 
-Creates <branch> at the current stack tip and records it as a new
-layer in the stack lineage.
+Creates <branch> at the current stack tip, records it as a new
+layer in the stack lineage, and pushes it to the push remote with upstream
+tracking set.
 
 ```
 dotty git append <branch> [flags]

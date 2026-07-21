@@ -25,6 +25,9 @@ type memRunner struct {
 	ancestors map[string]bool
 	notIn     map[string]int // "rev|contained" → rev-list --count rev ^contained
 	deleted   []string       // branches removed via git branch -d/-D
+	remotes   string         // `git remote` output
+	pushes    [][]string     // git push invocations
+	pushErr   error          // returned by every git push
 }
 
 func newMem() *memRunner {
@@ -33,6 +36,7 @@ func newMem() *memRunner {
 		shas:      map[string]string{},
 		ancestors: map[string]bool{},
 		notIn:     map[string]int{},
+		remotes:   "origin\nupstream\n",
 	}
 }
 
@@ -104,7 +108,7 @@ func (m *memRunner) remoteOutput(args []string) ([]byte, error) {
 	if len(args) >= 3 && args[1] == "get-url" {
 		return []byte("git@github.com:org/repo.git\n"), nil
 	}
-	return []byte("origin\nupstream\n"), nil
+	return []byte(m.remotes), nil
 }
 
 func (m *memRunner) Run(_ context.Context, name string, args ...string) error {
@@ -123,8 +127,17 @@ func (m *memRunner) Run(_ context.Context, name string, args ...string) error {
 		}
 	}
 	if len(args) >= 2 && args[0] == "checkout" {
-		m.branch = args[len(args)-1]
+		// `checkout -b <name> [start-point]` lands on <name>, not the start.
+		if args[1] == "-b" && len(args) >= 3 {
+			m.branch = args[2]
+		} else {
+			m.branch = args[len(args)-1]
+		}
 		return nil
+	}
+	if args[0] == "push" {
+		m.pushes = append(m.pushes, args)
+		return m.pushErr
 	}
 	if len(args) >= 3 && args[0] == "branch" && (args[1] == "-d" || args[1] == "-D") {
 		m.deleted = append(m.deleted, args[2])
@@ -249,5 +262,28 @@ func TestStartSetsUpstream(t *testing.T) {
 	}
 	if got := m.config["branch.feat-1.merge"]; got != "refs/heads/feat-1" {
 		t.Errorf("branch.feat-1.merge = %q, want refs/heads/feat-1", got)
+	}
+}
+
+func TestAppendSetsUpstream(t *testing.T) {
+	m := newMem()
+	ctx := context.Background()
+	trunk := Trunk{Remote: "origin", Branch: "main"}
+	if _, err := Start(ctx, m, trunk, "feat-1"); err != nil {
+		t.Fatalf("Start() error: %v", err)
+	}
+	s, err := Append(ctx, m, "feat-2")
+	if err != nil {
+		t.Fatalf("Append() error: %v", err)
+	}
+	if s.Tip() != "feat-2" {
+		t.Errorf("stack tip = %q, want feat-2", s.Tip())
+	}
+	// The new layer tracks origin/feat-2 from birth, before any push exists.
+	if got := m.config["branch.feat-2.remote"]; got != "origin" {
+		t.Errorf("branch.feat-2.remote = %q, want origin", got)
+	}
+	if got := m.config["branch.feat-2.merge"]; got != "refs/heads/feat-2" {
+		t.Errorf("branch.feat-2.merge = %q, want refs/heads/feat-2", got)
 	}
 }

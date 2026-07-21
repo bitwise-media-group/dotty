@@ -5,7 +5,8 @@ Create a branch from trunk and start a new stack.
 ### Synopsis
 
 Creates <branch> from the trunk (upstream/main when present, else
-origin/main) and records it as the first layer of a new stack.
+origin/main), records it as the first layer of a new stack, and pushes it
+to the push remote with upstream tracking set.
 
 ```
 dotty git start <branch> [flags]
