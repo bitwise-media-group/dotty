@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.5](https://github.com/bitwise-media-group/dotty/compare/v0.2.4...v0.2.5) (2026-07-21)
+
+
+### Features
+
+* **git:** push new stack branches to origin on start/append ([f2b841b](https://github.com/bitwise-media-group/dotty/commit/f2b841bd61d22d4fe910aba8ad7ce3da2479d6cd))
+
+
+### Bug Fixes
+
+* **scaffold:** disable EQUALS expansion in the zsh template ([e924bbd](https://github.com/bitwise-media-group/dotty/commit/e924bbd00bb558f908a7efbc250f39949e5d15c7))
+
 ## [0.2.4](https://github.com/bitwise-media-group/dotty/compare/v0.2.3...v0.2.4) (2026-07-20)
 
 
