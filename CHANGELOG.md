@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/bitwise-media-group/dotty/compare/v0.2.5...v0.2.6) (2026-07-22)
+
+
+### Bug Fixes
+
+* **brewfile:** tap missing third-party taps before brew bundle add ([ca843e3](https://github.com/bitwise-media-group/dotty/commit/ca843e3d7fa69932dc363edf12ad1970233e12cc))
+
 ## [0.2.5](https://github.com/bitwise-media-group/dotty/compare/v0.2.4...v0.2.5) (2026-07-21)
 
 
