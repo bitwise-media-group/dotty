@@ -11,10 +11,9 @@ dist/
 # Coverage (make test)
 coverage/
 
-# Claude Plans
-.claude/plans/
-.claude/*.md
-settings.local.json
+# claude code
+.claude/**
+!.claude/settings.json
 
 # toolchain bin
 .bin/

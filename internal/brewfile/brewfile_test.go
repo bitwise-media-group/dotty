@@ -109,7 +109,7 @@ func TestAdd(t *testing.T) {
 
 	t.Run("untrusted tap-qualified formula is trusted, added, and marked", func(t *testing.T) {
 		path := seedBrewfile(t, "brew \"acme/tap/widget\"\n")
-		r := &fakeRunner{outputs: [][]byte{[]byte(""), []byte(emptyTrust)}}
+		r := &fakeRunner{outputs: [][]byte{[]byte(""), []byte(emptyTrust), []byte("")}}
 		res, err := Add(ctx, r, path, KindFormula, []string{"acme/tap/widget"}, yes)
 		if err != nil {
 			t.Fatalf("Add() error: %v", err)
@@ -118,6 +118,8 @@ func TestAdd(t *testing.T) {
 			"brew bundle list --file=" + path + " --formula",
 			"brew trust --json v1",
 			"brew trust --formula acme/tap/widget",
+			"brew tap",
+			"brew tap acme/tap",
 			"brew bundle add --file=" + path + " --formula acme/tap/widget",
 			"brew bundle install --file=" + path,
 		})
@@ -134,7 +136,7 @@ func TestAdd(t *testing.T) {
 		// entry and still be found on the Brewfile line brew wrote verbatim.
 		path := seedBrewfile(t, "brew \"Acme/homebrew-tap/Widget\"\n")
 		trusted := `{"taps":[],"formulae":["acme/tap/widget"],"casks":[],"commands":[]}`
-		r := &fakeRunner{outputs: [][]byte{[]byte(""), []byte(trusted)}}
+		r := &fakeRunner{outputs: [][]byte{[]byte(""), []byte(trusted), []byte("acme/tap\n")}}
 		res, err := Add(ctx, r, path, KindFormula, []string{"Acme/homebrew-tap/Widget"}, no)
 		if err != nil {
 			t.Fatalf("Add() error: %v", err)
@@ -290,6 +292,82 @@ func TestAddDedupe(t *testing.T) {
 		if !slices.Equal(res.Skipped, []string{"acme/tap/widget"}) {
 			t.Errorf("Skipped = %v", res.Skipped)
 		}
+	})
+}
+
+func TestAddEnsureTaps(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("already-installed taps are not re-tapped", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"Acme/homebrew-tap/Widget\"\n")
+		trusted := `{"taps":[],"formulae":["acme/tap/widget"],"casks":[],"commands":[]}`
+		// The mixed-case homebrew- prefixed argument must match brew's
+		// canonical tap listing.
+		r := &fakeRunner{outputs: [][]byte{[]byte(""), []byte(trusted), []byte("acme/tap\nother/tap\n")}}
+		if _, err := Add(ctx, r, path, KindFormula, []string{"Acme/homebrew-tap/Widget"}, no); err != nil {
+			t.Fatalf("Add() error: %v", err)
+		}
+		assertCalls(t, r, []string{
+			"brew bundle list --file=" + path + " --formula",
+			"brew trust --json v1",
+			"brew tap",
+			"brew bundle add --file=" + path + " --formula Acme/homebrew-tap/Widget",
+			"brew bundle install --file=" + path,
+		})
+	})
+
+	t.Run("a tap shared by several names is tapped once", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"acme/tap/widget\"\nbrew \"acme/tap/gadget\"\nbrew \"jq\"\n")
+		trusted := `{"taps":[],"formulae":["acme/tap/widget","acme/tap/gadget"],"casks":[],"commands":[]}`
+		r := &fakeRunner{outputs: [][]byte{[]byte(""), []byte(trusted), []byte(trusted), []byte("")}}
+		res, err := Add(ctx, r, path, KindFormula,
+			[]string{"acme/tap/widget", "acme/tap/gadget", "jq"}, no)
+		if err != nil {
+			t.Fatalf("Add() error: %v", err)
+		}
+		assertCalls(t, r, []string{
+			"brew bundle list --file=" + path + " --formula",
+			"brew trust --json v1",
+			"brew trust --json v1",
+			"brew tap",
+			"brew tap acme/tap",
+			"brew bundle add --file=" + path + " --formula acme/tap/widget acme/tap/gadget jq",
+			"brew bundle install --file=" + path,
+		})
+		if res.Unmarked != nil {
+			t.Errorf("Unmarked = %v, want none", res.Unmarked)
+		}
+	})
+
+	t.Run("plain and official names skip the tap check", func(t *testing.T) {
+		r := &fakeRunner{}
+		if _, err := Add(ctx, r, "/p/Brewfile", KindFormula, []string{"homebrew/core/jq"}, no); err != nil {
+			t.Fatalf("Add() error: %v", err)
+		}
+		assertCalls(t, r, []string{
+			"brew bundle add --file=/p/Brewfile --formula homebrew/core/jq",
+			"brew bundle install --file=/p/Brewfile",
+		})
+	})
+
+	t.Run("tap install failure aborts before the Brewfile is touched", func(t *testing.T) {
+		trusted := `{"taps":[],"formulae":[],"casks":["acme/tap/widget"],"commands":[]}`
+		r := &fakeRunner{
+			outputs: [][]byte{[]byte(trusted), []byte("")},
+			runErrs: []error{errors.New("clone failed")},
+		}
+		_, err := Add(ctx, r, "/p/Brewfile", KindCask, []string{"acme/tap/widget"}, no)
+		if err == nil {
+			t.Fatal("Add() error = nil, want tap failure")
+		}
+		if !strings.Contains(err.Error(), "tap acme/tap") {
+			t.Errorf("error = %v, want tap context", err)
+		}
+		assertCalls(t, r, []string{
+			"brew trust --json v1",
+			"brew tap",
+			"brew tap acme/tap",
+		})
 	})
 }
 

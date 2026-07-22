@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -60,7 +61,9 @@ type AddResult struct {
 // it; declining aborts before anything is written. Newly added trust-gated
 // entries are then marked `trusted: true` in the Brewfile itself, because
 // `brew bundle install --force-cleanup` (used by Sync) resets Homebrew's
-// trust store to exactly what the Brewfile declares. Install always runs,
+// trust store to exactly what the Brewfile declares. Taps referenced by
+// tap-qualified formula and cask names are installed after trusting and
+// before the add — see ensureTaps. Install always runs,
 // even when every name was skipped — it converges a machine where an entry is
 // recorded but not installed.
 func Add(ctx context.Context, r Runner, path string, kind Kind, names []string,
@@ -108,6 +111,10 @@ func Add(ctx context.Context, r Runner, path string, kind Kind, names []string,
 			}
 		}
 
+		if err := ensureTaps(ctx, r, kind, toAdd); err != nil {
+			return res, err
+		}
+
 		addArgs := append([]string{"bundle", "add", "--file=" + path, kind.flag()}, toAdd...)
 		if err := r.Run(ctx, "brew", addArgs...); err != nil {
 			return res, err
@@ -117,6 +124,48 @@ func Add(ctx context.Context, r Runner, path string, kind Kind, names []string,
 		}
 	}
 	return res, r.Run(ctx, "brew", "bundle", "install", "--file="+path)
+}
+
+// ensureTaps installs the third-party taps that tap-qualified formula and
+// cask names reference. Homebrew 6 stopped installing taps implicitly when a
+// fully-qualified name is loaded ("Stop implicit tap installation"), and
+// `brew bundle add` loads each formula or cask to read its description — so
+// an untapped name fails there before the Brewfile is touched. `brew bundle
+// install` taps its own entries, so only the add step needs this. Runs after
+// the trust flow because installing a tap can load its packages, which trips
+// Homebrew's trust gate.
+func ensureTaps(ctx context.Context, r Runner, kind Kind, names []string) error {
+	if kind != KindFormula && kind != KindCask {
+		return nil
+	}
+	var taps []string
+	for _, name := range names {
+		if !NeedsTrust(kind, name) {
+			continue
+		}
+		parts := strings.SplitN(name, "/", 3)
+		tap := canonicalName(KindTap, parts[0]+"/"+parts[1])
+		if !slices.Contains(taps, tap) {
+			taps = append(taps, tap)
+		}
+	}
+	if len(taps) == 0 {
+		return nil
+	}
+	out, err := r.Output(ctx, "brew", "tap")
+	if err != nil {
+		return fmt.Errorf("list installed taps: %w", err)
+	}
+	installed := nonEmptyLines(out)
+	for _, tap := range taps {
+		if slices.Contains(installed, tap) {
+			continue
+		}
+		if err := r.Run(ctx, "brew", "tap", tap); err != nil {
+			return fmt.Errorf("tap %s: %w", tap, err)
+		}
+	}
+	return nil
 }
 
 // listEntries returns the canonical names of kind already recorded at path,
