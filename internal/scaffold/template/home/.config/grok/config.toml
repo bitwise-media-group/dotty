@@ -149,6 +149,17 @@ allow = [
   "Bash(git switch *)",
   "Bash(git commit *)",
   "Bash(chmod +x commit.sh)",
+  "Bash(swift *)",
+  "Bash(swiftc *)",
+  "Bash(swift test*)",
+  "Bash(swift build*)",
+  "Bash(swift package *)",
+  "Bash(xcodebuild *)",
+  "Bash(xcrun *)",
+  "Bash(simctl *)",
+  "Bash(mise *)",
+  "Bash(mise exec *)",
+  "Bash(mise run *)",
 ]
 deny = [
   "Read(**/.aws)",

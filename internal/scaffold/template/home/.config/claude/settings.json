@@ -76,7 +76,18 @@
       "Bash(git restore *)",
       "Bash(git checkout *)",
       "Bash(git switch *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(swift *)",
+      "Bash(swiftc *)",
+      "Bash(swift test*)",
+      "Bash(swift build*)",
+      "Bash(swift package *)",
+      "Bash(xcodebuild *)",
+      "Bash(xcrun *)",
+      "Bash(simctl *)",
+      "Bash(mise *)",
+      "Bash(mise exec *)",
+      "Bash(mise run *)"
     ],
     "deny": [
       "Read(~/.aws)",
@@ -285,7 +296,9 @@
         "~/.npm",
         "~/.config/helm",
         "~/.kubescape",
-        "~/.sigstore"
+        "~/.sigstore",
+        "~/Library/Caches",
+        "~/Library/org.swift.swiftpm"
       ],
       "denyRead": [
         "~/.aws",
@@ -312,7 +325,9 @@
         "~/.local/share",
         "~/.npm",
         "/opt/homebrew",
-        "/tmp"
+        "/tmp",
+        "~/Library/Caches",
+        "~/Library/org.swift.swiftpm"
       ]
     },
     "enableWeakerNestedSandbox": false,

@@ -34,6 +34,8 @@ read_write = [
   "{{.Home}}/.config/helm",
   "{{.Home}}/.kubescape",
   "{{.Home}}/.sigstore",
+  "{{.Home}}/Library/Caches",
+  "{{.Home}}/Library/org.swift.swiftpm",
   "/tmp",
 ]
 
