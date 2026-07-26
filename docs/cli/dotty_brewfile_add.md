@@ -11,7 +11,9 @@ the bundle is still installed. Tap-qualified names (more than one slash) of
 formulae and casks, and taps themselves, go through Homebrew's trust gate
 first: dotty asks before trusting anything new and records "trusted: true" on
 the new Brewfile entry, so the trust survives the trust-store reset that
-`dotty brewfile sync` performs.
+`dotty brewfile sync` performs. Taps that tap-qualified names refer
+to are tapped first when missing — Homebrew no longer installs a tap
+implicitly when a formula or cask is named through it.
 
 ```
 dotty brewfile add [--tap | --cask | --formula | ...] <name> [...] [flags]
