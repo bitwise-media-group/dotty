@@ -108,6 +108,83 @@ func TestCreateOrUpdatePR(t *testing.T) {
 	}
 }
 
+func TestFindOpenPR(t *testing.T) {
+	const (
+		listCmd = "gh pr list --repo acme/widgets --head feat-a --base main " +
+			"--state open --json number,headRepositoryOwner"
+		forkRemoteURL = "https://github.com/deavon/widgets.git\n"
+	)
+	// The base repo owns the head in a single-remote repo; the fork behind
+	// origin owns it when PRs target an upstream.
+	pr := func(n int, owner string) string {
+		return fmt.Sprintf(`{"number":%d,"headRepositoryOwner":{"login":%q}}`, n, owner)
+	}
+	cases := []struct {
+		name       string
+		baseRemote string
+		originURL  string
+		list       string
+		listErr    error
+		want       int
+		wantErr    bool
+	}{
+		{
+			name:       "adopts an open PR in a single-remote repo",
+			baseRemote: "origin",
+			originURL:  fakeRemoteURL,
+			list:       "[" + pr(96, "acme") + "]",
+			want:       96,
+		},
+		{
+			name:       "adopts the fork's PR when proposing to an upstream",
+			baseRemote: "upstream",
+			originURL:  forkRemoteURL,
+			list:       "[" + pr(96, "deavon") + "]",
+			want:       96,
+		},
+		{
+			name:       "ignores a same-named branch on another fork",
+			baseRemote: "upstream",
+			originURL:  forkRemoteURL,
+			list:       "[" + pr(12, "someone-else") + "," + pr(96, "deavon") + "]",
+			want:       96,
+		},
+		{
+			name:       "reports none when the branch has no open PR",
+			baseRemote: "origin",
+			originURL:  fakeRemoteURL,
+			list:       "[]",
+			want:       0,
+		},
+		{
+			name:       "surfaces the gh failure",
+			baseRemote: "origin",
+			originURL:  fakeRemoteURL,
+			listErr:    errors.New("gh: could not reach github.com"),
+			wantErr:    true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fake := &ghFakeRunner{outputs: map[string]string{
+				fakeRemoteURLCmd:       fakeRemoteURL,
+				fakeOriginRemoteURLCmd: c.originURL,
+				listCmd:                c.list,
+			}}
+			if c.listErr != nil {
+				fake.errs = map[string]error{listCmd: c.listErr}
+			}
+			got, err := FindOpenPR(context.Background(), fake, c.baseRemote, "feat-a", "main")
+			if (err != nil) != c.wantErr {
+				t.Fatalf("FindOpenPR() error = %v, wantErr %v", err, c.wantErr)
+			}
+			if got != c.want {
+				t.Errorf("FindOpenPR() = %d, want %d", got, c.want)
+			}
+		})
+	}
+}
+
 func TestMarkPRReady(t *testing.T) {
 	const (
 		viewCmd  = "gh pr view 7 --repo acme/widgets --json isDraft --jq .isDraft"

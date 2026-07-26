@@ -5,10 +5,97 @@ package main
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/spf13/pflag"
+
+	"github.com/bitwise-media-group/dotty/internal/git"
 )
+
+// fakeLayerLog answers the one `git log` LayerCommits issues, joining commits
+// with the NUL/RS framing that format string produces.
+type fakeLayerLog struct {
+	commits []git.Commit
+	err     error
+	spec    string // the rev range the log was asked for
+}
+
+func (f *fakeLayerLog) Output(_ context.Context, _ string, args ...string) ([]byte, error) {
+	f.spec = args[len(args)-1]
+	if f.err != nil {
+		return nil, f.err
+	}
+	var b strings.Builder
+	for _, c := range f.commits {
+		b.WriteString(c.SHA + "\x00" + c.Subject + "\x00" + c.Body + "\x1e")
+	}
+	return []byte(b.String()), nil
+}
+
+func (f *fakeLayerLog) Run(context.Context, string, ...string) error            { return nil }
+func (f *fakeLayerLog) RunInteractive(context.Context, string, ...string) error { return nil }
+
+func TestLayerTitleCommit(t *testing.T) {
+	one := git.Commit{SHA: "aaaaaaaaaaaa", Subject: "feat: only", Body: "sole body"}
+	two := git.Commit{SHA: "bbbbbbbbbbbb", Subject: "feat: second", Body: "second body"}
+	cases := []struct {
+		name     string
+		commits  []git.Commit
+		logErr   error
+		titleSHA string
+		want     string // wanted subject; empty means no commit resolves
+		wantSpec string
+	}{
+		{
+			name:     "a single-commit layer needs no nomination",
+			commits:  []git.Commit{one},
+			want:     "feat: only",
+			wantSpec: "feat-a..feat-b",
+		},
+		{
+			name:     "an abbreviated nomination still resolves",
+			commits:  []git.Commit{one, two},
+			titleSHA: "bbbbbbb",
+			want:     "feat: second",
+		},
+		{
+			name:    "a multi-commit layer with no nomination does not resolve",
+			commits: []git.Commit{one, two},
+		},
+		{
+			name:     "a nomination the rebase dropped does not resolve",
+			commits:  []git.Commit{one, two},
+			titleSHA: "cccccccc",
+		},
+		{
+			name:   "an unreadable log does not resolve",
+			logErr: errors.New("fatal: bad revision"),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := git.Stack{ID: "s1", Layers: []git.Layer{
+				{Branch: "feat-a"},
+				{Branch: "feat-b", TitleSHA: c.titleSHA},
+			}}
+			fake := &fakeLayerLog{commits: c.commits, err: c.logErr}
+			got, ok := layerTitleCommit(context.Background(), fake, s, 1,
+				git.Trunk{Remote: "upstream", Branch: "main"})
+			if ok != (c.want != "") {
+				t.Fatalf("layerTitleCommit() ok = %v, want %v", ok, c.want != "")
+			}
+			if ok && got.Subject != c.want {
+				t.Errorf("layerTitleCommit() subject = %q, want %q", got.Subject, c.want)
+			}
+			// The exclusive lower bound is the layer below, not trunk.
+			if c.wantSpec != "" && fake.spec != c.wantSpec {
+				t.Errorf("logged %q, want %q", fake.spec, c.wantSpec)
+			}
+		})
+	}
+}
 
 // resetProposeFlags returns the propose command to its pre-parse state: the
 // flag values and cobra's "changed" bookkeeping alike, since the command is a

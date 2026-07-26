@@ -26,8 +26,9 @@ If any open layer diverged from trunk — or no longer contains the layer
 Force-with-lease push the rewritten branches and return to the branch
  the sync started on
 .IP "  5." 5
-Refresh the stack visualisation on any open PR whose body is stale,
- preserving descriptions edited on GitHub
+Rewrite any open PR whose title or body is stale — a stacked layer owns
+ both, so they come from the commit that layer nominated; amend it to
+ change a description, rather than editing the PR on GitHub
 
 .PP
 Config: git config dotty.stack.cleanup false  # keep merged branches

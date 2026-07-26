@@ -111,6 +111,61 @@ func CreateOrUpdatePR(ctx context.Context, r Runner, opts PROptions) (int, error
 	return parsePRNumber(string(out))
 }
 
+// FindOpenPR returns the number of the open pull request from branch into
+// baseBranch, or 0 when there is none. GitHub refuses a second open PR for the
+// same head and base, so propose consults this before opening one: a PR that
+// exists but was never recorded locally is adopted rather than collided with.
+func FindOpenPR(ctx context.Context, r Runner, baseRemote, branch, baseBranch string) (int, error) {
+	repo, err := ghRepoFromRemote(ctx, r, baseRemote)
+	if err != nil {
+		return 0, err
+	}
+	// --head matches the bare ref; the owner:branch form that opening a fork
+	// PR needs matches nothing here.
+	out, err := r.Output(ctx, "gh", "pr", "list",
+		"--repo", repo,
+		"--head", branch,
+		"--base", baseBranch,
+		"--state", "open",
+		"--json", "number,headRepositoryOwner",
+	)
+	if err != nil {
+		return 0, fmt.Errorf("gh pr list --head %s: %w", branch, err)
+	}
+	var prs []struct {
+		Number              int `json:"number"`
+		HeadRepositoryOwner struct {
+			Login string `json:"login"`
+		} `json:"headRepositoryOwner"`
+	}
+	if err := json.Unmarshal(out, &prs); err != nil {
+		return 0, fmt.Errorf("parse gh pr list for %s: %w", branch, err)
+	}
+	// Any number of forks can carry a branch of the same name, and the bare
+	// --head matches them all; only the one this repository pushes to is ours.
+	owner, err := headRepoOwner(ctx, r, baseRemote)
+	if err != nil {
+		return 0, err
+	}
+	for _, pr := range prs {
+		if strings.EqualFold(pr.HeadRepositoryOwner.Login, owner) {
+			return pr.Number, nil
+		}
+	}
+	return 0, nil
+}
+
+// headRepoOwner is the owner of the repository that holds pushed head
+// branches: the fork behind origin when PRs target an upstream, otherwise the
+// base repository's own owner.
+func headRepoOwner(ctx context.Context, r Runner, baseRemote string) (string, error) {
+	remote := baseRemote
+	if baseRemote == "upstream" {
+		remote = "origin"
+	}
+	return ghOwnerFromRemote(ctx, r, remote)
+}
+
 // MarkPRReady takes PR pr out of draft, so it can be reviewed and merged.
 // Proposing is re-runnable, so it is idempotent: a PR that is already ready
 // reports switched = false and is left untouched.

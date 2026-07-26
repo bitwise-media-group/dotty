@@ -83,7 +83,12 @@ a lower layer gained commits, you are prompted to rebase + resign, as
 ` + "`dotty git sync`" + ` does.
 
 Each PR body includes a stack map with links. For multi-commit layers you pick
-which commit supplies the title and description.
+which commit supplies the title and description. A stacked layer owns its PR's
+title and body: both are rewritten from that commit on every run, so change a
+description by amending the commit, not by editing the PR on GitHub. A layer
+whose PR dotty does not know about — opened by hand, or before the branch
+joined a stack — adopts the open PR for that branch instead of colliding with
+it, and that PR is dotty's from then on.
 
 With --auto-merge=<merge|rebase|squash>, each proposed PR is flagged to merge
 automatically with that method once its requirements pass. If the repository
@@ -261,11 +266,25 @@ default via git configuration: ` + "`git config set dotty.propose.browse true`" 
 			layer.TitleSHA = chosen.SHA
 			layer.TitleHint = chosen.Subject
 
-			stackMD := git.FormatStackMap(s, layer.Branch, prURL, merged)
-			body := git.BuildPRBody(s.ID, stackMD, chosen.Body)
-			title := chosen.Subject
-
 			existingPR := layer.PR
+			if existingPR == 0 {
+				// A PR opened outside dotty — or before this branch joined a
+				// stack — is invisible in local config, and GitHub refuses a
+				// second one for the same head. Adopt it instead of colliding.
+				found, ferr := git.FindOpenPR(ctx, r, baseRemote, layer.Branch, baseBranch)
+				switch {
+				case ferr != nil:
+					tui.Warnf(ios, "Could not look for an existing PR on %s: %v", layer.Branch, ferr)
+				case found > 0:
+					tui.Infof(ios, "Adopted untracked PR#%d for %s", found, layer.Branch)
+					existingPR = found
+				}
+			}
+
+			stackMD := git.FormatStackMap(s, layer.Branch, prURL, merged)
+			title := chosen.Subject
+			body := git.BuildPRBody(s.ID, stackMD, chosen.Body)
+
 			n, err := git.CreateOrUpdatePR(ctx, r, git.PROptions{
 				Branch:     layer.Branch,
 				ExistingPR: existingPR,

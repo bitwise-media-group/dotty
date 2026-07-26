@@ -33,7 +33,12 @@ a lower layer gained commits, you are prompted to rebase + resign, as
 
 .PP
 Each PR body includes a stack map with links. For multi-commit layers you pick
-which commit supplies the title and description.
+which commit supplies the title and description. A stacked layer owns its PR's
+title and body: both are rewritten from that commit on every run, so change a
+description by amending the commit, not by editing the PR on GitHub. A layer
+whose PR dotty does not know about — opened by hand, or before the branch
+joined a stack — adopts the open PR for that branch instead of colliding with
+it, and that PR is dotty's from then on.
 
 .PP
 With --auto-merge=, each proposed PR is flagged to merge

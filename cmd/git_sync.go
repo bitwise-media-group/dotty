@@ -38,8 +38,9 @@ var gitSyncCmd = &cobra.Command{
      around conflicts)
   4. Force-with-lease push the rewritten branches and return to the branch
      the sync started on
-  5. Refresh the stack visualisation on any open PR whose body is stale,
-     preserving descriptions edited on GitHub
+  5. Rewrite any open PR whose title or body is stale — a stacked layer owns
+     both, so they come from the commit that layer nominated; amend it to
+     change a description, rather than editing the PR on GitHub
 
 Config: git config dotty.stack.cleanup false  # keep merged branches`,
 	Example: `  dotty git sync
@@ -325,6 +326,32 @@ func resignRange(ctx context.Context, r *cli.ExecRunner, base string) error {
 	return git.Resign(ctx, r, opts)
 }
 
+// layerTitleCommit returns the commit a layer nominated to supply its PR
+// title and description. A single-commit layer needs no nomination; anything
+// else needs the recorded TitleSHA to still resolve, which a rebase that
+// dropped or squashed that commit can defeat.
+func layerTitleCommit(ctx context.Context, r git.Runner, s git.Stack, i int,
+	trunk git.Trunk,
+) (git.Commit, bool) {
+	layer := s.Layers[i]
+	commits, err := git.LayerCommits(ctx, r, git.ParentRevForLayer(s, i, trunk), layer.Branch)
+	if err != nil || len(commits) == 0 {
+		return git.Commit{}, false
+	}
+	if len(commits) == 1 {
+		return commits[0], true
+	}
+	if layer.TitleSHA != "" {
+		// Tolerate an abbreviated stored TitleSHA.
+		if j := slices.IndexFunc(commits, func(c git.Commit) bool {
+			return strings.HasPrefix(c.SHA, layer.TitleSHA)
+		}); j >= 0 {
+			return commits[j], true
+		}
+	}
+	return git.Commit{}, false
+}
+
 func refreshOpenPRBodies(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunner,
 	s git.Stack, trunk git.Trunk,
 ) error {
@@ -342,35 +369,31 @@ func refreshOpenPRBodies(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunn
 			continue
 		}
 		stackMD := git.FormatStackMap(s, layer.Branch, prURL, merged)
-		var body string
-		if existing, err := git.PRBodyText(ctx, r, layer.PR, baseRemote); err == nil {
-			// Rewrite only the stack block, preserving any description edits
-			// made on GitHub — and skip the edit entirely when it is current.
-			body = git.RewriteStackSection(existing, s.ID, stackMD)
-			if git.EqualPRBodies(existing, body) {
-				continue
-			}
-		} else {
-			// Current body unreadable — rebuild it from the title commit.
-			desc := ""
-			if layer.TitleSHA != "" {
-				parent := git.ParentRevForLayer(s, i, trunk)
-				if commits, err := git.LayerCommits(ctx, r, parent, layer.Branch); err == nil {
-					// Tolerate an abbreviated stored TitleSHA.
-					if j := slices.IndexFunc(commits, func(c git.Commit) bool {
-						return strings.HasPrefix(c.SHA, layer.TitleSHA)
-					}); j >= 0 {
-						desc = commits[j].Body
-					}
-				}
-			}
-			body = git.BuildPRBody(s.ID, stackMD, desc)
+		current, readErr := git.PRText(ctx, r, layer.PR, baseRemote)
+
+		// A stacked layer owns its PR's title and body, so both are rebuilt
+		// from the commit the layer nominated: a description is changed by
+		// amending that commit, never by editing the PR on GitHub. When the
+		// commit no longer resolves there is nothing better to write, so only
+		// the stack block is refreshed.
+		want := current
+		switch c, ok := layerTitleCommit(ctx, r, s, i, trunk); {
+		case ok:
+			want = git.PRContent{Title: c.Subject, Body: git.BuildPRBody(s.ID, stackMD, c.Body)}
+		case readErr == nil:
+			want.Body = git.RewriteStackSection(current.Body, s.ID, stackMD)
+		default:
+			tui.Warnf(ios, "Refresh PR#%d: %v", layer.PR, readErr)
+			continue
 		}
-		if err := git.UpdatePRBody(ctx, r, layer.PR, body, baseRemote); err != nil {
+		if readErr == nil && want.Title == current.Title && git.EqualPRBodies(current.Body, want.Body) {
+			continue
+		}
+		if err := git.UpdatePR(ctx, r, layer.PR, want, baseRemote); err != nil {
 			tui.Warnf(ios, "Refresh PR#%d: %v", layer.PR, err)
 			continue
 		}
-		tui.Successf(ios, "Updated stack map on PR#%d", layer.PR)
+		tui.Successf(ios, "Refreshed PR#%d", layer.PR)
 	}
 
 	// Refreshing bodies never changes layer relations, so the rows computed

@@ -16,8 +16,9 @@ Synchronise the current stack with trunk:
      around conflicts)
   4. Force-with-lease push the rewritten branches and return to the branch
      the sync started on
-  5. Refresh the stack visualisation on any open PR whose body is stale,
-     preserving descriptions edited on GitHub
+  5. Rewrite any open PR whose title or body is stale — a stacked layer owns
+     both, so they come from the commit that layer nominated; amend it to
+     change a description, rather than editing the PR on GitHub
 
 Config: git config dotty.stack.cleanup false  # keep merged branches
 

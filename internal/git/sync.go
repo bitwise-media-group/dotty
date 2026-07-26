@@ -131,27 +131,39 @@ func ForcePushBranch(ctx context.Context, r Runner, branch string) error {
 	return r.Run(ctx, "git", "push", "--force-with-lease", remote, branch)
 }
 
-// UpdatePRBody rewrites only the stack section of an existing PR via gh.
-func UpdatePRBody(ctx context.Context, r Runner, pr int, body, baseRemote string) error {
+// PRContent is the title and body a pull request carries. A stacked layer
+// owns both: they are rebuilt from the commit the layer nominated, never read
+// back from GitHub as authoritative.
+type PRContent struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
+// UpdatePR rewrites an existing PR's title and body via gh.
+func UpdatePR(ctx context.Context, r Runner, pr int, want PRContent, baseRemote string) error {
 	repo, err := ghRepoFromRemote(ctx, r, baseRemote)
 	if err != nil {
 		return err
 	}
 	return r.Run(ctx, "gh", "pr", "edit", strconv.Itoa(pr),
-		"--repo", repo, "--body", body)
+		"--repo", repo, "--title", want.Title, "--body", want.Body)
 }
 
-// PRBodyText fetches the current body of a PR via gh, so callers can skip the
-// edit when nothing changed.
-func PRBodyText(ctx context.Context, r Runner, pr int, baseRemote string) (string, error) {
+// PRText fetches a PR's current title and body via gh, so callers can skip the
+// edit when neither would change.
+func PRText(ctx context.Context, r Runner, pr int, baseRemote string) (PRContent, error) {
 	repo, err := ghRepoFromRemote(ctx, r, baseRemote)
 	if err != nil {
-		return "", err
+		return PRContent{}, err
 	}
 	out, err := r.Output(ctx, "gh", "pr", "view", strconv.Itoa(pr),
-		"--repo", repo, "--json", "body", "--jq", ".body")
+		"--repo", repo, "--json", "title,body")
 	if err != nil {
-		return "", fmt.Errorf("gh pr view #%d: %w", pr, err)
+		return PRContent{}, fmt.Errorf("gh pr view #%d: %w", pr, err)
 	}
-	return string(out), nil
+	var current PRContent
+	if err := json.Unmarshal(out, &current); err != nil {
+		return PRContent{}, fmt.Errorf("parse gh pr view #%d: %w", pr, err)
+	}
+	return current, nil
 }
