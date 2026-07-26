@@ -7,7 +7,9 @@ Fetch trunk, clean merged layers, refresh PR maps, rebase+resign if diverged.
 Synchronise the current stack with trunk:
 
   1. Fetch upstream/origin
-  2. Drop layers already on trunk (default: delete local + origin branches)
+  2. Drop layers already on trunk — including one that landed by
+     fast-forward, which only its PR state distinguishes from an empty layer
+     sitting at the trunk tip (default: delete local + origin branches)
   3. If any open layer diverged from trunk — or no longer contains the layer
      below it, because new commits landed mid-stack — prompt to rebase the
      open stack and re-sign each rewritten layer (use --continue / --abort

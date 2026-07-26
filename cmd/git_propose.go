@@ -22,6 +22,7 @@ var gitProposeFlags struct {
 	AutoMerge autoMergeMode
 	Browse    bool
 	Copy      bool
+	Draft     bool
 }
 
 // autoMergeMode is the --auto-merge value: a GitHub merge method ("merge",
@@ -61,7 +62,7 @@ func (m *autoMergeMode) Set(v string) error {
 }
 
 var gitProposeCmd = &cobra.Command{
-	Use:   "propose [--all] [--auto-merge=merge|rebase|squash|comment] [--browse] [--copy]",
+	Use:   "propose [--all] [--auto-merge=merge|rebase|squash|comment] [--browse] [--copy] [--draft]",
 	Short: "Open or update trunk-based PRs for the stack.",
 	Long: `Push stack branches and open pull requests against upstream/main
 (or origin/main). Default: layers from the trunk through the current branch.
@@ -69,10 +70,17 @@ With --all, propose every layer in the stack.
 
 A branch without stack lineage works too: propose adopts it first — as a
 discovered chain when the local branch topology makes one obvious, otherwise
-as a new single-layer stack. Before any PR opens, every proposed layer must
-be up to date with trunk (fast-forwardable) and with the layers below it; if
-the stack has diverged or a lower layer gained commits, you are prompted to
-rebase + resign, as ` + "`dotty git sync`" + ` does.
+as a new single-layer stack.
+
+Before anything is pushed the stack is reconciled with the remote: any layer
+whose PR has already landed is dropped, its local and origin branches deleted
+— ` + "`dotty git done`" + `'s cleanup, scoped to this stack and without leaving
+your branch. Keep the branches with ` + "`git config set dotty.stack.cleanup false`" + `.
+
+Every layer that remains must then be up to date with trunk
+(fast-forwardable) and with the layers below it; if the stack has diverged or
+a lower layer gained commits, you are prompted to rebase + resign, as
+` + "`dotty git sync`" + ` does.
 
 Each PR body includes a stack map with links. For multi-commit layers you pick
 which commit supplies the title and description.
@@ -83,14 +91,21 @@ has auto-merge switched off, or disallows the chosen method, propose warns and
 continues. --auto-merge=comment instead posts a ` + "`/auto-merge`" + ` comment
 on each PR, for repositories where a merge bot watches for it.
 
+With --draft, each PR opens as a draft. Drafts cannot merge, so --draft and
+--auto-merge are mutually exclusive and a configured auto-merge default is
+ignored for the run. --draft applies when a PR is opened; an existing PR keeps
+its draft state. Proposing again without --draft takes any draft PR out of
+draft first, then applies auto-merge to it as usual.
+
 With --browse, each proposed PR opens in your browser afterwards; with --copy,
 the PR URLs (one per line) land on your clipboard. Make any of these the
 default via git configuration: ` + "`git config set dotty.propose.browse true`" + `
-(and dotty.propose.copy, dotty.propose.auto-merge).`,
+(and dotty.propose.copy, dotty.propose.auto-merge, dotty.propose.draft).`,
 	Example: `  dotty git propose
   dotty git propose --all
   dotty git propose --auto-merge=rebase
   dotty git propose --auto-merge=comment
+  dotty git propose --draft
   dotty git propose --browse --copy`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -115,10 +130,6 @@ default via git configuration: ` + "`git config set dotty.propose.browse true`" 
 		if err != nil {
 			return err
 		}
-		through, err := git.ResolveProposeScope(s, cur, gitProposeFlags.All)
-		if err != nil {
-			return err
-		}
 
 		baseRemote, baseBranch, err := git.PRTarget(ctx, r)
 		if err != nil {
@@ -126,9 +137,33 @@ default via git configuration: ` + "`git config set dotty.propose.browse true`" 
 		}
 		prURL := git.PRURLBuilder(ctx, r, baseRemote)
 
+		// The remote decides what is still worth proposing: a landed layer has
+		// no commits left of its own, so it is dropped before the scope is
+		// resolved rather than pushed and then rejected as empty.
+		s, cur, err = pruneLandedLayers(ctx, ios, r, s, trunk, cur)
+		if err != nil {
+			return err
+		}
+		if len(s.Layers) == 0 {
+			tui.Successf(ios, "Stack fully merged; nothing left to propose")
+			return nil
+		}
+
+		through, err := git.ResolveProposeScope(s, cur, gitProposeFlags.All)
+		if err != nil {
+			return err
+		}
+
+		// A draft cannot merge, so --draft switches auto-merge off. Only a
+		// configured default can reach here alongside it — the two flags are
+		// mutually exclusive on the command line.
+		autoMerge := gitProposeFlags.AutoMerge
+		if gitProposeFlags.Draft && autoMerge != autoMergeOff {
+			tui.Infof(ios, "Ignoring auto-merge (%s): draft pull requests do not merge", autoMerge)
+			autoMerge = autoMergeOff
+		}
 		// Auto-merge support is repo-wide, so validate the chosen method once;
 		// a repo that cannot honor it degrades to a warning, not a failure.
-		autoMerge := gitProposeFlags.AutoMerge
 		if method := autoMerge.mergeMethod(); method != "" {
 			err := git.CheckAutoMerge(ctx, r, baseRemote, method)
 			switch {
@@ -197,7 +232,8 @@ default via git configuration: ` + "`git config set dotty.propose.browse true`" 
 				return err
 			}
 			if len(commits) == 0 {
-				return fmt.Errorf("layer %s has no commits unique to this layer", layer.Branch)
+				return fmt.Errorf("layer %s has no commits of its own: commit something, "+
+					"or run `dotty git sync` if its pull request has landed", layer.Branch)
 			}
 
 			var chosen git.Commit
@@ -229,12 +265,38 @@ default via git configuration: ` + "`git config set dotty.propose.browse true`" 
 			body := git.BuildPRBody(s.ID, stackMD, chosen.Body)
 			title := chosen.Subject
 
-			n, err := git.CreateOrUpdatePR(ctx, r, layer.Branch, layer.PR, title, body, baseRemote, baseBranch)
+			existingPR := layer.PR
+			n, err := git.CreateOrUpdatePR(ctx, r, git.PROptions{
+				Branch:     layer.Branch,
+				ExistingPR: existingPR,
+				Title:      title,
+				Body:       body,
+				BaseRemote: baseRemote,
+				BaseBranch: baseBranch,
+				Draft:      gitProposeFlags.Draft,
+			})
 			if err != nil {
 				return err
 			}
 			layer.PR = n
-			tui.Successf(ios, "Proposed %s → PR#%d (%s)", layer.Branch, n, title)
+			kind := "PR"
+			if gitProposeFlags.Draft && existingPR == 0 {
+				kind = "draft PR"
+			}
+			tui.Successf(ios, "Proposed %s → %s#%d (%s)", layer.Branch, kind, n, title)
+
+			// Only a PR that already existed can be a draft to clear — one just
+			// opened without --draft is ready already. This precedes auto-merge:
+			// GitHub will not flag a draft to merge.
+			if existingPR > 0 && !gitProposeFlags.Draft {
+				switched, err := git.MarkPRReady(ctx, r, baseRemote, n)
+				switch {
+				case err != nil:
+					tui.Warnf(ios, "Could not take PR#%d out of draft: %v", n, err)
+				case switched:
+					tui.Infof(ios, "PR#%d is out of draft and ready for review", n)
+				}
+			}
 
 			if autoMerge == autoMergeComment {
 				added, err := git.AddAutoMergeComment(ctx, r, baseRemote, n)
@@ -326,5 +388,11 @@ func init() {
 		"open each proposed pull request in the browser")
 	gitProposeCmd.Flags().BoolVar(&gitProposeFlags.Copy, "copy", false,
 		"copy the proposed pull request URL(s) to the clipboard")
+	gitProposeCmd.Flags().BoolVar(&gitProposeFlags.Draft, "draft", false,
+		"open each pull request as a draft; proposing again without it readies them")
+	// A draft cannot merge. Configured defaults never mark a flag as changed,
+	// so this refuses the pair on the command line only — dotty.propose.draft
+	// alongside dotty.propose.auto-merge is resolved in favour of the draft.
+	gitProposeCmd.MarkFlagsMutuallyExclusive("draft", "auto-merge")
 	gitCmd.AddCommand(gitProposeCmd)
 }

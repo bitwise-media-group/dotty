@@ -52,47 +52,102 @@ func PRTarget(ctx context.Context, r Runner) (baseRemote, baseBranch string, err
 	return trunk.Remote, trunk.Branch, nil
 }
 
-// CreateOrUpdatePR opens or updates a PR for branch against trunk using gh.
-// title and body are the PR content. Returns the PR number.
-func CreateOrUpdatePR(ctx context.Context, r Runner, branch string, existingPR int,
-	title, body, baseRemote, baseBranch string,
-) (int, error) {
+// PROptions describes the pull request CreateOrUpdatePR should end up with.
+type PROptions struct {
+	Branch     string // head branch
+	ExistingPR int    // update this PR; 0 opens a new one
+	Title      string
+	Body       string
+	BaseRemote string // remote holding the base repository
+	BaseBranch string
+	// Draft opens the pull request as a draft. It applies only when opening:
+	// GitHub has no draft toggle on edit, so an existing PR leaves draft
+	// through MarkPRReady instead.
+	Draft bool
+}
+
+// CreateOrUpdatePR opens or updates a PR for opts.Branch against the base
+// branch using gh, and returns the PR number.
+func CreateOrUpdatePR(ctx context.Context, r Runner, opts PROptions) (int, error) {
 	// Prefer gh; it understands fork workflows with --repo when needed.
-	repo, err := ghRepoFromRemote(ctx, r, baseRemote)
+	repo, err := ghRepoFromRemote(ctx, r, opts.BaseRemote)
 	if err != nil {
 		return 0, err
 	}
-	if existingPR > 0 {
+	if opts.ExistingPR > 0 {
 		// Update title/body only.
-		args := []string{"pr", "edit", strconv.Itoa(existingPR),
+		args := []string{"pr", "edit", strconv.Itoa(opts.ExistingPR),
 			"--repo", repo,
-			"--title", title,
-			"--body", body,
+			"--title", opts.Title,
+			"--body", opts.Body,
 		}
 		if err := r.Run(ctx, "gh", args...); err != nil {
-			return existingPR, fmt.Errorf("gh pr edit #%d: %w", existingPR, err)
+			return opts.ExistingPR, fmt.Errorf("gh pr edit #%d: %w", opts.ExistingPR, err)
 		}
-		return existingPR, nil
+		return opts.ExistingPR, nil
 	}
 	// Create: for fork → upstream PRs gh needs the head as forkOwner:branch;
 	// a bare branch name only works when the PR stays within one repo.
-	head := branch
-	if baseRemote == "upstream" {
+	head := opts.Branch
+	if opts.BaseRemote == "upstream" {
 		if owner, err := ghOwnerFromRemote(ctx, r, "origin"); err == nil && owner != "" {
-			head = owner + ":" + branch
+			head = owner + ":" + opts.Branch
 		}
 	}
-	out, err := r.Output(ctx, "gh", "pr", "create",
+	args := []string{"pr", "create",
 		"--repo", repo,
-		"--base", baseBranch,
+		"--base", opts.BaseBranch,
 		"--head", head,
-		"--title", title,
-		"--body", body,
-	)
+		"--title", opts.Title,
+		"--body", opts.Body,
+	}
+	if opts.Draft {
+		args = append(args, "--draft")
+	}
+	out, err := r.Output(ctx, "gh", args...)
 	if err != nil {
 		return 0, fmt.Errorf("gh pr create: %w", err)
 	}
 	return parsePRNumber(string(out))
+}
+
+// MarkPRReady takes PR pr out of draft, so it can be reviewed and merged.
+// Proposing is re-runnable, so it is idempotent: a PR that is already ready
+// reports switched = false and is left untouched.
+func MarkPRReady(ctx context.Context, r Runner, baseRemote string, pr int) (switched bool, err error) {
+	repo, err := ghRepoFromRemote(ctx, r, baseRemote)
+	if err != nil {
+		return false, err
+	}
+	out, err := r.Output(ctx, "gh", "pr", "view", strconv.Itoa(pr),
+		"--repo", repo, "--json", "isDraft", "--jq", ".isDraft")
+	if err != nil {
+		return false, fmt.Errorf("gh pr view #%d: %w", pr, err)
+	}
+	if strings.TrimSpace(string(out)) != "true" {
+		return false, nil
+	}
+	if err := r.Run(ctx, "gh", "pr", "ready", strconv.Itoa(pr), "--repo", repo); err != nil {
+		return false, fmt.Errorf("gh pr ready #%d: %w", pr, err)
+	}
+	return true, nil
+}
+
+// PRMerged reports whether pull request pr has been merged in the base
+// repository. It is the remote's answer to whether a layer's work has landed,
+// which local history alone cannot give for a layer that landed by
+// fast-forward: trunk moves up onto the branch, leaving the two identical.
+func PRMerged(ctx context.Context, r Runner, baseRemote string, pr int) (bool, error) {
+	repo, err := ghRepoFromRemote(ctx, r, baseRemote)
+	if err != nil {
+		return false, err
+	}
+	out, err := r.Output(ctx, "gh", "pr", "view", strconv.Itoa(pr),
+		"--repo", repo, "--json", "state", "--jq", ".state")
+	if err != nil {
+		return false, fmt.Errorf("gh pr view #%d: %w", pr, err)
+	}
+	return strings.EqualFold(strings.TrimSpace(string(out)), "merged"), nil
 }
 
 // CheckAutoMerge verifies the base repository can honor an auto-merge with

@@ -12,16 +12,17 @@ import (
 	"testing"
 )
 
-// autoMergeFakeRunner cans Output results keyed by the full command line
-// ("name arg arg ..."), recording every invocation for order/absence checks.
-type autoMergeFakeRunner struct {
+// ghFakeRunner cans Output results keyed by the full command line
+// ("name arg arg ..."), recording every invocation — Run and Output alike —
+// for order/absence checks. A key in errs fails that command.
+type ghFakeRunner struct {
 	outputs map[string]string
 	errs    map[string]error
 	calls   []string
 }
 
-func (f *autoMergeFakeRunner) Output(_ context.Context, name string, args ...string) ([]byte, error) {
-	key := strings.Join(append([]string{name}, args...), " ")
+func (f *ghFakeRunner) Output(_ context.Context, name string, args ...string) ([]byte, error) {
+	key := cmdKey(name, args)
 	f.calls = append(f.calls, key)
 	if err, ok := f.errs[key]; ok {
 		return nil, err
@@ -33,14 +34,154 @@ func (f *autoMergeFakeRunner) Output(_ context.Context, name string, args ...str
 	return []byte(out), nil
 }
 
-func (f *autoMergeFakeRunner) Run(context.Context, string, ...string) error            { return nil }
-func (f *autoMergeFakeRunner) RunInteractive(context.Context, string, ...string) error { return nil }
+func (f *ghFakeRunner) Run(_ context.Context, name string, args ...string) error {
+	key := cmdKey(name, args)
+	f.calls = append(f.calls, key)
+	return f.errs[key]
+}
+
+func (f *ghFakeRunner) RunInteractive(context.Context, string, ...string) error { return nil }
+
+func cmdKey(name string, args []string) string {
+	return strings.Join(append([]string{name}, args...), " ")
+}
 
 const (
-	fakeRemoteURLCmd = "git remote get-url upstream"
-	fakeRepoViewCmd  = "gh repo view acme/widgets --json " +
+	fakeRemoteURLCmd       = "git remote get-url upstream"
+	fakeOriginRemoteURLCmd = "git remote get-url origin"
+	fakeRepoViewCmd        = "gh repo view acme/widgets --json " +
 		"autoMergeAllowed,rebaseMergeAllowed,squashMergeAllowed,mergeCommitAllowed"
+	fakeRemoteURL = "https://github.com/acme/widgets.git\n"
 )
+
+func TestCreateOrUpdatePR(t *testing.T) {
+	const (
+		createCmd = "gh pr create --repo acme/widgets --base main --head feat-a " +
+			"--title subject --body body"
+		draftCreateCmd = createCmd + " --draft"
+		editCmd        = "gh pr edit 7 --repo acme/widgets --title subject --body body"
+	)
+	base := PROptions{
+		Branch:     "feat-a",
+		Title:      "subject",
+		Body:       "body",
+		BaseRemote: "origin",
+		BaseBranch: "main",
+	}
+	cases := []struct {
+		name    string
+		opts    PROptions
+		wantPR  int
+		wantCmd string
+		absent  string
+	}{
+		{"opens a PR", base, 12, createCmd, draftCreateCmd},
+		{"opens a draft PR", PROptions{Draft: true}, 12, draftCreateCmd, createCmd},
+		{"edits an existing PR", PROptions{ExistingPR: 7}, 7, editCmd, createCmd},
+		// gh pr edit cannot toggle draft, so an update ignores the flag.
+		{"draft does not reach an update", PROptions{ExistingPR: 7, Draft: true}, 7, editCmd, draftCreateCmd},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			opts := base
+			opts.ExistingPR = c.opts.ExistingPR
+			opts.Draft = c.opts.Draft
+			fake := &ghFakeRunner{outputs: map[string]string{
+				fakeOriginRemoteURLCmd: fakeRemoteURL,
+				createCmd:              "https://github.com/acme/widgets/pull/12\n",
+				draftCreateCmd:         "https://github.com/acme/widgets/pull/12\n",
+			}}
+			pr, err := CreateOrUpdatePR(context.Background(), fake, opts)
+			if err != nil {
+				t.Fatalf("CreateOrUpdatePR() error: %v", err)
+			}
+			if pr != c.wantPR {
+				t.Errorf("CreateOrUpdatePR() = %d, want %d", pr, c.wantPR)
+			}
+			if !slices.Contains(fake.calls, c.wantCmd) {
+				t.Errorf("calls = %q, want %q", fake.calls, c.wantCmd)
+			}
+			if slices.Contains(fake.calls, c.absent) {
+				t.Errorf("calls = %q, want %q absent", fake.calls, c.absent)
+			}
+		})
+	}
+}
+
+func TestMarkPRReady(t *testing.T) {
+	const (
+		viewCmd  = "gh pr view 7 --repo acme/widgets --json isDraft --jq .isDraft"
+		readyCmd = "gh pr ready 7 --repo acme/widgets"
+	)
+	cases := []struct {
+		name         string
+		isDraft      string
+		viewErr      error
+		wantSwitched bool
+		wantErr      bool
+		wantReadied  bool
+	}{
+		{"readies a draft", "true\n", nil, true, false, true},
+		{"leaves a ready PR alone", "false\n", nil, false, false, false},
+		{"surfaces the gh failure", "", errors.New("no such pull request"), false, true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fake := &ghFakeRunner{outputs: map[string]string{
+				fakeRemoteURLCmd: fakeRemoteURL,
+				viewCmd:          c.isDraft,
+				readyCmd:         "",
+			}}
+			if c.viewErr != nil {
+				fake.errs = map[string]error{viewCmd: c.viewErr}
+			}
+			switched, err := MarkPRReady(context.Background(), fake, "upstream", 7)
+			if (err != nil) != c.wantErr {
+				t.Fatalf("MarkPRReady() error = %v, wantErr %v", err, c.wantErr)
+			}
+			if switched != c.wantSwitched {
+				t.Errorf("MarkPRReady() switched = %v, want %v", switched, c.wantSwitched)
+			}
+			if readied := slices.Contains(fake.calls, readyCmd); readied != c.wantReadied {
+				t.Errorf("gh pr ready invoked = %v, want %v", readied, c.wantReadied)
+			}
+		})
+	}
+}
+
+func TestPRMerged(t *testing.T) {
+	const viewCmd = "gh pr view 77 --repo acme/widgets --json state --jq .state"
+	cases := []struct {
+		name    string
+		state   string
+		viewErr error
+		want    bool
+		wantErr bool
+	}{
+		{"merged", "MERGED\n", nil, true, false},
+		{"open", "OPEN\n", nil, false, false},
+		{"closed without merging", "CLOSED\n", nil, false, false},
+		{"gh failure", "", errors.New("gh: not found"), false, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fake := &ghFakeRunner{outputs: map[string]string{
+				fakeRemoteURLCmd: fakeRemoteURL,
+				viewCmd:          c.state,
+			}}
+			if c.viewErr != nil {
+				fake.errs = map[string]error{viewCmd: c.viewErr}
+			}
+			got, err := PRMerged(context.Background(), fake, "upstream", 77)
+			if (err != nil) != c.wantErr {
+				t.Fatalf("PRMerged() error = %v, wantErr %v", err, c.wantErr)
+			}
+			if got != c.want {
+				t.Errorf("PRMerged() = %v, want %v", got, c.want)
+			}
+		})
+	}
+}
 
 func TestCheckAutoMerge(t *testing.T) {
 	const allAllowed = `{"autoMergeAllowed":true,"rebaseMergeAllowed":true,` +
@@ -71,8 +212,8 @@ func TestCheckAutoMerge(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			fake := &autoMergeFakeRunner{outputs: map[string]string{
-				fakeRemoteURLCmd: "https://github.com/acme/widgets.git\n",
+			fake := &ghFakeRunner{outputs: map[string]string{
+				fakeRemoteURLCmd: fakeRemoteURL,
 				fakeRepoViewCmd:  c.repoJSON,
 			}}
 			err := CheckAutoMerge(context.Background(), fake, "upstream", c.method)
@@ -111,9 +252,9 @@ func TestEnableAutoMerge(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			fake := &autoMergeFakeRunner{
+			fake := &ghFakeRunner{
 				outputs: map[string]string{
-					fakeRemoteURLCmd: "https://github.com/acme/widgets.git\n",
+					fakeRemoteURLCmd: fakeRemoteURL,
 					viewCmd:          c.pending,
 					mergeCmd:         "",
 				},
@@ -152,8 +293,8 @@ func TestAddAutoMergeComment(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			fake := &autoMergeFakeRunner{outputs: map[string]string{
-				fakeRemoteURLCmd: "https://github.com/acme/widgets.git\n",
+			fake := &ghFakeRunner{outputs: map[string]string{
+				fakeRemoteURLCmd: fakeRemoteURL,
 				viewCmd:          c.comments,
 				commentCmd:       "",
 			}}

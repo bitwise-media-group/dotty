@@ -50,6 +50,35 @@ func DeleteBranchRemote(ctx context.Context, r Runner, remote, branch string) er
 	return nil
 }
 
+// LandedLayers returns the branches of every layer whose work is already on
+// trunk, bottom-most first — the layers to drop before proposing or rebasing
+// what is left.
+//
+// A tip strictly behind trunk (RelMerged) has landed by definition. A tip
+// equal to trunk (RelIdentical) is ambiguous in local history alone: either
+// the layer landed by fast-forward, moving trunk up onto it, or it is an empty
+// layer freshly cut from trunk that never gained a commit. Only the remote
+// separates the two, so an identical layer counts as landed exactly when it
+// carries a pull request GitHub reports as merged. A layer with no PR — and
+// one whose PR cannot be queried, offline or without gh — stays put.
+func LandedLayers(ctx context.Context, r Runner, rows []LayerStatus, baseRemote string) []string {
+	var landed []string
+	for _, row := range rows {
+		switch row.Relation {
+		case RelMerged:
+			landed = append(landed, row.Branch)
+		case RelIdentical:
+			if row.PR == 0 {
+				continue
+			}
+			if merged, err := PRMerged(ctx, r, baseRemote, row.PR); err == nil && merged {
+				landed = append(landed, row.Branch)
+			}
+		}
+	}
+	return landed
+}
+
 // CleanupMergedLayer deletes local+origin branch and removes lineage entry.
 func CleanupMergedLayer(ctx context.Context, r Runner, s Stack, branch string, cfg CleanupConfig) (Stack, error) {
 	cur, _ := CurrentBranch(ctx, r)

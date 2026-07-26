@@ -29,7 +29,9 @@ var gitSyncCmd = &cobra.Command{
 	Long: `Synchronise the current stack with trunk:
 
   1. Fetch upstream/origin
-  2. Drop layers already on trunk (default: delete local + origin branches)
+  2. Drop layers already on trunk — including one that landed by
+     fast-forward, which only its PR state distinguishes from an empty layer
+     sitting at the trunk tip (default: delete local + origin branches)
   3. If any open layer diverged from trunk — or no longer contains the layer
      below it, because new commits landed mid-stack — prompt to rebase the
      open stack and re-sign each rewritten layer (use --continue / --abort
@@ -81,29 +83,13 @@ Config: git config dotty.stack.cleanup false  # keep merged branches`,
 		if err != nil {
 			return err
 		}
-		cfg := git.DefaultCleanup(ctx, r)
-
-		// Cleanup merged layers until none remain merged.
-		for {
-			rows := git.Status(ctx, r, s, trunk, cur)
-			// RelIdentical means empty layer still at trunk tip — not merged work.
-			i := slices.IndexFunc(rows, func(row git.LayerStatus) bool {
-				return row.Relation == git.RelMerged
-			})
-			if i < 0 {
-				break
-			}
-			mergedBranch := rows[i].Branch
-			tui.Infof(ios, "Merged: %s", mergedBranch)
-			s, err = git.CleanupMergedLayer(ctx, r, s, mergedBranch, cfg)
-			if err != nil {
-				return err
-			}
-			if len(s.Layers) == 0 {
-				tui.Successf(ios, "Stack fully merged; nothing left")
-				return nil
-			}
-			cur, _ = git.CurrentBranch(ctx, r)
+		s, cur, err = pruneLandedLayers(ctx, ios, r, s, trunk, cur)
+		if err != nil {
+			return err
+		}
+		if len(s.Layers) == 0 {
+			tui.Successf(ios, "Stack fully merged; nothing left")
+			return nil
 		}
 
 		rows := git.Status(ctx, r, s, trunk, cur)
@@ -211,6 +197,42 @@ func continueStackSync(cmd *cobra.Command, ios cli.IOStreams, r *cli.ExecRunner)
 		return err
 	}
 	return refreshOpenPRBodies(ctx, ios, r, s, trunk)
+}
+
+// pruneLandedLayers drops every layer of s whose work has already landed on
+// trunk, deleting its branches per the cleanup policy — the cleanup half of
+// `dotty git done`, scoped to one stack and without checking out trunk. It
+// returns the surviving stack and the branch HEAD is on, which changes when
+// the layer being deleted is the one checked out. An empty stack, and an empty
+// branch with it, means every layer landed.
+func pruneLandedLayers(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunner,
+	s git.Stack, trunk git.Trunk, cur string,
+) (git.Stack, string, error) {
+	// Removing a layer cannot land another, so one pass over the relations
+	// settles the whole stack.
+	rows := git.Status(ctx, r, s, trunk, cur)
+	landed := git.LandedLayers(ctx, r, rows, trunk.Remote)
+	if len(landed) == 0 {
+		return s, cur, nil
+	}
+	cfg := git.DefaultCleanup(ctx, r)
+	for _, branch := range landed {
+		tui.Infof(ios, "Landed: %s (dropping from the stack)", branch)
+		var err error
+		if s, err = git.CleanupMergedLayer(ctx, r, s, branch, cfg); err != nil {
+			return s, cur, err
+		}
+	}
+	if len(s.Layers) == 0 {
+		// CleanupMergedLayer parked HEAD on the trunk ref; no branch left to
+		// name, and no layer left to work on.
+		return s, "", nil
+	}
+	cur, err := git.CurrentBranch(ctx, r)
+	if err != nil {
+		return s, "", err
+	}
+	return s, cur, nil
 }
 
 func rebaseResignStack(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunner,
