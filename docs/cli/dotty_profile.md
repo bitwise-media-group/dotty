@@ -13,6 +13,7 @@ the active-profile symlink.
 
 ```
   dotty profile new --name=work --description="work laptop"
+  dotty profile list
   dotty profile activate
   dotty profile activate --name=personal
 ```
@@ -33,5 +34,8 @@ the active-profile symlink.
 
 * [dotty](dotty.md)	 - Utilities for a terminal-driven workflow and dotfiles.
 * [dotty profile activate](dotty_profile_activate.md)	 - Activate an existing profile.
+* [dotty profile delete](dotty_profile_delete.md)	 - Delete a profile and the directory behind it.
+* [dotty profile get](dotty_profile_get.md)	 - Show a profile's metadata and where it lives.
+* [dotty profile list](dotty_profile_list.md)	 - List the profiles available on this machine.
 * [dotty profile new](dotty_profile_new.md)	 - Create a system-level profile.
 

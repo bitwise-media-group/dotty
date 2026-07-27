@@ -104,6 +104,51 @@ below.
 dotty profile activate [--name=<name>]
 ```
 
+## List the profiles
+
+Command: list Alias: ls
+
+List every profile under `${XDG_CONFIG_HOME}/dotty` as a table — name,
+description, creation date — marking the active one with `*`. This verb never
+prompts, so its output is the same piped as on a terminal.
+
+```text
+dotty profile list
+```
+
+## Get a profile
+
+Command: get
+
+Print one profile's metadata alongside the state only the machine knows: the
+profile directory, the repository directory it links to, whether it is active,
+and how many entries its Brewfile carries. Without a name, describe the active
+profile — or the one the global `--profile` names. `--format=json` prints
+`profile.json` verbatim instead, answers included.
+
+```text
+dotty profile get [<name>] [--format=<text|json>]
+```
+
+## Delete a profile
+
+Command: delete Alias: rm
+
+Delete the named profile, or the active one when no name is given. A profile's
+content lives in the dotfiles repository and the config directory only links to
+it, so the delete removes both the `${XDG_CONFIG_HOME}/dotty/<name>` entry and
+the `profiles/<name>` directory it resolves to — removing only the link would
+leave the next `dotty dotfiles link` to restore it.
+
+The last profile cannot be deleted. Deleting the active one requires naming its
+replacement, which is activated first so the `active-profile` symlink never
+dangles: `--activate` names it, and without it present a fuzzy-finding picklist
+asks. Confirm before removing anything on a terminal; `--yes` skips the prompt.
+
+```text
+dotty profile delete [<name>] [--activate=<name>] [--yes]
+```
+
 # Command: Security Keys
 
 Command: security-key Alias: sk

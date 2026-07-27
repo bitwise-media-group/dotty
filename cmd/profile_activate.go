@@ -42,22 +42,7 @@ with no Brewfile gets one dumped from the currently installed brews.`,
 
 		name := profileActivateFlags.Name
 		if name == "" {
-			profiles, err := profile.List(configDir)
-			if err != nil {
-				return err
-			}
-			if len(profiles) == 0 {
-				return errors.New("no profiles exist yet; run `dotty profile new`")
-			}
-			options := make([]tui.Option, len(profiles))
-			for i, p := range profiles {
-				label := p.Name
-				if p.Description != "" {
-					label = fmt.Sprintf("%s — %s", p.Name, p.Description)
-				}
-				options[i] = tui.Option{Label: label, Value: p.Name}
-			}
-			name, err = tui.FuzzySelect(ios, "Activate which profile?", options)
+			name, err = pickProfile(ios, configDir, "Activate which profile?", "")
 			if errors.Is(err, tui.ErrAborted) {
 				return nil // esc backs out without changing anything
 			}

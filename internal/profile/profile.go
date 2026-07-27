@@ -67,6 +67,13 @@ func BrewfilePath(profileDir string) string {
 	return filepath.Join(profileDir, "Brewfile")
 }
 
+// MetadataPath returns the profile.json location inside a profile directory.
+// The file is shared with the init answers, so it usually carries more than
+// the keys Profile reads back.
+func MetadataPath(profileDir string) string {
+	return filepath.Join(profileDir, metadataFile)
+}
+
 // Exists reports whether a profile directory of the given name exists.
 func Exists(configDir, name string) bool {
 	info, err := os.Stat(Dir(configDir, name))
@@ -91,7 +98,7 @@ func Create(configDir, name, description string) (Profile, error) {
 	if err != nil {
 		return Profile{}, fmt.Errorf("encode profile metadata: %w", err)
 	}
-	if err := cli.AtomicWriteFile(filepath.Join(dir, metadataFile), append(data, '\n'), 0o644); err != nil {
+	if err := cli.AtomicWriteFile(MetadataPath(dir), append(data, '\n'), 0o644); err != nil {
 		return Profile{}, err
 	}
 	return p, nil
@@ -103,7 +110,7 @@ func Load(configDir, name string) (Profile, error) {
 	if !Exists(configDir, name) {
 		return Profile{}, fmt.Errorf("profile %q: %w", name, ErrNotFound)
 	}
-	data, err := os.ReadFile(filepath.Join(Dir(configDir, name), metadataFile))
+	data, err := os.ReadFile(MetadataPath(Dir(configDir, name)))
 	if errors.Is(err, fs.ErrNotExist) {
 		return Profile{Name: name}, nil
 	}

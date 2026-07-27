@@ -74,6 +74,41 @@ flowchart LR
     Z[zsh env source] --> A
 ```
 
+## Taking stock
+
+```sh
+dotty profile list          # every profile, * on the active one
+dotty profile get           # the active profile in detail
+dotty profile get work
+dotty profile get work --format=json
+```
+
+[`dotty profile list`](../cli/dotty_profile_list.md) is the inventory — name,
+description, creation date. [`dotty profile get`](../cli/dotty_profile_get.md)
+adds what only this machine knows: the profile directory, the repository
+directory behind it, whether it is active, and its Brewfile size. Named without
+an argument, both work on the active profile, and the global `--profile` picks
+another. `--format=json` prints `profile.json` verbatim, so the stored init
+answers come with it.
+
+## Deleting
+
+```sh
+dotty profile delete work
+dotty profile delete --activate=personal    # retiring the active profile
+```
+
+[`dotty profile delete`](../cli/dotty_profile_delete.md) removes both halves of
+a profile: the `~/.config/dotty/<name>` link _and_ the `profiles/<name>`
+directory it resolves to. Removing only the link would delete nothing lasting —
+the content is in the repository, and the next `dotty dotfiles link` would put
+the link back. Commit the repository deletion afterwards.
+
+Two things it will not do. The last profile cannot go, because a machine is
+always of some class. Neither can the active one, unless you name a replacement
+for it to activate first — `--activate`, or the picklist dotty offers — so the
+`active-profile` symlink that git and zsh read through never dangles.
+
 ## Per-profile security
 
 Two security controls are profile content, so they swap on activation:
