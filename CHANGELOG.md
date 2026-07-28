@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0](https://github.com/bitwise-media-group/dotty/compare/v0.2.6...v0.3.0) (2026-07-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **profile:** `dotty profile new` no longer creates a bare profile directory; it runs the full init flow and always activates the result, so --activate is deprecated and does nothing.
+
+### Features
+
+* **git:** drop landed layers before proposing, add propose --draft ([3341663](https://github.com/bitwise-media-group/dotty/commit/3341663df8f2ffaecd549d3920aa28f7be850de3))
+* **git:** own the pull request of every branch in a stack ([fa9db18](https://github.com/bitwise-media-group/dotty/commit/fa9db18403fcfc450aed862bf8ad949d05f91862))
+* **profile:** add list, get, and delete verbs ([b28ce06](https://github.com/bitwise-media-group/dotty/commit/b28ce0696b4d40e398188ea51d67876948fe8a61)), closes [#58](https://github.com/bitwise-media-group/dotty/issues/58)
+* **profile:** make `profile new` a proxy for `dotty init` ([940359f](https://github.com/bitwise-media-group/dotty/commit/940359fc2436c047eaba16d8a2e5e5c14b1f09c6))
+* **scaffold:** add keybinds to launch coding agents unsandboxed ([5cf83c4](https://github.com/bitwise-media-group/dotty/commit/5cf83c4e1a4596725e0b3e6745ab229cc4d9a54f))
+* **scaffold:** add Swift language support to the Neovim template ([68a2fd5](https://github.com/bitwise-media-group/dotty/commit/68a2fd5e1dd4215d5d5665148b0d56249d03bd50))
+* **scaffold:** allow Swift and mise tooling in agent sandboxes ([d9e2099](https://github.com/bitwise-media-group/dotty/commit/d9e20994ccbd4bd0051a7114c8f47236db3f8c74))
+
 ## [0.2.6](https://github.com/bitwise-media-group/dotty/compare/v0.2.5...v0.2.6) (2026-07-22)
 
 
