@@ -8,7 +8,7 @@ git commit signing.
 Every command follows `dotty <noun> <verb>`:
 
 ```sh
-dotty profile new --name=work        # create a profile (and offer to activate it)
+dotty profile new --name=work        # create a profile (runs the init interview for it)
 dotty profile activate               # fuzzy-pick and activate a profile
 dotty brewfile add --cask ghostty    # add to the Brewfile and install
 dotty brewfile sync                  # make the machine match the Brewfile

@@ -130,8 +130,9 @@ func answerKeys(raw map[string]json.RawMessage) AnswerKeys {
 
 // LoadAnswers reads a profile directory's answers: profile.json, falling
 // back to the legacy dotty.json when profile.json is missing or carries only
-// metadata — a pre-merge profile has both documents, and `dotty profile new`
-// writes metadata alone. A profile with no answers anywhere reports
+// metadata — a pre-merge profile has both documents, and a profile made
+// before init owned their creation has metadata alone. A profile with no
+// answers anywhere reports
 // fs.ErrNotExist like a missing file — there is nothing to seed a re-run
 // with.
 func LoadAnswers(profileDir string) (Answers, error) {

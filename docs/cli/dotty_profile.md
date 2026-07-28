@@ -37,5 +37,5 @@ the active-profile symlink.
 * [dotty profile delete](dotty_profile_delete.md)	 - Delete a profile and the directory behind it.
 * [dotty profile get](dotty_profile_get.md)	 - Show a profile's metadata and where it lives.
 * [dotty profile list](dotty_profile_list.md)	 - List the profiles available on this machine.
-* [dotty profile new](dotty_profile_new.md)	 - Create a system-level profile.
+* [dotty profile new](dotty_profile_new.md)	 - Create a profile and set this machine up as one of its class.
 

@@ -41,10 +41,15 @@ atomically swaps every profile-varying value at once, with no re-templating.
 dotty profile new --name=work --description="employer machines"
 ```
 
-[`dotty profile new`](../cli/dotty_profile_new.md) scaffolds the directory; pass
-`--activate` to switch to it immediately. Then re-run `dotty init` with the new
-profile selected to walk the wizard and fill in its answers — or edit
-`profile.json` and the Brewfile directly and commit.
+[`dotty profile new`](../cli/dotty_profile_new.md) is
+[`dotty init`](../cli/dotty_init.md) with the profile name settled in advance —
+an empty profile directory is a machine class that configures nothing, so the
+verb walks the same interview, renders `profiles/work/` into the repository,
+links the home tree, and leaves the new profile active. Every init flag works
+here too, so `--addons`, `--agents` and `--yes` create one unattended.
+
+The name has to be free: re-rendering a profile that exists is `dotty init`, and
+switching to it is `dotty profile activate`.
 
 Create a new profile when machines genuinely differ in _policy_ — package set,
 security keys, hardening, employer constraints. Two machines that should behave

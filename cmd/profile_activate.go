@@ -15,6 +15,7 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/cli"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/tui"
+	"github.com/bitwise-media-group/dotty/internal/wizard"
 )
 
 // ProfileActivateFlags holds the flags for `dotty profile activate`.
@@ -29,8 +30,10 @@ var profileActivateCmd = &cobra.Command{
 	Short: "Activate an existing profile.",
 	Long: `Point the active-profile symlink at a profile. Without --name dotty
 presents a fuzzy-finding picklist of existing profiles. If the named profile
-does not exist, dotty offers to create it first. A freshly activated profile
-with no Brewfile gets one dumped from the currently installed brews.`,
+does not exist, dotty offers to create it first, which runs the init
+interview for it the way dotty profile new does — and ends with the new
+profile active. A freshly activated profile with no Brewfile gets one dumped
+from the currently installed brews.`,
 	Example: `  dotty profile activate
   dotty profile activate --name=work`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,7 +68,7 @@ with no Brewfile gets one dumped from the currently installed brews.`,
 			if !ok {
 				return fmt.Errorf("profile %q: %w", name, profile.ErrNotFound)
 			}
-			return createProfile(cmd.Context(), ios, name, "", true)
+			return createProfile(cmd.Context(), ios, wizard.Flags{ProfileName: name})
 		}
 
 		return activateProfile(cmd.Context(), ios, configDir, name)

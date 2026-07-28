@@ -25,8 +25,8 @@ var (
 // every profile the dotfiles repository carries into the config dir, so for a
 // repository-backed profile the two differ and the second is the one holding
 // the Brewfile, the renders, and the answers. backing is empty for a profile
-// that is a real directory — one made by `dotty profile new` on a machine
-// with no repository yet.
+// that is a real directory — one made by hand, or by an older dotty on a
+// machine with no repository yet.
 func Locate(configDir, name string) (site, backing string, err error) {
 	site = Dir(configDir, name)
 	info, err := os.Lstat(site)

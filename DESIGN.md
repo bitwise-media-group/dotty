@@ -75,14 +75,21 @@ come later.
 
 Command: new
 
-Create a system-level profile that can be copied across machines. A profile
-creates `profiles/<name>` in the dotfiles repository, exposed on the machine as
-a `${XDG_CONFIG_HOME}/dotty/<name>` symlink into it. Once a profile is created,
-ask the user if they want to activate it. Upon confirmation, activate the
-profile using the command for `dotty profile activate` defined below.
+Create a system-level profile that can be copied across machines. A profile is
+`profiles/<name>` in the dotfiles repository, exposed on the machine as a
+`${XDG_CONFIG_HOME}/dotty/<name>` symlink into it — and a profile directory with
+nothing in it is a machine class that configures nothing, so this verb is a
+proxy for `dotty init` with the profile name settled in advance: it runs the
+same interview, renders the profile into the repository, links the home tree,
+and activates it. Without `--name`, prompt for one; the name must be free, since
+re-rendering an existing profile is what `dotty init` does and switching to one
+is what `dotty profile activate` does.
+
+Every `dotty init` flag is accepted here too, so a profile can be created
+unattended.
 
 ```text
-dotty profile new [--name=<name>] [--description=<description>] [--activate]
+dotty profile new [--name=<name>] [--description=<description>] [<init flags>]
 ```
 
 ## Activate a profile
@@ -93,7 +100,7 @@ Activate an existing profile. If no profile name is specified, present a
 fuzzy-finding picklist to allow the user to select a profile. If the name flag
 is specified and the profile does not exist, ask the user if they wish to create
 a new profile. Upon confirmation, invoke the cmd for
-`dotty profile new --name=<name> --activate` to activate it.
+`dotty profile new --name=<name>`, which ends with the new profile active.
 
 To activate a profile, update the `${XDG_CONFIG_HOME}/dotty/active-profile`
 symlink to point to the profile path. Determine if a Brewfile exists in that

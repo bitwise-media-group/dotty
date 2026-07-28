@@ -8,16 +8,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/bitwise-media-group/dotty/internal/profile"
+	"github.com/bitwise-media-group/dotty/internal/scaffold"
+	"github.com/bitwise-media-group/dotty/internal/wizard"
 )
 
 // profileEnv points dotty at a scratch config dir holding the two profile
 // shapes a machine really has: work links into a dotfiles repository the way
-// dotty init leaves it, and personal is the plain directory `dotty profile
-// new` makes before there is a repository. personal is active.
+// dotty init leaves it, and personal is a plain local directory — the shape a
+// hand-made or legacy profile has. personal is active.
 func profileEnv(t *testing.T) (configDir, backing string) {
 	t.Helper()
 	xdg := t.TempDir()
@@ -83,6 +86,48 @@ func captureOut(t *testing.T, fn func() error) (string, error) {
 		t.Fatal(err)
 	}
 	return string(out), runErr
+}
+
+// TestProfileNewRunsInit pins the proxy: `profile new` is dotty init with the
+// profile named up front, so a new profile arrives rendered, linked, and
+// active instead of as an empty directory — and a taken name is refused,
+// because re-rendering an existing machine class is init's job.
+func TestProfileNewRunsInit(t *testing.T) {
+	home := initEnv(t)
+	t.Cleanup(func() { profileNewFlags = wizard.Flags{} })
+	repo := filepath.Join(home, "Repos", "dotfiles")
+
+	if err := execDotty(t, "profile", "new", "--name=work", "--description=work laptop",
+		"--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"), "--addons=tmux",
+		"--agents=claude-code", "--yes", "--skip-font", "--skip-git"); err != nil {
+		t.Fatalf("profile new: %v", err)
+	}
+
+	configDir := filepath.Join(home, ".config", "dotty")
+	profileDir := profile.Dir(configDir, "work")
+	answers, err := scaffold.LoadAnswers(profileDir)
+	if err != nil {
+		t.Fatalf("profile has no stored answers: %v", err)
+	}
+	if answers.ProfileName != "work" || answers.Description != "work laptop" ||
+		!slices.Contains(answers.AddOns, "tmux") {
+		t.Errorf("stored answers = %+v", answers)
+	}
+	if _, err := os.Stat(profile.BrewfilePath(profileDir)); err != nil {
+		t.Errorf("profile has no Brewfile: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(repo, "home", ".config", "tmux", "tmux.conf")); err != nil {
+		t.Errorf("repository not rendered: %v", err)
+	}
+	if active, err := profile.ActiveName(configDir); err != nil || active != "work" {
+		t.Errorf("ActiveName() = %q, %v; want work", active, err)
+	}
+
+	err = execDotty(t, "profile", "new", "--name=work", "--repo="+repo,
+		"--yes", "--skip-font", "--skip-git")
+	if !errors.Is(err, profile.ErrExists) {
+		t.Errorf("creating an existing profile: error = %v, want ErrExists", err)
+	}
 }
 
 // TestProfileList pins the listing: every profile, sorted, with * on the

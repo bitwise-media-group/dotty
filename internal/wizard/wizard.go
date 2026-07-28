@@ -23,13 +23,19 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/tui"
 )
 
-// Flags holds the options for `dotty init`. Every wizard question has a
-// mirroring flag so the command also runs unattended; the trailing fields
-// (OnConflict onward) steer the steps after the interview.
+// Flags holds the options for `dotty init` — and for `dotty profile new`,
+// which is the same interview with the profile named up front. Every wizard
+// question has a mirroring flag so the command also runs unattended; the
+// trailing fields (OnConflict onward) steer the steps after the interview.
 type Flags struct {
-	Repo           string
-	ReposDir       string
+	Repo     string
+	ReposDir string
+	// ProfileName and Description name and describe the profile. Neither is
+	// a question the interview repeats on a re-run: the name is settled
+	// before it starts, and the description is metadata a stored profile
+	// keeps unless a flag replaces it.
 	ProfileName    string
+	Description    string
 	AddOns         []string
 	Agents         []string
 	DumpBrews      bool
@@ -67,17 +73,7 @@ type Flags struct {
 func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, string, bool, error) {
 	var none scaffold.Answers
 
-	// The repository whose profiles seed the interview: an explicit --repo
-	// naming an existing dotty repository, else the one enclosing the working
-	// directory — so a new machine adopts a fresh clone from inside it or by
-	// pointing at it.
-	enclosing := scaffold.EnclosingRepo()
-	if flags.Repo != "" {
-		if dir, err := cli.ExpandHome(flags.Repo); err == nil && scaffold.IsRepo(dir) {
-			enclosing = dir
-		}
-	}
-
+	enclosing := enclosingRepo(flags)
 	profileName, err := resolveProfileName(ios, flags, enclosing)
 	if err != nil {
 		return none, "", false, err
@@ -99,7 +95,7 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 	if rerun {
 		answers = mergeAnswers(prev, flags, reposDir, repo, home)
 	} else {
-		answers = scaffold.Answers{ProfileName: profileName,
+		answers = scaffold.Answers{ProfileName: profileName, Description: flags.Description,
 			AddOns: flags.AddOns, Agents: flags.Agents, DumpBrews: flags.DumpBrews,
 			Marketplace: flags.Marketplace, Harden: flags.Harden, SecurityKeys: flags.SecurityKeys,
 			MacOSDefaults: flags.MacOSDefaults, Wallpaper: flags.Wallpaper, PIV: flags.PIV,
@@ -229,6 +225,27 @@ func resolveProfileName(ios cli.IOStreams, flags Flags, enclosing string) (strin
 		}
 	}
 	return name, profile.ValidateName(name)
+}
+
+// ExistingProfiles lists the profiles a run started with these flags would
+// find — the machine's own plus the selected repository's. It is how `dotty
+// profile new` tells a free name from one that already belongs to a machine
+// class, which is a re-run of init rather than a new profile.
+func ExistingProfiles(flags Flags) []string {
+	return knownProfiles(enclosingRepo(flags))
+}
+
+// enclosingRepo resolves the repository whose profiles seed the interview: an
+// explicit --repo naming an existing dotty repository, else the one enclosing
+// the working directory — so a new machine adopts a fresh clone from inside
+// it or by pointing at it.
+func enclosingRepo(flags Flags) string {
+	if flags.Repo != "" {
+		if dir, err := cli.ExpandHome(flags.Repo); err == nil && scaffold.IsRepo(dir) {
+			return dir
+		}
+	}
+	return scaffold.EnclosingRepo()
 }
 
 // knownProfiles lists the profiles this machine can see: the linked (or
@@ -482,6 +499,9 @@ var agentOptions = []tui.Option{
 // persisted answers, restoring portable path storage for whatever changed.
 func mergeAnswers(prev scaffold.Answers, flags Flags, reposDir, repo, home string) scaffold.Answers {
 	setAnswerPaths(&prev, reposDir, repo, home)
+	if flags.Description != "" {
+		prev.Description = flags.Description
+	}
 	if flags.DumpBrews {
 		prev.DumpBrews = true
 	}

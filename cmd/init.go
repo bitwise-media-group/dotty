@@ -63,56 +63,75 @@ clone the same way — run init from inside it, or point --repo at it.`,
   dotty init --repo ~/Repos/dotfiles --addons=tmux,lsd --agents=claude-code --yes`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if !cmd.Flags().Changed("on-conflict") {
-			initFlags.OnConflict = ""
+		flags := interviewFlags(cmd, initFlags)
+		if flags.ProfileName == "" {
+			flags.ProfileName = rootFlags.Profile
 		}
-		if initFlags.ProfileName == "" {
-			initFlags.ProfileName = rootFlags.Profile
-		}
-		return runInit(cmd.Context(), cli.System(), initFlags)
+		return runInit(cmd.Context(), cli.System(), flags)
 	},
 }
 
 func init() {
-	initCmd.Flags().StringVar(&initFlags.Repo, "repo", "",
-		"dotfiles repository path (default <repos-dir>/dotfiles)")
-	initCmd.Flags().StringVar(&initFlags.ReposDir, "repos-dir", "",
-		"directory your repositories live in (default ~/Repos)")
 	initCmd.Flags().StringVar(&initFlags.ProfileName, "profile-name", "",
 		"dotty profile to create (default machine name)")
-	initCmd.Flags().StringSliceVar(&initFlags.AddOns, "addons", nil,
-		"optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi")
-	initCmd.Flags().StringSliceVar(&initFlags.Agents, "agents", nil,
-		"coding agents: claude-code,codex,opencode,antigravity,grok")
-	initCmd.Flags().BoolVar(&initFlags.DumpBrews, "dump-brews", false,
-		"seed the Brewfile from the installed packages")
-	initCmd.Flags().BoolVar(&initFlags.Marketplace, "marketplace", false,
-		"add the bitwise skills marketplace to the selected agents")
-	initCmd.Flags().BoolVar(&initFlags.Harden, "harden", false,
-		"confine the coding agents: sandbox, credential-read denies, ask-first permissions")
-	initCmd.Flags().BoolVar(&initFlags.SecurityKeys, "security-keys", false,
-		"this machine class signs with hardware security keys")
-	initCmd.Flags().StringVar(&initFlags.GitName, "git-name", "", "git identity name for the private git config")
-	initCmd.Flags().StringVar(&initFlags.GitEmail, "git-email", "", "git identity email for the private git config")
-	initCmd.Flags().StringSliceVar(&initFlags.AllowedSerials, "allowed-serials", nil,
-		"restrict the profile to these security-key serials")
-	initCmd.Flags().StringVar(&initFlags.Worktrees, "worktrees", "",
-		"agent worktree location: a directory name inside each repo (default .worktrees) or an absolute path")
-	initCmd.Flags().StringSliceVar(&initFlags.MacOSDefaults, "macos-defaults", nil,
-		"macOS defaults groups to apply (see the wizard picklist; empty for none)")
-	initCmd.Flags().StringVar(&initFlags.Wallpaper, "wallpaper", "", "wallpaper image from ~/.local/share/wallpapers")
-	initCmd.Flags().BoolVar(&initFlags.PIV, "piv", false, "require smart-card (PIV) login system-wide")
-	initCmd.Flags().BoolVar(&initFlags.SkipKeys, "skip-keys", false, "skip hardware key enrollment")
-	_ = initCmd.Flags().MarkHidden("skip-keys")
-	initCmd.Flags().StringVar(&initFlags.OnConflict, "on-conflict", "backup",
-		"existing-file resolution: backup, adopt, skip, or fail")
-	initCmd.Flags().BoolVar(&initFlags.Yes, "yes", false,
-		"skip the confirmation summary and reuse stored answers; only unanswered questions are asked")
-	initCmd.Flags().BoolVar(&initFlags.SkipFont, "skip-font", false, "skip the lobe-icons font download")
-	initCmd.Flags().BoolVar(&initFlags.SkipGit, "skip-git", false, "skip git init")
-	_ = initCmd.Flags().MarkHidden("skip-font")
-	_ = initCmd.Flags().MarkHidden("skip-git")
+	registerInterviewFlags(initCmd, &initFlags)
 	rootCmd.AddCommand(initCmd)
+}
+
+// registerInterviewFlags binds the interview's flags — one per wizard
+// question, plus the ones steering the steps that follow it — onto cmd. init
+// and `dotty profile new` share the set because they run the same interview;
+// only the profile name differs (--profile-name against --name), so each
+// command registers that one itself.
+func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
+	cmd.Flags().StringVar(&flags.Repo, "repo", "",
+		"dotfiles repository path (default <repos-dir>/dotfiles)")
+	cmd.Flags().StringVar(&flags.ReposDir, "repos-dir", "",
+		"directory your repositories live in (default ~/Repos)")
+	cmd.Flags().StringVar(&flags.Description, "description", "", "short description of the profile")
+	cmd.Flags().StringSliceVar(&flags.AddOns, "addons", nil,
+		"optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi")
+	cmd.Flags().StringSliceVar(&flags.Agents, "agents", nil,
+		"coding agents: claude-code,codex,opencode,antigravity,grok")
+	cmd.Flags().BoolVar(&flags.DumpBrews, "dump-brews", false,
+		"seed the Brewfile from the installed packages")
+	cmd.Flags().BoolVar(&flags.Marketplace, "marketplace", false,
+		"add the bitwise skills marketplace to the selected agents")
+	cmd.Flags().BoolVar(&flags.Harden, "harden", false,
+		"confine the coding agents: sandbox, credential-read denies, ask-first permissions")
+	cmd.Flags().BoolVar(&flags.SecurityKeys, "security-keys", false,
+		"this machine class signs with hardware security keys")
+	cmd.Flags().StringVar(&flags.GitName, "git-name", "", "git identity name for the private git config")
+	cmd.Flags().StringVar(&flags.GitEmail, "git-email", "", "git identity email for the private git config")
+	cmd.Flags().StringSliceVar(&flags.AllowedSerials, "allowed-serials", nil,
+		"restrict the profile to these security-key serials")
+	cmd.Flags().StringVar(&flags.Worktrees, "worktrees", "",
+		"agent worktree location: a directory name inside each repo (default .worktrees) or an absolute path")
+	cmd.Flags().StringSliceVar(&flags.MacOSDefaults, "macos-defaults", nil,
+		"macOS defaults groups to apply (see the wizard picklist; empty for none)")
+	cmd.Flags().StringVar(&flags.Wallpaper, "wallpaper", "", "wallpaper image from ~/.local/share/wallpapers")
+	cmd.Flags().BoolVar(&flags.PIV, "piv", false, "require smart-card (PIV) login system-wide")
+	cmd.Flags().BoolVar(&flags.SkipKeys, "skip-keys", false, "skip hardware key enrollment")
+	cmd.Flags().StringVar(&flags.OnConflict, "on-conflict", "backup",
+		"existing-file resolution: backup, adopt, skip, or fail")
+	cmd.Flags().BoolVar(&flags.Yes, "yes", false,
+		"skip the confirmation summary and reuse stored answers; only unanswered questions are asked")
+	cmd.Flags().BoolVar(&flags.SkipFont, "skip-font", false, "skip the lobe-icons font download")
+	cmd.Flags().BoolVar(&flags.SkipGit, "skip-git", false, "skip git init")
+	for _, hidden := range []string{"skip-keys", "skip-font", "skip-git"} {
+		_ = cmd.Flags().MarkHidden(hidden)
+	}
+}
+
+// interviewFlags copies the command's flags for one run: --on-conflict keeps
+// its documented default only when it was actually passed, so an interactive
+// run that leaves it alone is asked about each conflicting file instead. The
+// copy keeps a run's adjustments out of the package-level flag values.
+func interviewFlags(cmd *cobra.Command, flags wizard.Flags) wizard.Flags {
+	if !cmd.Flags().Changed("on-conflict") {
+		flags.OnConflict = ""
+	}
+	return flags
 }
 
 // runInit is the whole init flow: the interview (every question, ending in

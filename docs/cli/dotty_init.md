@@ -49,6 +49,7 @@ dotty init [flags]
       --addons strings            optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi
       --agents strings            coding agents: claude-code,codex,opencode,antigravity,grok
       --allowed-serials strings   restrict the profile to these security-key serials
+      --description string        short description of the profile
       --dump-brews                seed the Brewfile from the installed packages
       --git-email string          git identity email for the private git config
       --git-name string           git identity name for the private git config

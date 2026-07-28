@@ -6,8 +6,10 @@ Activate an existing profile.
 
 Point the active-profile symlink at a profile. Without --name dotty
 presents a fuzzy-finding picklist of existing profiles. If the named profile
-does not exist, dotty offers to create it first. A freshly activated profile
-with no Brewfile gets one dumped from the currently installed brews.
+does not exist, dotty offers to create it first, which runs the init
+interview for it the way dotty profile new does — and ends with the new
+profile active. A freshly activated profile with no Brewfile gets one dumped
+from the currently installed brews.
 
 ```
 dotty profile activate [flags]
