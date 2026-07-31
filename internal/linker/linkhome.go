@@ -50,7 +50,7 @@ func LinkHome(ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict stri
 	if err != nil {
 		return Report{}, "", err
 	}
-	report, err := Apply(Tree{Source: scaffold.HomeDir(repo), Target: home}, resolve, backupDir)
+	report, err := Apply(Tree{Source: scaffold.HomeDir(repo), Target: home, Copy: scaffold.CopyDirs}, resolve, backupDir)
 	if err != nil {
 		return report, backupDir, err
 	}
@@ -191,6 +191,9 @@ func PruneSites(ios cli.IOStreams, home string, pruned []string) {
 func Summarize(ios cli.IOStreams, rep Report, backupDir string) {
 	tui.Successf(ios, "Linked %d, replaced %d stale links, %d already correct",
 		len(rep.Linked), len(rep.Replaced), rep.OK)
+	if len(rep.Copied) > 0 {
+		tui.Infof(ios, "Mirrored %d copy-deployed directories: %s", len(rep.Copied), strings.Join(rep.Copied, ", "))
+	}
 	if len(rep.Adopted) > 0 {
 		tui.Infof(ios, "Adopted %d existing files into the repository — review with git diff", len(rep.Adopted))
 	}

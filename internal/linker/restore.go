@@ -79,5 +79,10 @@ func copyFile(src, dst string) error {
 	if err := out.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", dst, err)
 	}
+	// OpenFile applies perm only on creation; an existing dst keeps its old
+	// mode through the truncate, so enforce src's bits explicitly.
+	if err := os.Chmod(dst, info.Mode().Perm()); err != nil {
+		return fmt.Errorf("chmod %s: %w", dst, err)
+	}
 	return nil
 }

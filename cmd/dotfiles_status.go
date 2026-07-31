@@ -19,7 +19,9 @@ var dotfilesStatusCmd = &cobra.Command{
 	Short: "Report the link state of the dotfiles tree without changing it.",
 	Long: `Walk the repository's home/ tree against $HOME and report each entry: ok
 (linked correctly), missing (link would be created), stale (a symlink
-pointing elsewhere), or conflict (a real file in the way).`,
+pointing elsewhere), or conflict (a real file in the way). Copy-deployed
+directories (grok's hooks) report the same states for their mirrored files:
+stale means the mirror is out of sync or still the retired symlink.`,
 	Example: `  dotty dotfiles status`,
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -33,7 +35,7 @@ pointing elsewhere), or conflict (a real file in the way).`,
 			return fmt.Errorf("resolve home directory: %w", err)
 		}
 
-		actions, err := linker.Status(linker.Tree{Source: scaffold.HomeDir(repo), Target: home})
+		actions, err := linker.Status(linker.Tree{Source: scaffold.HomeDir(repo), Target: home, Copy: scaffold.CopyDirs})
 		if err != nil {
 			return err
 		}

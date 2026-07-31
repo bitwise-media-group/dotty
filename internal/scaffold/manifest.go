@@ -20,6 +20,15 @@ type Component struct {
 	Doc      string            // repo-relative home of the shared agent doc
 }
 
+// CopyDirs lists the $HOME-relative directories the linker deploys as real
+// directories of file copies instead of symlinks. Grok's sandbox
+// kernel-denies writes to its hooks directory and refuses to start when that
+// directory (or any hook path component) is a symlink — a symlink would let
+// sandboxed code retarget the hooks past the deny. The list is static rather
+// than per-component: a path whose component is unselected never exists under
+// the repository's home/ tree, so the linker simply never matches it.
+var CopyDirs = []string{".config/grok/hooks"}
+
 // templated lists the embedded files rendered through text/template; every
 // other file is copied byte-for-byte, so configs whose own syntax uses {{ }}
 // stay untouched. The hardening phase adds more agent configs here when they

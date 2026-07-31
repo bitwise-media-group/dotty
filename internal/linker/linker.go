@@ -17,11 +17,16 @@ import (
 // Tree maps one repository directory onto the live directory its entries are
 // linked into, e.g. <repo>/home/.config onto ~/.config. TargetPerm is applied
 // to Target when Apply has to create it (0o755 when zero) — ~/.ssh wants
-// 0o700.
+// 0o700. Copy lists Target-relative directories deployed as real directories
+// of file copies instead of symlinks, for tools that refuse symlinked
+// configuration: grok's sandbox write-denies its hooks directory and will not
+// start when the directory or any hook path component is a symlink, since a
+// symlink would let sandboxed code retarget the hooks past the deny.
 type Tree struct {
 	Source     string
 	Target     string
 	TargetPerm os.FileMode
+	Copy       []string
 }
 
 // State classifies what linking an entry requires.
@@ -50,6 +55,11 @@ type Action struct {
 	// (per-profile files, the profile directory itself). Adopting over one
 	// would silently revert a fresh render, so resolvers refuse it.
 	Generated bool
+	// Copy marks a site from Tree.Copy: it is materialized as a real
+	// directory mirroring Dest's files, never a symlink. Its states read as
+	// missing (StateLink), out of sync or still a symlink (StateRelink), in
+	// sync (StateOK), and a regular file in the way (StateConflict).
+	Copy bool
 }
 
 // Conflict is a real filesystem entry occupying a link site.
@@ -79,11 +89,13 @@ const (
 type Resolver func(Conflict) (Resolution, error)
 
 // Report summarizes one Apply: sites linked fresh, stale symlinks replaced,
-// conflicts backed up or adopted before linking, conflicts skipped, how many
-// links were already correct, and legacy shadows retired into the backup set.
+// copy-deployed directories created or resynced, conflicts backed up or
+// adopted before linking, conflicts skipped, how many links were already
+// correct, and legacy shadows retired into the backup set.
 type Report struct {
 	Linked   []string
 	Replaced []string
+	Copied   []string
 	Backed   []string
 	Adopted  []string
 	Skipped  []string
@@ -95,7 +107,7 @@ type Report struct {
 // Conflicts surface as StateConflict actions.
 func Plan(tree Tree) ([]Action, error) {
 	var actions []Action
-	err := walk(tree.Source, tree.Target, func(a Action) error {
+	err := walk(tree.Source, tree.Target, copySites(tree), func(a Action) error {
 		actions = append(actions, a)
 		return nil
 	})
@@ -103,6 +115,15 @@ func Plan(tree Tree) ([]Action, error) {
 		return nil, err
 	}
 	return actions, nil
+}
+
+// copySites resolves tree.Copy to the absolute sites walk matches against.
+func copySites(tree Tree) map[string]bool {
+	sites := make(map[string]bool, len(tree.Copy))
+	for _, rel := range tree.Copy {
+		sites[filepath.Join(tree.Target, rel)] = true
+	}
+	return sites
 }
 
 // Status is Plan under a name that reads as the query it is.
@@ -122,7 +143,7 @@ func Apply(tree Tree, resolve Resolver, backupRoot string) (Report, error) {
 		return rep, err
 	}
 
-	err := walk(tree.Source, tree.Target, func(a Action) error {
+	err := walk(tree.Source, tree.Target, copySites(tree), func(a Action) error {
 		return apply(a, resolve, backupRoot, &rep)
 	})
 	return rep, err
@@ -152,6 +173,9 @@ func ApplyFile(site, dest string, resolve Resolver, backupRoot string, rep *Repo
 
 // apply executes one classified Action, recording it in rep.
 func apply(a Action, resolve Resolver, backupRoot string, rep *Report) error {
+	if a.Copy {
+		return applyCopy(a, resolve, backupRoot, rep)
+	}
 	switch a.State {
 	case StateOK:
 		rep.OK++
@@ -215,8 +239,10 @@ func apply(a Action, resolve Resolver, backupRoot string, rep *Report) error {
 
 // walk pairs each source entry with its link site, descending only where the
 // site is already a real directory (so whole directories link folded until
-// something unfolds them) and emitting one Action everywhere else.
-func walk(source, target string, visit func(Action) error) error {
+// something unfolds them) and emitting one Action everywhere else. Sites in
+// copies are never descended into or linked; they emit one copy Action for
+// the whole directory.
+func walk(source, target string, copies map[string]bool, visit func(Action) error) error {
 	entries, err := os.ReadDir(source)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", source, err)
@@ -224,6 +250,17 @@ func walk(source, target string, visit func(Action) error) error {
 	for _, e := range entries {
 		dest := filepath.Join(source, e.Name())
 		site := filepath.Join(target, e.Name())
+
+		if copies[site] && e.IsDir() {
+			a, err := classifyCopy(site, dest)
+			if err == nil {
+				err = visit(a)
+			}
+			if err != nil {
+				return err
+			}
+			continue
+		}
 
 		info, err := os.Lstat(site)
 		switch {
@@ -238,7 +275,7 @@ func walk(source, target string, visit func(Action) error) error {
 			}
 			err = visit(Action{Site: site, Dest: dest, State: state})
 		case info.IsDir() && e.IsDir():
-			err = walk(dest, site, visit)
+			err = walk(dest, site, copies, visit)
 		default:
 			err = visit(Action{Site: site, Dest: dest, State: StateConflict})
 		}
