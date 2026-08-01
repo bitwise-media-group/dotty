@@ -53,6 +53,7 @@ writable_roots = [
   "~/.cache",
   "~/.local/share/go",
   "~/.local/share/mise",
+  "~/.local/state",
   "~/.npm",
 ]
 # Claude Code allow-lists ~20 network hosts (npm, pypi, github, …). Codex's

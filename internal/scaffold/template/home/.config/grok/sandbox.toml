@@ -27,9 +27,10 @@ extends = "workspace"
 read_write = [
   "{{.ReposDir}}",
   "{{.Home}}/.cache",
+  "{{.Home}}/.local/bin",
   "{{.Home}}/.local/share/go",
   "{{.Home}}/.local/share/mise",
-  "{{.Home}}/.local/bin",
+  "{{.Home}}/.local/state",
   "{{.Home}}/.npm",
   "{{.Home}}/.config/helm",
   "{{.Home}}/.kubescape",
