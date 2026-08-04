@@ -13,7 +13,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/privdot"
 	"github.com/bitwise-media-group/dotty/internal/profile"
+	"github.com/bitwise-media-group/dotty/internal/scaffold"
 	"github.com/bitwise-media-group/dotty/internal/tui"
 	"github.com/bitwise-media-group/dotty/internal/wizard"
 )
@@ -95,5 +97,32 @@ func activateProfile(ctx context.Context, ios cli.IOStreams, configDir, name str
 	if fresh {
 		tui.Successf(ios, "Wrote %s", profile.BrewfilePath(profile.Dir(configDir, name)))
 	}
+	activatePrivate(ctx, ios, configDir, name)
 	return nil
+}
+
+// activatePrivate swaps the private identity along with the profile: when
+// the new profile keeps a private repository, its tree is materialized and
+// relinked best-effort — activation must not fail because a security key is
+// unplugged, and `dotty private link` finishes the job later.
+func activatePrivate(ctx context.Context, ios cli.IOStreams, configDir, name string) {
+	answers, err := scaffold.LoadAnswers(profile.Dir(configDir, name))
+	if err != nil {
+		return // a profile without answers keeps no private repository
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	repo := privateRepoFromAnswers(answers, home)
+	if repo == "" {
+		return
+	}
+	if !privdot.IsRepo(repo) {
+		tui.Warnf(ios, "Private repository %s is not scaffolded; run dotty private init", repo)
+		return
+	}
+	if err := runPrivateLink(ctx, ios, repo, name, "", false); err != nil {
+		tui.Warnf(ios, "Private dotfiles not relinked: %v (retry with dotty private link)", err)
+	}
 }

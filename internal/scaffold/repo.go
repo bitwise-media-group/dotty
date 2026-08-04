@@ -31,12 +31,22 @@ func legacyProfilesDir(repo string) string {
 	return filepath.Join(repo, "stow", ".config", "dotty")
 }
 
+// PrivateMarker identifies an encrypted private dotfiles repository (see the
+// privdot package). It is deliberately not .dotty-version: a private repo has
+// profiles/ too, and IsRepo must not claim it — dotty dotfiles verbs would
+// misroute onto a repository with no home tree.
+const PrivateMarker = ".dotty-private"
+
 // IsRepo reports whether dir is a dotty-made dotfiles repository: the
 // .dotty-version marker (which records the release that rendered the repo,
 // for future upgrades), or a structural profile layout — top-level profiles/
 // or the legacy in-tree location — for repositories rendered before the
-// marker existed.
+// marker existed. A private repository (PrivateMarker) is never a dotfiles
+// repository, whatever its shape.
 func IsRepo(dir string) bool {
+	if _, err := os.Stat(filepath.Join(dir, PrivateMarker)); err == nil {
+		return false
+	}
 	if _, err := os.Stat(filepath.Join(dir, ".dotty-version")); err == nil {
 		return true
 	}

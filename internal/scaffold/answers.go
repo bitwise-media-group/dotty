@@ -71,6 +71,13 @@ type Answers struct {
 	// shared root. Keep it identical across profiles — the gitignore entry
 	// renders into the shared repository.
 	Worktrees string `json:"worktrees,omitempty"`
+
+	// PrivateRepo is the encrypted private dotfiles repository, stored like
+	// Repo: relative to ReposDir, absolute (tilde-folded) only when outside
+	// it. Empty means the machine keeps no private repository. Only the
+	// repository's path lives here — its contents stay age-encrypted in the
+	// repository itself.
+	PrivateRepo string `json:"privateRepo"`
 }
 
 // DefaultWorktrees is the repo-relative directory agent worktrees live in
@@ -103,6 +110,7 @@ type AnswerKeys struct {
 	MacOSDefaults bool
 	Wallpaper     bool
 	PIV           bool
+	PrivateRepo   bool
 }
 
 // answerKeys derives AnswerKeys from a document's raw keys; the literals here
@@ -125,6 +133,7 @@ func answerKeys(raw map[string]json.RawMessage) AnswerKeys {
 		MacOSDefaults: has("macosDefaults"),
 		Wallpaper:     has("wallpaper"),
 		PIV:           has("piv"),
+		PrivateRepo:   has("privateRepo"),
 	}
 }
 

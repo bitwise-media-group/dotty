@@ -62,8 +62,9 @@
 [includeIf "hasconfig:remote.*.url:https://code.forgejo.org/**"]
     path = ~/.config/git/forgejo.gitconfig
 
-# we recommend setting user and email in a private repository
-# that uses stow to symlink to here
+# user and email live outside this repository: dotty init writes this file
+# once, or an encrypted private repository provides it per profile
+# (dotty private link)
 [include]
 	path = ~/.config/private/git/config
 

@@ -46,6 +46,7 @@ type Flags struct {
 	GitEmail       string
 	AllowedSerials []string
 	Worktrees      string
+	PrivateRepo    string
 	MacOSDefaults  []string
 	Wallpaper      string
 	PIV            bool
@@ -111,6 +112,9 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 		}
 	}
 
+	if err := collectPrivateRepo(ios, flags, known, reposDir, home, &answers); err != nil {
+		return none, "", false, err
+	}
 	if err := collectSelections(ios, flags, known, &answers); err != nil {
 		return none, "", false, err
 	}
@@ -118,6 +122,58 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 		return none, "", false, err
 	}
 	return answers, repo, rerun, nil
+}
+
+// collectPrivateRepo asks where the encrypted private dotfiles repository
+// lives, if anywhere. The stored answer rides along on a --yes re-run and
+// seeds the default otherwise; answering "none" clears it. The path stores
+// portably like Repo: relative to ReposDir when inside it, tilde-folded
+// otherwise. Only the path is asked here — dotty private init scaffolds it.
+func collectPrivateRepo(ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys,
+	reposDir, home string, answers *scaffold.Answers) error {
+	repo := flags.PrivateRepo
+	if repo == "" {
+		if flags.reuses(known.PrivateRepo) {
+			return nil
+		}
+		def := ""
+		if answers.PrivateRepo != "" {
+			if def = scaffold.ExpandTilde(answers.PrivateRepo, home); !filepath.IsAbs(def) {
+				def = filepath.Join(reposDir, def)
+			}
+		}
+		got, err := tui.InputSuggest(ios, "Encrypted private dotfiles repository? (\"none\" for none)",
+			def, tmux.FindRepos(reposDir, 4), nil)
+		if errors.Is(err, tui.ErrNotInteractive) {
+			return nil // keep whatever the stored answer says
+		}
+		if err != nil {
+			return err
+		}
+		switch got {
+		case "":
+			repo = def
+		case "none":
+			answers.PrivateRepo = ""
+			return nil
+		default:
+			repo = got
+		}
+	}
+	if repo == "" {
+		answers.PrivateRepo = ""
+		return nil
+	}
+	repo, err := cli.ExpandHome(repo)
+	if err != nil {
+		return err
+	}
+	if rel, err := filepath.Rel(reposDir, repo); err == nil && !strings.HasPrefix(rel, "..") {
+		answers.PrivateRepo = rel
+	} else {
+		answers.PrivateRepo = scaffold.TildePath(repo, home)
+	}
+	return nil
 }
 
 // reuses reports whether --yes silences a question: answered is the matching

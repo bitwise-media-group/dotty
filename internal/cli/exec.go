@@ -153,6 +153,26 @@ func (r *ExecRunner) RunAssuan(ctx context.Context, stdin, name string, args ...
 	return stdout.String(), nil
 }
 
+// OutputStdin feeds stdin to name's standard input and returns its captured
+// stdout. Unlike RunAssuan, a non-zero exit is an error with the stderr tail
+// folded in — the encrypt pipe must fail loudly, not read a cancel as an empty
+// result. The content passes through memory only, never a temp file.
+func (r *ExecRunner) OutputStdin(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error) {
+	r.log.LogAttrs(ctx, slog.LevelDebug, "exec output stdin", slog.String("cmd", name), slog.Any("args", args))
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdin = bytes.NewReader(stdin)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return stdout.Bytes(), fmt.Errorf("run %s: %w: %s", name, err, msg)
+		}
+		return stdout.Bytes(), fmt.Errorf("run %s: %w", name, err)
+	}
+	return stdout.Bytes(), nil
+}
+
 // LookPath reports the absolute path of name, with an install hint when the
 // program is missing.
 func (r *ExecRunner) LookPath(name string) (string, error) {

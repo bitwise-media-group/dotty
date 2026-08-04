@@ -20,6 +20,7 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/git"
 	"github.com/bitwise-media-group/dotty/internal/linker"
 	"github.com/bitwise-media-group/dotty/internal/macos"
+	"github.com/bitwise-media-group/dotty/internal/privdot"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 	"github.com/bitwise-media-group/dotty/internal/signingkey"
@@ -107,6 +108,8 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 		"restrict the profile to these security-key serials")
 	cmd.Flags().StringVar(&flags.Worktrees, "worktrees", "",
 		"agent worktree location: a directory name inside each repo (default .worktrees) or an absolute path")
+	cmd.Flags().StringVar(&flags.PrivateRepo, "private-repo", "",
+		"encrypted private dotfiles repository path (empty for none)")
 	cmd.Flags().StringSliceVar(&flags.MacOSDefaults, "macos-defaults", nil,
 		"macOS defaults groups to apply (see the wizard picklist; empty for none)")
 	cmd.Flags().StringVar(&flags.Wallpaper, "wallpaper", "", "wallpaper image from ~/.local/share/wallpapers")
@@ -191,10 +194,12 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 			answers.ProfileName, strings.Join(answers.AllowedSerials, ", "))
 	}
 
-	if iv.identity.write {
-		if err := git.WriteIdentityFile(ios, iv.identity.name, iv.identity.email, answers.SecurityKeys, home); err != nil {
-			return err
-		}
+	// The private link runs before the identity write: when the private repo
+	// provides ~/.config/private/git/config, the re-check sees it and skips
+	// the write. Like the key plan, a failure here must not strand init.
+	linkPrivateBestEffort(ctx, ios, answers, flags.OnConflict, home)
+	if err := writeIdentityIfStillNeeded(ios, iv.identity, answers, home); err != nil {
+		return err
 	}
 	if answers.SecurityKeys {
 		// A canceled or failed hardware step must not strand init midway —
@@ -238,7 +243,7 @@ func collectInterview(ctx context.Context, ios cli.IOStreams, flags wizard.Flags
 	if iv.answers, iv.repo, iv.rerun, err = wizard.Collect(ios, flags, home); err != nil {
 		return iv, false, ignoreAborted(err)
 	}
-	if iv.identity, err = collectGitIdentity(ios, flags, home); err != nil {
+	if iv.identity, err = collectGitIdentity(ios, flags, iv.answers, home); err != nil {
 		return iv, false, ignoreAborted(err)
 	}
 	iv.hadAllowlist = iv.answers.AllowedSerials != nil
@@ -271,12 +276,19 @@ type gitIdentity struct {
 
 // collectGitIdentity asks for the git identity when the private identity
 // file is missing and the flags leave it open; the write happens only after
-// the summary is confirmed. No terminal or a blank answer skips the file
-// with a warning; esc backs out of init.
-func collectGitIdentity(ios cli.IOStreams, flags wizard.Flags, home string) (gitIdentity, error) {
+// the summary is confirmed. A private repository that already carries the
+// profile's git config makes the question moot — the link step provides the
+// file. No terminal or a blank answer skips the file with a warning; esc
+// backs out of init.
+func collectGitIdentity(ios cli.IOStreams, flags wizard.Flags, answers scaffold.Answers,
+	home string) (gitIdentity, error) {
 	needed, err := git.NeedsIdentity(home)
 	if err != nil || !needed {
 		return gitIdentity{}, err
+	}
+	if privateRepoHasIdentity(answers, home) {
+		tui.Infof(ios, "Git identity comes from the private repository (profile %s)", answers.ProfileName)
+		return gitIdentity{}, nil
 	}
 	id := gitIdentity{name: flags.GitName, email: flags.GitEmail, write: true}
 	if id.name == "" {
@@ -295,6 +307,58 @@ func collectGitIdentity(ios cli.IOStreams, flags wizard.Flags, home string) (git
 		id.write = false
 	}
 	return id, nil
+}
+
+// linkPrivateBestEffort links the profile's private repository during init,
+// warning instead of failing — the machine is already rendered, linked, and
+// active, and dotty private link finishes the job later.
+func linkPrivateBestEffort(ctx context.Context, ios cli.IOStreams, answers scaffold.Answers,
+	onConflict, home string) {
+	repo := privateRepoFromAnswers(answers, home)
+	if repo == "" {
+		return
+	}
+	if !privdot.IsRepo(repo) {
+		tui.Warnf(ios, "%s is not scaffolded yet; run dotty private init", repo)
+		return
+	}
+	if err := runPrivateLink(ctx, ios, repo, answers.ProfileName, onConflict, false); err != nil {
+		tui.Warnf(ios, "Private dotfiles not linked: %v (retry with dotty private link)", err)
+	}
+}
+
+// writeIdentityIfStillNeeded writes the interview's git identity unless the
+// private link just provided the identity file — the private copy wins.
+func writeIdentityIfStillNeeded(ios cli.IOStreams, id gitIdentity, answers scaffold.Answers, home string) error {
+	if !id.write {
+		return nil
+	}
+	needed, err := git.NeedsIdentity(home)
+	if err != nil || !needed {
+		return err
+	}
+	return git.WriteIdentityFile(ios, id.name, id.email, answers.SecurityKeys, home)
+}
+
+// privateRepoHasIdentity reports whether the answers' private repository
+// carries the profile's private git config (ciphertext or plaintext) — the
+// file `dotty private link` provides at the identity path.
+func privateRepoHasIdentity(answers scaffold.Answers, home string) bool {
+	repo := privateRepoFromAnswers(answers, home)
+	if repo == "" || !privdot.IsRepo(repo) {
+		return false
+	}
+	rel, err := filepath.Rel(home, git.IdentityPath(home))
+	if err != nil {
+		return false
+	}
+	base := filepath.Join(privdot.HomeDir(repo, answers.ProfileName), rel)
+	for _, path := range []string{base + privdot.CipherExt, base} {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // askIdentity prompts for one identity field; no terminal means no answer,
