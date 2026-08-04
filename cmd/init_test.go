@@ -78,7 +78,7 @@ func assertRepoAndProfile(t *testing.T, home, repo string) {
 	}
 
 	// Machine-varying files render into the profile, never the shared repo.
-	for _, machineFile := range []string{"home/.config/claude/settings.json", "home/.config/codex/config.toml"} {
+	for _, machineFile := range []string{"home/.config/claude/settings.json", "home/.config/codex/dotty.config.toml"} {
 		if _, err := os.Stat(filepath.Join(repo, machineFile)); err == nil {
 			t.Errorf("%s rendered into the shared repository", machineFile)
 		}
@@ -129,6 +129,15 @@ func assertHomeLinks(t *testing.T, home, repo string) {
 	}
 	if got, err := os.ReadFile(claudeSettings); err != nil || len(got) == 0 {
 		t.Errorf("machine link does not resolve through active-profile: %v", err)
+	}
+	wantCodex := filepath.Join(home, ".config", "dotty", "active-profile",
+		"home", ".config", "codex", "dotty.config.toml")
+	codexLayer := filepath.Join(home, ".config", "codex", "dotty.config.toml")
+	if link, err := os.Readlink(codexLayer); err != nil || link != wantCodex {
+		t.Errorf("~/.config/codex/dotty.config.toml link = %q, %v (want %s)", link, err, wantCodex)
+	}
+	if got, err := os.ReadFile(codexLayer); err != nil || len(got) == 0 {
+		t.Errorf("codex profile layer does not resolve through active-profile: %v", err)
 	}
 }
 
@@ -559,6 +568,74 @@ func TestInitPrunesRelocatedRenders(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(profileDir, "home", ".config", "claude", "settings.json")); err != nil {
 		t.Errorf("current render missing after the prune: %v", err)
+	}
+}
+
+// TestInitMigratesCodexMachineState pins the codex config migration: a live
+// ~/.config/codex/config.toml symlinked through active-profile (the pre-layer
+// layout) becomes a real machine-local file carrying the profile render's
+// content — Codex's project trust and desktop state — with a backup set, while
+// the orphaned render is pruned and dotty.config.toml takes over as the
+// linked profile layer.
+func TestInitMigratesCodexMachineState(t *testing.T) {
+	home := initEnv(t)
+	repo := filepath.Join(home, "Repos", "dotfiles")
+
+	initFlags = wizard.Flags{}
+	if err := execDotty(t, "init", "--repo="+repo, "--profile-name=box", "--agents=codex",
+		"--yes", "--skip-font", "--skip-git"); err != nil {
+		t.Fatalf("first init: %v", err)
+	}
+
+	// Seed the pre-layer world: a config.toml render in the profile holding
+	// machine state Codex wrote through the link, and the live symlink an
+	// older dotty left pointing at it.
+	const state = "[projects.\"/x\"]\ntrust_level = \"trusted\"\n"
+	profileDir := filepath.Join(repo, "profiles", "box")
+	legacy := filepath.Join(profileDir, "home", ".config", "codex", "config.toml")
+	if err := os.WriteFile(legacy, []byte(state), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	site := filepath.Join(home, ".config", "codex", "config.toml")
+	target := filepath.Join(home, ".config", "dotty", "active-profile", "home", ".config", "codex", "config.toml")
+	if err := os.Symlink(target, site); err != nil {
+		t.Fatal(err)
+	}
+
+	initFlags = wizard.Flags{}
+	if err := execDotty(t, "init", "--repo="+repo, "--profile-name=box",
+		"--yes", "--skip-font", "--skip-git", "--on-conflict=fail"); err != nil {
+		t.Fatalf("re-run: %v", err)
+	}
+
+	info, err := os.Lstat(site)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("live config.toml is not a regular file: %v, %v", info, err)
+	}
+	got, err := os.ReadFile(site)
+	if err != nil || string(got) != state {
+		t.Fatalf("machine state lost in migration: %q, %v", got, err)
+	}
+	if _, err := os.Lstat(legacy); err == nil {
+		t.Error("orphaned config.toml render survived the re-run")
+	}
+	if _, err := os.Stat(filepath.Join(profileDir, "home", ".config", "codex", "dotty.config.toml")); err != nil {
+		t.Errorf("profile layer missing after re-run: %v", err)
+	}
+	backups, err := filepath.Glob(filepath.Join(home, ".local", "share", "dotty", "backups", "*",
+		strings.TrimPrefix(site, string(filepath.Separator))))
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("want one backup mirror of %s, got %v, %v", site, backups, err)
+	}
+
+	// Third run: the real file is Codex's now, and init must not disturb it.
+	initFlags = wizard.Flags{}
+	if err := execDotty(t, "init", "--repo="+repo, "--profile-name=box",
+		"--yes", "--skip-font", "--skip-git", "--on-conflict=fail"); err != nil {
+		t.Fatalf("third run: %v", err)
+	}
+	if got, err := os.ReadFile(site); err != nil || string(got) != state {
+		t.Fatalf("machine-local file changed on re-run: %q, %v", got, err)
 	}
 }
 

@@ -201,7 +201,7 @@ func assertHardenToggles(t *testing.T, machineDir string, settings map[string]an
 	if bytes.Contains(grok, []byte("\nprofile = \"dotfiles\"")) != harden {
 		t.Errorf("grok sandbox profile present != %v", harden)
 	}
-	codex, err := os.ReadFile(filepath.Join(machineDir, "home/.config/codex/config.toml"))
+	codex, err := os.ReadFile(filepath.Join(machineDir, "home/.config/codex/dotty.config.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func TestRenderWorktreesShapes(t *testing.T) {
 		if got := read(t, repo, "home/.config/git/ignore"); !strings.Contains(got, "\n.worktrees/\n") {
 			t.Errorf("gitignore missing worktree dir:\n%s", got)
 		}
-		codexCfg := read(t, machine, "home/.config/codex/config.toml")
+		codexCfg := read(t, machine, "home/.config/codex/dotty.config.toml")
 		if strings.Contains(codexCfg, `".worktrees`) || strings.Contains(codexCfg, "agent/worktrees") {
 			t.Error("codex writable_roots should not carry a relative worktree path")
 		}
@@ -315,7 +315,7 @@ func TestRenderWorktreesShapes(t *testing.T) {
 		if got := read(t, repo, "home/.config/git/ignore"); strings.Contains(got, "worktrees") {
 			t.Error("gitignore should not list an absolute worktree root")
 		}
-		if got := read(t, machine, "home/.config/codex/config.toml"); !strings.Contains(got, `"`+abs+`",`) {
+		if got := read(t, machine, "home/.config/codex/dotty.config.toml"); !strings.Contains(got, `"`+abs+`",`) {
 			t.Error("codex writable_roots missing the absolute root")
 		}
 		if got := read(t, machine, "home/.config/claude/settings.json"); !strings.Contains(got, `"`+abs+`",`) {

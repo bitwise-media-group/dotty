@@ -95,8 +95,15 @@ Claude Code's OS-level (Seatbelt) sandbox:
 
 ## Codex
 
-`~/.config/codex/config.toml` recovers the same guarantees with Codex's
-primitives:
+`~/.config/codex/dotty.config.toml` recovers the same guarantees with Codex's
+primitives. It is a Codex _profile layer_, applied when Codex runs with
+`--profile dotty` — the shared `.zshrc` alias and the `dotty tmux new` agent
+window both pass it. `~/.config/codex/config.toml` stays machine-local and
+Codex-owned (project trust, hook state, desktop-app integration); dotty never
+touches it, and the profile layer overrides any stale dotty-rendered keys left
+there by the pre-layer layout. Bare `codex` from a script and the ChatGPT
+desktop app get stock behaviour (the `rules/default.rules` allowlist still
+auto-discovers from `$CODEX_HOME/rules/`).
 
 - **Sandbox**: `sandbox_mode = "workspace-write"` — the same Seatbelt mechanism,
   but it restricts _writes only_: the working directory plus `writable_roots`
@@ -177,6 +184,8 @@ Beyond confinement, every agent gets the same working agreements:
 
 Tighten or loosen any of this by editing the rendered files in your repo and
 re-linking (`dotty dotfiles link`). Common tweaks: adding a domain to Claude
-Code's `network.allowedDomains`, trusting another command prefix in Codex's
-`rules/default.rules`, or promoting an OpenCode `ask` to `allow`. Keep the
-credential denies — they are the point.
+Code's `network.allowedDomains`, editing Codex's `dotty.config.toml`, trusting
+another command prefix in Codex's `rules/default.rules`, or promoting an
+OpenCode `ask` to `allow`. Keep the credential denies — they are the point.
+After upgrading dotty itself, re-run `dotty init --yes` (not just
+`dotfiles link`) so the per-profile renders pick up template changes.

@@ -149,6 +149,17 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	}
 	answers, repo := iv.answers, iv.repo
 
+	configDir, err := cli.ConfigDir()
+	if err != nil {
+		return err
+	}
+	// Migrate before rendering: the prune below deletes the old per-profile
+	// codex config.toml — the very content the legacy live symlink
+	// dereferences to.
+	if err := linker.MigrateCodexConfig(ios, home, configDir); err != nil {
+		return err
+	}
+
 	runner := newRunner(ios)
 	pruned, err := scaffold.RenderRepository(ctx, ios, runner, answers, repo, home)
 	if err != nil {
@@ -170,10 +181,6 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	linker.Summarize(ios, report, backupDir)
 	linker.PruneSites(ios, home, pruned)
 
-	configDir, err := cli.ConfigDir()
-	if err != nil {
-		return err
-	}
 	if _, err := profile.Activate(ctx, runner, configDir, answers.ProfileName); err != nil {
 		return err
 	}

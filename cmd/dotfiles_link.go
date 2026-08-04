@@ -43,6 +43,13 @@ backed up and removed; restore them with dotty dotfiles restore.`,
 		if err != nil {
 			return fmt.Errorf("resolve home directory: %w", err)
 		}
+		configDir, err := cli.ConfigDir()
+		if err != nil {
+			return err
+		}
+		if err := linker.MigrateCodexConfig(ios, home, configDir); err != nil {
+			return err
+		}
 		report, backupDir, err := linker.LinkHome(ios, answers, repo, home, dotfilesLinkFlags.OnConflict)
 		if err != nil {
 			return err

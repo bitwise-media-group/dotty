@@ -115,7 +115,8 @@ func TestNewSession(t *testing.T) {
 		{"tmux", "split-window", "-t", "%1", "-v", "-l", "10%", "-c", "/repo"},
 		{"tmux", "select-pane", "-t", "%1"},
 		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󴁹  grok", "/opt/homebrew/bin/grok"},
-		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󴀾  codex", "/opt/homebrew/bin/codex"},
+		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󴀾  codex",
+			"/opt/homebrew/bin/codex", "--profile", "dotty"},
 		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󴀶  claude", "/opt/homebrew/bin/claude"},
 		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-n", "  zsh", "-c", "/repo"},
 	}

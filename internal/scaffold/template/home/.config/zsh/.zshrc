@@ -95,6 +95,14 @@ if command -v 'nvim' 1>/dev/null 2>&1; then
 	alias vi='nvim'
 fi
 
+# codex: dotty renders its settings as a codex profile layer
+# ($CODEX_HOME/dotty.config.toml) so codex owns config.toml for machine-local
+# state; interactive shells select the layer explicitly. The -f test
+# dereferences, so a profile without codex silently drops the alias.
+if command -v 'codex' 1>/dev/null 2>&1 && [ -f "${CODEX_HOME:-$HOME/.codex}/dotty.config.toml" ]; then
+	alias codex='codex --profile dotty'
+fi
+
 # setup the prompt
 eval "$(oh-my-posh init zsh --config "${POSH_THEME:-${XDG_CONFIG_HOME}/oh-my-posh/prompt.yaml}")"
 

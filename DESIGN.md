@@ -612,7 +612,13 @@ nvim session picker, and will drive `dotty worktree`. All of it lives under
 into it. Shared files never carry a profile-specific value; they reach profile
 values only through the `${XDG_CONFIG_HOME}/dotty/active-profile` symlink — the
 only real machine-local state — so `dotty profile activate` retargets everything
-at once (e.g. `~/.config/dotty/active-profile/env.zsh`).
+at once (e.g. `~/.config/dotty/active-profile/env.zsh`). Codex is the one agent
+whose live config is not the linked render itself: its per-profile file renders
+as `dotty.config.toml`, a Codex profile layer selected with `--profile dotty`
+(the shared `.zshrc` alias and `dotty tmux new` both pass it), while
+`$CODEX_HOME/config.toml` stays a real machine-local file Codex owns — Codex
+persists project trust, hook state, and desktop-app integration into it, and
+linking that file into the repository would commit machine state to every clone.
 
 After confirmation, init renders the selected template components (shared files
 into the repo, profile-varying files into `profiles/<name>`), composes the
@@ -629,6 +635,11 @@ re-running init first migrates it in place: profiles are lifted to top-level
 `profiles/<name>` directories, each per-profile `render/` dissolves into its
 profile root, `dotty.json` and `profile.json` merge into a single
 `profile.json`, and the tree of `$HOME`-relative entries is renamed to `home/`.
+A live `~/.config/codex/config.toml` still symlinked through active-profile (the
+layout before the codex profile layer) is migrated the same way: its content is
+backed up and rewritten in place as a real machine-local file — restorable with
+`dotty dotfiles restore` — so Codex's project trust survives the switch to
+`dotty.config.toml`.
 
 ```text
 dotty init [--repo=<dir>] [--repos-dir=<dir>] [--profile-name=<name>]

@@ -6,9 +6,16 @@
 # Codex CLI configuration — the OpenAI agent, brought to the same guardrails as
 # Claude Code (.config/claude/settings.json) and OpenCode (.config/opencode/opencode.jsonc).
 #
-# Loaded from $CODEX_HOME/config.toml. CODEX_HOME is set to ~/.config/codex in
-# .config/zsh/.zshenv so this whole package lives under XDG config like every
-# other tool in this repo (CLAUDE_CONFIG_DIR relocates Claude Code the same way).
+# This file is a Codex profile layer, loaded as $CODEX_HOME/dotty.config.toml
+# when codex runs with --profile dotty — the shared .zshrc alias and
+# `dotty tmux new` both pass it. $CODEX_HOME/config.toml is machine-local and
+# Codex-owned (hooks.state, project trust, marketplace caches, desktop-app MCP
+# servers); dotty never renders, links, or touches it. The profile layer has
+# higher precedence than config.toml, so stale dotty-rendered keys left in a
+# migrated config.toml are overridden whenever --profile dotty is in effect.
+# CODEX_HOME itself is set to ~/.config/codex in the active profile's env.zsh
+# so this whole package lives under XDG config like every other tool in this
+# repo (CLAUDE_CONFIG_DIR relocates Claude Code the same way).
 #
 # What mirrors what:
 #   sandbox_mode + [sandbox_workspace_write]  <- sandbox.filesystem / sandbox.network
@@ -17,7 +24,7 @@
 #   [[hooks.*]] -> dotty tmux set-status      <- the Claude Code "needs you" tmux indicator
 #   [tui]                                      <- theme: custom:cyberdream (inherited via ANSI)
 #
-# Validate edits with:  codex doctor   (config.toml parse + sandbox summary)
+# Validate edits with:  codex --profile dotty doctor   (config parse + sandbox summary)
 
 {{- if .Harden }}
 # Prompt before anything that execpolicy hasn't explicitly trusted — the analog
