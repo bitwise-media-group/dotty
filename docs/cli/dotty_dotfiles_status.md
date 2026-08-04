@@ -6,7 +6,9 @@ Report the link state of the dotfiles tree without changing it.
 
 Walk the repository's home/ tree against $HOME and report each entry: ok
 (linked correctly), missing (link would be created), stale (a symlink
-pointing elsewhere), or conflict (a real file in the way).
+pointing elsewhere), or conflict (a real file in the way). Copy-deployed
+directories (grok's hooks) report the same states for their mirrored files:
+stale means the mirror is out of sync or still the retired symlink.
 
 ```
 dotty dotfiles status [flags]

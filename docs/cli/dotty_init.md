@@ -59,6 +59,7 @@ dotty init [flags]
       --marketplace               add the bitwise skills marketplace to the selected agents
       --on-conflict string        existing-file resolution: backup, adopt, skip, or fail (default "backup")
       --piv                       require smart-card (PIV) login system-wide
+      --private-repo string       encrypted private dotfiles repository path (empty for none)
       --profile-name string       dotty profile to create (default machine name)
       --repo string               dotfiles repository path (default <repos-dir>/dotfiles)
       --repos-dir string          directory your repositories live in (default ~/Repos)

@@ -576,7 +576,11 @@ enroll a new key — the same flows as `dotty signing-key import` and `new`.
 Separately, when `~/.config/private/git/config` does not exist, init asks for
 the git identity and writes it there with `gpgSign` matching the security-key
 answer; the file is PII, lives outside both the repository and the profile, and
-is never overwritten.
+is never overwritten. A profile that records an encrypted private repository
+(see Command: Private below) provides that file itself: init skips the question
+when the private repo carries the profile's git config, links the private tree
+right before the identity step, and re-checks before writing so the private copy
+always wins.
 
 On macOS, init finishes with the system questions: a picklist of curated
 `defaults write` groups (keyboard, menu bar, trackpad, finder, screenshots,
@@ -675,6 +679,64 @@ set back over the links — every file dotty ever displaced stays recoverable.
 dotty dotfiles link [--repo=<dir>] [--on-conflict=(backup|adopt|skip|fail)]
 dotty dotfiles status [--repo=<dir>]
 dotty dotfiles restore [--timestamp=<ts>]
+```
+
+# Command: Private
+
+Command: private
+
+The encrypted private dotfiles repository: a second repo, marked by
+`.dotty-private` (never mistaken for a dotfiles repo, whatever its shape),
+holding what the public one must not — git identities, ssh host blocks,
+`known_hosts` — as age ciphertext. The layout is per profile:
+`profiles/<name>/home/` mirrors `$HOME` with `<path>.age` files, and
+`profiles/<name>/age/` holds the profile's `recipients.txt` plus the non-secret
+identity stubs, one per enrolled YubiKey serial. Each profile encrypts only to
+its own keys, so a work machine's key never opens personal files; a profile with
+several keys decrypts with whichever is plugged in.
+
+`init` scaffolds or adopts the repository (marker, `.gitattributes` keeping
+ciphertext binary, `.gitignore` guards, a pre-commit hook running
+`verify --staged`) and records the path in the active profile's answers
+(`privateRepo`). `enroll` creates an age identity in a PIV retired slot via
+age-plugin-yubikey — serial-addressed, allowlist-enforced, defaulting to
+pin-policy `once` and touch-policy `cached`; the PIV PIN and retry counter are
+shared with smart-card login, which the docs call out. `encrypt` adopts a live
+file (plaintext travels only through the encrypt pipe); `edit` decrypts to a
+`0600` scratch file inside the data area and re-encrypts only when the content
+changed, since age output is non-deterministic; `rekey` re-encrypts everything
+to the current recipients after an enroll or de-enroll, refreshing the manifest
+so the next link decrypts nothing anew.
+
+`link` materializes plaintext under `$XDG_DATA_HOME/dotty/private/<profile>/`
+(`0700`/`0600`) and applies it over `$HOME` with the shared linker; the tree's
+source runs through `private/active-profile`, so every link carries that symlink
+component and `profile activate` swaps the whole private identity by retargeting
+it — the same trick as the config-dir active-profile. A manifest of
+ciphertext/plaintext hashes makes decryption incremental (steady-state relinks
+never touch hardware), local edits are never overwritten (`drifted` wants
+`encrypt`, `conflict` wants a human), and an unpluggable entry skips with a
+warning unless `--strict`. `status` classifies every entry from hashes alone;
+`verify` is the repo-hygiene check (plaintext siblings, sensitive-looking
+unencrypted names, half-finished enrollments) the pre-commit hook runs.
+
+init links the private tree automatically when the profile records one, and the
+interview skips the git-identity question when the private repo already carries
+the profile's git config — the private copy provides
+`~/.config/private/git/config` per profile, splitting the old includeIf monolith
+along machine classes.
+
+```text
+dotty private init [path]
+dotty private enroll [--serial=<n>|--security-key=<ref>] [--slot=<1-20>]
+                     [--pin-policy=(always|once|never)]
+                     [--touch-policy=(always|cached|never)]
+dotty private encrypt <path> [--repo=<dir>]
+dotty private edit <path>
+dotty private link [--on-conflict=(backup|adopt|skip|fail)] [--strict]
+dotty private status
+dotty private rekey
+dotty private verify [--staged]
 ```
 
 # Command: Worktree

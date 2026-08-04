@@ -60,11 +60,12 @@ every per-profile rendered file at once.
 Created `0700`, contents `0600`. This is personal, per-machine state that must
 never land in a repository:
 
-| Path                                        | Purpose                                                                                                                                        |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `~/.local/share/dotty/`                     | Signing-key stubs (the non-secret halves of YubiKey-resident SSH keys)                                                                         |
-| `~/.local/share/dotty/backups/<timestamp>/` | Timestamped backups taken when linking with `--on-conflict=backup` — recover with [`dotty dotfiles restore`](../cli/dotty_dotfiles_restore.md) |
-| `~/.local/share/dotty/dotty-ssh-askpass`    | The askpass applet symlink that routes OpenSSH PIN prompts to pinentry-mac                                                                     |
+| Path                                        | Purpose                                                                                                                                           |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `~/.local/share/dotty/`                     | Signing-key stubs (the non-secret halves of YubiKey-resident SSH keys)                                                                            |
+| `~/.local/share/dotty/backups/<timestamp>/` | Timestamped backups taken when linking with `--on-conflict=backup` — recover with [`dotty dotfiles restore`](../cli/dotty_dotfiles_restore.md)    |
+| `~/.local/share/dotty/dotty-ssh-askpass`    | The askpass applet symlink that routes OpenSSH PIN prompts to pinentry-mac                                                                        |
+| `~/.local/share/dotty/private/<profile>/`   | Decrypted plaintext of the [encrypted private repository](../guides/private.md), linked into `$HOME` through the `private/active-profile` symlink |
 
 Security-key serial→alias mappings also live on the private side — key serials
 identify your hardware and stay out of the public repo.
@@ -74,8 +75,15 @@ identify your hardware and stay out of the public repo.
 Your git `user.name` / `user.email` (and the `commit.gpgSign` default) are
 written **once** by `dotty init` to `~/.config/private/git/config`, which the
 shared git config includes. It is never overwritten on re-runs and never part of
-the dotfiles repo — so the repo can be public without leaking who you are. If
-you keep a second, private dotfiles repo, link this file from there.
+the dotfiles repo — so the repo can be public without leaking who you are.
+
+The scalable form of this is the
+[encrypted private repository](../guides/private.md): a second repo, marked by
+`.dotty-private`, whose per-profile trees hold git identities, ssh host blocks,
+and the rest of your PII as age ciphertext keyed to your YubiKeys. When a
+profile records one (`privateRepo` in its answers), `dotty private link`
+provides `~/.config/private/git/config` per profile and init skips its own
+write.
 
 ## Keychain
 

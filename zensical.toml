@@ -32,6 +32,7 @@ nav = [
     { "Profiles" = "guides/profiles.md" },
     { "Brewfile workflow" = "guides/brewfile.md" },
     { "Credentials & the Keychain" = "guides/credentials.md" },
+    { "Private dotfiles, encrypted" = "guides/private.md" },
     { "Agent worktrees & re-signing" = "guides/worktrees.md" },
     { "Signature-preserving stacks" = "guides/stacks.md" },
   ] },

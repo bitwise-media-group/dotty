@@ -45,6 +45,7 @@ dotty profile new [flags]
       --name string               name for the new profile
       --on-conflict string        existing-file resolution: backup, adopt, skip, or fail (default "backup")
       --piv                       require smart-card (PIV) login system-wide
+      --private-repo string       encrypted private dotfiles repository path (empty for none)
       --repo string               dotfiles repository path (default <repos-dir>/dotfiles)
       --repos-dir string          directory your repositories live in (default ~/Repos)
       --security-keys             this machine class signs with hardware security keys

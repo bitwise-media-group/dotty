@@ -33,6 +33,7 @@ signing keys that live on those keys (including git commit signing).
 * [dotty env](dotty_env.md)	 - Store and inject credentials from the macOS Keychain.
 * [dotty git](dotty_git.md)	 - Git helpers built on dotty's commit signing.
 * [dotty init](dotty_init.md)	 - Scaffold a new dotfiles repository and set up this machine.
+* [dotty private](dotty_private.md)	 - Manage the encrypted private dotfiles repository.
 * [dotty profile](dotty_profile.md)	 - Manage system profiles that travel across machines.
 * [dotty security-key](dotty_security-key.md)	 - Manage hardware security keys.
 * [dotty signing-key](dotty_signing-key.md)	 - Create and use SSH signing keys on hardware security keys.
