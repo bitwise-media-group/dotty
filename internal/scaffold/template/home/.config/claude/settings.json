@@ -345,5 +345,6 @@
   "theme": "custom:cyberdream",
   "editorMode": "vim",
   "remoteControlAtStartup": false,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "showClearContextOnPlanAccept": true
 }
