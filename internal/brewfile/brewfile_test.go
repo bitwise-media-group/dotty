@@ -14,14 +14,17 @@ import (
 )
 
 // fakeRunner records argv and serves scripted results. Output results are
-// consumed in call order; Run errors likewise.
+// consumed in call order; Run errors likewise. interactive holds the argv of
+// each RunInteractive call so tests can assert which invocations carried the
+// terminal.
 type fakeRunner struct {
-	calls      [][]string
-	outputs    [][]byte
-	outputErrs []error
-	runErrs    []error
-	outputN    int
-	runN       int
+	calls       [][]string
+	interactive []string
+	outputs     [][]byte
+	outputErrs  []error
+	runErrs     []error
+	outputN     int
+	runN        int
 }
 
 func (f *fakeRunner) Output(_ context.Context, name string, args ...string) ([]byte, error) {
@@ -46,6 +49,13 @@ func (f *fakeRunner) Run(_ context.Context, name string, args ...string) error {
 	}
 	f.runN++
 	return err
+}
+
+// RunInteractive records and errors like Run, additionally noting the argv in
+// interactive.
+func (f *fakeRunner) RunInteractive(ctx context.Context, name string, args ...string) error {
+	f.interactive = append(f.interactive, strings.Join(append([]string{name}, args...), " "))
+	return f.Run(ctx, name, args...)
 }
 
 func (f *fakeRunner) argv(i int) string { return strings.Join(f.calls[i], " ") }
@@ -102,6 +112,9 @@ func TestAdd(t *testing.T) {
 			"brew bundle add --file=/p/Brewfile --formula jq ripgrep",
 			"brew bundle install --file=/p/Brewfile",
 		})
+		if want := []string{"brew bundle install --file=/p/Brewfile"}; !slices.Equal(r.interactive, want) {
+			t.Errorf("interactive = %v, want %v — brew prompts need the terminal", r.interactive, want)
+		}
 		if res.Skipped != nil || res.Unmarked != nil {
 			t.Errorf("result = %+v, want empty", res)
 		}
@@ -413,8 +426,12 @@ func TestUpgrade(t *testing.T) {
 	if err := Upgrade(context.Background(), r, "/p/Brewfile"); err != nil {
 		t.Fatalf("Upgrade() error: %v", err)
 	}
-	if want := "brew bundle install --file=/p/Brewfile --upgrade"; r.argv(0) != want {
+	want := "brew bundle install --file=/p/Brewfile --upgrade"
+	if r.argv(0) != want {
 		t.Errorf("argv = %q, want %q", r.argv(0), want)
+	}
+	if !slices.Contains(r.interactive, want) {
+		t.Errorf("interactive = %v, want to contain install — brew prompts need the terminal", r.interactive)
 	}
 }
 
@@ -429,6 +446,9 @@ func TestSync(t *testing.T) {
 		}
 		if len(r.calls) != 1 || r.argv(0) != installArgv {
 			t.Errorf("calls = %v", r.calls)
+		}
+		if !slices.Contains(r.interactive, installArgv) {
+			t.Errorf("interactive = %v, want to contain install — brew prompts need the terminal", r.interactive)
 		}
 	})
 

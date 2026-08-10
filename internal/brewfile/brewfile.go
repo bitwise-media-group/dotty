@@ -19,6 +19,17 @@ type Runner interface {
 	Output(ctx context.Context, name string, args ...string) ([]byte, error)
 }
 
+// InstallRunner is Runner plus the terminal-attached variant the bundle
+// install entry points need. `brew bundle install` prompts: sudo asks for a
+// password or smartcard PIN when a cask (un)install changes ownership, and
+// Homebrew relays those prompts through a PTY with the real terminal in raw
+// mode only when its stdin is a tty — run without one, the typed secret
+// echoes in the clear on the terminal instead of reaching brew.
+type InstallRunner interface {
+	Runner
+	RunInteractive(ctx context.Context, name string, args ...string) error
+}
+
 // Kind is a brew bundle entry type. Its string form doubles as the brew CLI
 // flag name.
 type Kind string
@@ -66,7 +77,7 @@ type AddResult struct {
 // before the add — see ensureTaps. Install always runs,
 // even when every name was skipped — it converges a machine where an entry is
 // recorded but not installed.
-func Add(ctx context.Context, r Runner, path string, kind Kind, names []string,
+func Add(ctx context.Context, r InstallRunner, path string, kind Kind, names []string,
 	confirmTrust func(name string) (bool, error),
 ) (AddResult, error) {
 	var res AddResult
@@ -123,7 +134,7 @@ func Add(ctx context.Context, r Runner, path string, kind Kind, names []string,
 			return res, err
 		}
 	}
-	return res, r.Run(ctx, "brew", "bundle", "install", "--file="+path)
+	return res, r.RunInteractive(ctx, "brew", "bundle", "install", "--file="+path)
 }
 
 // ensureTaps installs the third-party taps that tap-qualified formula and
@@ -190,15 +201,17 @@ func listEntries(ctx context.Context, r Runner, path string, kind Kind) (map[str
 // anything. brew bundle install does not clean up unless asked, so no flag is
 // needed to preserve unlisted brews (and the former --no-cleanup flag has been
 // removed from Homebrew).
-func Upgrade(ctx context.Context, r Runner, path string) error {
-	return r.Run(ctx, "brew", "bundle", "install", "--file="+path, "--upgrade")
+func Upgrade(ctx context.Context, r InstallRunner, path string) error {
+	return r.RunInteractive(ctx, "brew", "bundle", "install", "--file="+path, "--upgrade")
 }
 
 // Sync makes the machine match the Brewfile exactly, removing brews that are
 // not listed. Unless force is set, a cleanup dry-run lists the would-be
 // removals first and confirm decides whether to proceed; returning false
 // aborts with no changes.
-func Sync(ctx context.Context, r Runner, path string, force bool, confirm func(removals []string) (bool, error)) error {
+func Sync(ctx context.Context, r InstallRunner, path string, force bool,
+	confirm func(removals []string) (bool, error),
+) error {
 	if !force {
 		removals, err := cleanupDryRun(ctx, r, path)
 		if err != nil {
@@ -214,7 +227,7 @@ func Sync(ctx context.Context, r Runner, path string, force bool, confirm func(r
 			}
 		}
 	}
-	return r.Run(ctx, "brew", "bundle", "install", "--file="+path,
+	return r.RunInteractive(ctx, "brew", "bundle", "install", "--file="+path,
 		"--force", "--force-cleanup", "--upgrade", "--zap")
 }
 
