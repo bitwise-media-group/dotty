@@ -35,6 +35,7 @@ on a specific profile's via the global --profile flag.
 * [dotty brewfile add](dotty_brewfile_add.md)	 - Add brews to the Brewfile and install them.
 * [dotty brewfile dump](dotty_brewfile_dump.md)	 - Snapshot the installed brews into the Brewfile.
 * [dotty brewfile edit](dotty_brewfile_edit.md)	 - Open the Brewfile in the default editor.
+* [dotty brewfile remove](dotty_brewfile_remove.md)	 - Remove entries from the Brewfile.
 * [dotty brewfile sync](dotty_brewfile_sync.md)	 - Make the machine match the Brewfile exactly.
 * [dotty brewfile upgrade](dotty_brewfile_upgrade.md)	 - Upgrade everything in the Brewfile.
 

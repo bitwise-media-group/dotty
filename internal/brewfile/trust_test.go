@@ -83,6 +83,26 @@ func TestTrustRejectsUntrustableKinds(t *testing.T) {
 	}
 }
 
+func TestUntrust(t *testing.T) {
+	r := &fakeRunner{}
+	if err := Untrust(context.Background(), r, KindFormula, "acme/tap/widget"); err != nil {
+		t.Fatalf("Untrust() error: %v", err)
+	}
+	if want := "brew untrust --formula acme/tap/widget"; r.argv(0) != want {
+		t.Errorf("argv = %q, want %q", r.argv(0), want)
+	}
+}
+
+func TestUntrustRejectsUntrustableKinds(t *testing.T) {
+	r := &fakeRunner{}
+	if err := Untrust(context.Background(), r, KindGo, "x"); err == nil {
+		t.Error("Untrust(go) error = nil, want failure")
+	}
+	if len(r.calls) != 0 {
+		t.Errorf("calls = %v, want none", r.calls)
+	}
+}
+
 func FuzzDecodeTrustList(f *testing.F) {
 	f.Add(`{"taps":[],"formulae":[],"casks":[],"commands":[]}`)
 	f.Add(`{"taps":["a/b"],"formulae":["a/b/c"]}`)

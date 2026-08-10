@@ -15,9 +15,10 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/tui"
 )
 
-// BrewfileAddFlags holds one bool per brew bundle entry type; exactly one (or
-// none, meaning formula) may be set.
-type BrewfileAddFlags struct {
+// BrewfileKindFlags holds one bool per brew bundle entry type; exactly one (or
+// none, meaning formula) may be set. Shared by the brewfile verbs that take a
+// type flag (add, remove).
+type BrewfileKindFlags struct {
 	Formula bool
 	Cask    bool
 	Tap     bool
@@ -30,7 +31,7 @@ type BrewfileAddFlags struct {
 	NPM     bool
 }
 
-var brewfileAddFlags = BrewfileAddFlags{}
+var brewfileAddFlags = BrewfileKindFlags{}
 
 var brewfileAddCmd = &cobra.Command{
 	Use:   "add [--tap | --cask | --formula | ...] <name> [...]",
@@ -94,7 +95,7 @@ implicitly when a formula or cask is named through it.`,
 }
 
 // kind maps the set flag to its brewfile kind; formulae are the default.
-func (f BrewfileAddFlags) kind() brewfile.Kind {
+func (f BrewfileKindFlags) kind() brewfile.Kind {
 	switch {
 	case f.Cask:
 		return brewfile.KindCask
@@ -126,19 +127,27 @@ func plural(n int, one, many string) string {
 	return many
 }
 
+// registerKindFlags declares the shared per-kind type flags on cmd, phrased
+// with verb, and marks them mutually exclusive along with any extra flag names
+// the command has already declared (remove's --mas).
+func registerKindFlags(cmd *cobra.Command, flags *BrewfileKindFlags, verb string, extra ...string) {
+	f := cmd.Flags()
+	f.BoolVar(&flags.Formula, "formula", false, verb+" formulae (the default)")
+	f.BoolVar(&flags.Cask, "cask", false, verb+" casks")
+	f.BoolVar(&flags.Tap, "tap", false, verb+" taps")
+	f.BoolVar(&flags.VSCode, "vscode", false, verb+" VSCode extensions")
+	f.BoolVar(&flags.Go, "go", false, verb+" Go packages")
+	f.BoolVar(&flags.Cargo, "cargo", false, verb+" Cargo packages")
+	f.BoolVar(&flags.UV, "uv", false, verb+" uv tools")
+	f.BoolVar(&flags.Flatpak, "flatpak", false, verb+" Flatpak packages")
+	f.BoolVar(&flags.Krew, "krew", false, verb+" Krew plugins")
+	f.BoolVar(&flags.NPM, "npm", false, verb+" npm packages")
+	names := append([]string{"formula", "cask", "tap", "vscode", "go", "cargo", "uv", "flatpak", "krew", "npm"},
+		extra...)
+	cmd.MarkFlagsMutuallyExclusive(names...)
+}
+
 func init() {
-	f := brewfileAddCmd.Flags()
-	f.BoolVar(&brewfileAddFlags.Formula, "formula", false, "add formulae (the default)")
-	f.BoolVar(&brewfileAddFlags.Cask, "cask", false, "add casks")
-	f.BoolVar(&brewfileAddFlags.Tap, "tap", false, "add taps")
-	f.BoolVar(&brewfileAddFlags.VSCode, "vscode", false, "add VSCode extensions")
-	f.BoolVar(&brewfileAddFlags.Go, "go", false, "add Go packages")
-	f.BoolVar(&brewfileAddFlags.Cargo, "cargo", false, "add Cargo packages")
-	f.BoolVar(&brewfileAddFlags.UV, "uv", false, "add uv tools")
-	f.BoolVar(&brewfileAddFlags.Flatpak, "flatpak", false, "add Flatpak packages")
-	f.BoolVar(&brewfileAddFlags.Krew, "krew", false, "add Krew plugins")
-	f.BoolVar(&brewfileAddFlags.NPM, "npm", false, "add npm packages")
-	brewfileAddCmd.MarkFlagsMutuallyExclusive(
-		"formula", "cask", "tap", "vscode", "go", "cargo", "uv", "flatpak", "krew", "npm")
+	registerKindFlags(brewfileAddCmd, &brewfileAddFlags, "add")
 	brewfileCmd.AddCommand(brewfileAddCmd)
 }

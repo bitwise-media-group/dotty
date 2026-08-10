@@ -74,3 +74,11 @@ func Trust(ctx context.Context, r Runner, kind Kind, name string) error {
 	}
 	return r.Run(ctx, "brew", "trust", kind.flag(), name)
 }
+
+// Untrust removes name from Homebrew's trust store for the given kind.
+func Untrust(ctx context.Context, r Runner, kind Kind, name string) error {
+	if !kind.Trustable() {
+		return fmt.Errorf("kind %s is not trustable", kind)
+	}
+	return r.Run(ctx, "brew", "untrust", kind.flag(), name)
+}

@@ -34,7 +34,8 @@ type InstallRunner interface {
 // flag name.
 type Kind string
 
-// The entry types `brew bundle add` accepts.
+// The brew bundle entry types. All are accepted by `brew bundle add` except
+// mas — App Store entries only come from dump, but list and remove take them.
 const (
 	KindFormula Kind = "formula"
 	KindCask    Kind = "cask"
@@ -46,6 +47,7 @@ const (
 	KindFlatpak Kind = "flatpak"
 	KindKrew    Kind = "krew"
 	KindNPM     Kind = "npm"
+	KindMAS     Kind = "mas"
 )
 
 // Trustable reports whether `brew trust` applies to this kind — Homebrew
@@ -179,22 +181,81 @@ func ensureTaps(ctx context.Context, r Runner, kind Kind, names []string) error 
 	return nil
 }
 
-// listEntries returns the canonical names of kind already recorded at path,
-// parsed by brew itself. A missing Brewfile is an empty set — `brew bundle
-// add` creates it.
-func listEntries(ctx context.Context, r Runner, path string, kind Kind) (map[string]bool, error) {
-	present := make(map[string]bool)
+// List returns the names of kind recorded at path, in Brewfile order, as brew
+// bundle list prints them. A missing Brewfile is an empty list.
+func List(ctx context.Context, r Runner, path string, kind Kind) ([]string, error) {
 	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
-		return present, nil
+		return nil, nil
 	}
 	out, err := r.Output(ctx, "brew", "bundle", "list", "--file="+path, kind.flag())
 	if err != nil {
 		return nil, fmt.Errorf("list %s entries in %s: %w", kind, path, err)
 	}
-	for _, line := range nonEmptyLines(out) {
-		present[canonicalName(kind, line)] = true
+	return nonEmptyLines(out), nil
+}
+
+// listEntries returns the canonical names of kind already recorded at path,
+// parsed by brew itself. A missing Brewfile is an empty set — `brew bundle
+// add` creates it.
+func listEntries(ctx context.Context, r Runner, path string, kind Kind) (map[string]bool, error) {
+	names, err := List(ctx, r, path, kind)
+	if err != nil {
+		return nil, err
+	}
+	present := make(map[string]bool, len(names))
+	for _, name := range names {
+		present[canonicalName(kind, name)] = true
 	}
 	return present, nil
+}
+
+// RemoveResult reports what Remove skipped or could not finish: NotFound
+// names were not in the Brewfile for the kind; NotUntrusted names were
+// removed but their brew trust grant could not be revoked.
+type RemoveResult struct {
+	NotFound     []string
+	NotUntrusted []string
+}
+
+// Remove deletes names of kind from the Brewfile via `brew bundle remove`.
+// Names brew's own parser does not report for the kind land in NotFound
+// instead of being passed to brew — which bypasses brew's --formula
+// alias/old-name matching, consistent with Add's dedupe semantics. Trust
+// grants for removed trust-gated names (see NeedsTrust) are revoked
+// best-effort: a failed revocation lands in NotUntrusted rather than failing.
+// Nothing is uninstalled — removed entries stay on the machine until Sync.
+func Remove(ctx context.Context, r Runner, path string, kind Kind, names []string) (RemoveResult, error) {
+	var res RemoveResult
+	present, err := listEntries(ctx, r, path, kind)
+	if err != nil {
+		return res, err
+	}
+	var toRemove []string
+	for _, name := range names {
+		canonical := canonicalName(kind, name)
+		if !present[canonical] {
+			res.NotFound = append(res.NotFound, name)
+			continue
+		}
+		delete(present, canonical) // also dedupes repeats within one invocation
+		toRemove = append(toRemove, name)
+	}
+	if len(toRemove) == 0 {
+		return res, nil
+	}
+	removeArgs := append([]string{"bundle", "remove", "--file=" + path, kind.flag()}, toRemove...)
+	if err := r.Run(ctx, "brew", removeArgs...); err != nil {
+		return res, err
+	}
+	for _, name := range toRemove {
+		if !NeedsTrust(kind, name) {
+			continue
+		}
+		if err := Untrust(ctx, r, kind, name); err != nil {
+			res.NotUntrusted = append(res.NotUntrusted, name)
+		}
+	}
+	return res, nil
 }
 
 // Upgrade installs and upgrades everything in the Brewfile without removing
@@ -247,11 +308,11 @@ func cleanupDryRun(ctx context.Context, r Runner, path string) ([]string, error)
 }
 
 // dumpKinds is what `dotty brewfile dump` writes by default, per DESIGN.
-var dumpKinds = []Kind{KindFormula, KindCask, "mas", KindFlatpak}
+var dumpKinds = []Kind{KindFormula, KindCask, KindMAS, KindFlatpak}
 
 // allDumpKinds is every positive type flag `brew bundle dump` accepts —
 // Homebrew has no --all flag, so dotty's --all spells them out.
-var allDumpKinds = []Kind{KindFormula, KindCask, KindTap, "mas", KindFlatpak,
+var allDumpKinds = []Kind{KindFormula, KindCask, KindTap, KindMAS, KindFlatpak,
 	KindVSCode, KindGo, KindCargo, KindUV, KindKrew, KindNPM}
 
 // Dump snapshots the installed brews into the Brewfile. force overwrites an

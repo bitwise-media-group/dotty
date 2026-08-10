@@ -45,6 +45,21 @@ present when a bare `cask "widget"` entry exists.
     to exactly what the Brewfile declares — a grant that lives only in the
     store would be revoked on the next sync.
 
+## Removing packages
+
+```sh
+dotty brewfile remove ripgrep
+dotty brewfile remove --cask ghostty
+dotty brewfile rm --tap          # no names: pick from a checklist
+```
+
+[`dotty brewfile remove`](../cli/dotty_brewfile_remove.md) deletes entries from
+the profile's Brewfile (via `brew bundle remove`) and revokes any `brew trust`
+grant a removed tapped name carried. It does **not** uninstall anything — the
+package stays on the machine until
+[`dotty brewfile sync`](../cli/dotty_brewfile_sync.md) removes what the Brewfile
+no longer lists. Pass `--sync` to run that immediately.
+
 ## Snapshotting a machine
 
 [`dotty brewfile dump`](../cli/dotty_brewfile_dump.md) writes the machine's

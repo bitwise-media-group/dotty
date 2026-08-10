@@ -421,6 +421,163 @@ func TestAddTaps(t *testing.T) {
 	})
 }
 
+func TestRemove(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("present names are removed", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"jq\"\n")
+		r := &fakeRunner{outputs: [][]byte{[]byte("jq\n")}}
+		res, err := Remove(ctx, r, path, KindFormula, []string{"jq"})
+		if err != nil {
+			t.Fatalf("Remove() error: %v", err)
+		}
+		assertCalls(t, r, []string{
+			"brew bundle list --file=" + path + " --formula",
+			"brew bundle remove --file=" + path + " --formula jq",
+		})
+		if res.NotFound != nil || res.NotUntrusted != nil {
+			t.Errorf("result = %+v, want empty", res)
+		}
+	})
+
+	t.Run("missing names are skipped, present ones removed", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"jq\"\n")
+		r := &fakeRunner{outputs: [][]byte{[]byte("jq\n")}}
+		res, err := Remove(ctx, r, path, KindFormula, []string{"jq", "ripgrep"})
+		if err != nil {
+			t.Fatalf("Remove() error: %v", err)
+		}
+		assertCalls(t, r, []string{
+			"brew bundle list --file=" + path + " --formula",
+			"brew bundle remove --file=" + path + " --formula jq",
+		})
+		if !slices.Equal(res.NotFound, []string{"ripgrep"}) {
+			t.Errorf("NotFound = %v, want [ripgrep]", res.NotFound)
+		}
+	})
+
+	t.Run("all names missing removes nothing", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"jq\"\n")
+		r := &fakeRunner{outputs: [][]byte{[]byte("jq\n")}}
+		res, err := Remove(ctx, r, path, KindFormula, []string{"ripgrep"})
+		if err != nil {
+			t.Fatalf("Remove() error: %v", err)
+		}
+		assertCalls(t, r, []string{
+			"brew bundle list --file=" + path + " --formula",
+		})
+		if !slices.Equal(res.NotFound, []string{"ripgrep"}) {
+			t.Errorf("NotFound = %v, want [ripgrep]", res.NotFound)
+		}
+	})
+
+	t.Run("missing Brewfile reports every name without calling brew", func(t *testing.T) {
+		r := &fakeRunner{}
+		res, err := Remove(ctx, r, "/p/Brewfile", KindFormula, []string{"jq", "ripgrep"})
+		if err != nil {
+			t.Fatalf("Remove() error: %v", err)
+		}
+		if len(r.calls) != 0 {
+			t.Errorf("calls = %v, want none", r.calls)
+		}
+		if !slices.Equal(res.NotFound, []string{"jq", "ripgrep"}) {
+			t.Errorf("NotFound = %v, want [jq ripgrep]", res.NotFound)
+		}
+	})
+
+	t.Run("canonical forms match listed entries and repeats remove once", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"acme/tap/widget\"\n")
+		r := &fakeRunner{outputs: [][]byte{[]byte("acme/tap/widget\n")}}
+		res, err := Remove(ctx, r, path, KindFormula,
+			[]string{"Acme/homebrew-tap/Widget", "Acme/homebrew-tap/Widget"})
+		if err != nil {
+			t.Fatalf("Remove() error: %v", err)
+		}
+		assertCalls(t, r, []string{
+			"brew bundle list --file=" + path + " --formula",
+			"brew bundle remove --file=" + path + " --formula Acme/homebrew-tap/Widget",
+			"brew untrust --formula Acme/homebrew-tap/Widget",
+		})
+		if !slices.Equal(res.NotFound, []string{"Acme/homebrew-tap/Widget"}) {
+			t.Errorf("NotFound = %v, want the repeated argument", res.NotFound)
+		}
+	})
+
+	t.Run("failed untrust is reported, not fatal", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"acme/tap/widget\"\n")
+		r := &fakeRunner{
+			outputs: [][]byte{[]byte("acme/tap/widget\n")},
+			runErrs: []error{nil, errors.New("untrust exploded")},
+		}
+		res, err := Remove(ctx, r, path, KindFormula, []string{"acme/tap/widget"})
+		if err != nil {
+			t.Fatalf("Remove() error: %v", err)
+		}
+		if !slices.Equal(res.NotUntrusted, []string{"acme/tap/widget"}) {
+			t.Errorf("NotUntrusted = %v, want [acme/tap/widget]", res.NotUntrusted)
+		}
+	})
+
+	t.Run("non-trustable kinds never untrust", func(t *testing.T) {
+		path := seedBrewfile(t, "npm \"acme/scope/pkg\"\n")
+		r := &fakeRunner{outputs: [][]byte{[]byte("acme/scope/pkg\n")}}
+		res, err := Remove(ctx, r, path, KindNPM, []string{"acme/scope/pkg"})
+		if err != nil {
+			t.Fatalf("Remove() error: %v", err)
+		}
+		assertCalls(t, r, []string{
+			"brew bundle list --file=" + path + " --npm",
+			"brew bundle remove --file=" + path + " --npm acme/scope/pkg",
+		})
+		if res.NotUntrusted != nil {
+			t.Errorf("NotUntrusted = %v, want none", res.NotUntrusted)
+		}
+	})
+
+	t.Run("list failure is a real error", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"jq\"\n")
+		r := &fakeRunner{outputErrs: []error{errors.New("brew exploded")}}
+		_, err := Remove(ctx, r, path, KindFormula, []string{"jq"})
+		if err == nil {
+			t.Fatal("Remove() error = nil, want list failure")
+		}
+		if !strings.Contains(err.Error(), "list formula entries") {
+			t.Errorf("error = %v, want list context", err)
+		}
+		if len(r.calls) != 1 {
+			t.Errorf("calls = %v, want the list read only", r.calls)
+		}
+	})
+}
+
+func TestList(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("names come back in Brewfile order", func(t *testing.T) {
+		path := seedBrewfile(t, "brew \"zsh\"\nbrew \"jq\"\n")
+		r := &fakeRunner{outputs: [][]byte{[]byte("zsh\njq\n")}}
+		got, err := List(ctx, r, path, KindFormula)
+		if err != nil {
+			t.Fatalf("List() error: %v", err)
+		}
+		if want := []string{"zsh", "jq"}; !slices.Equal(got, want) {
+			t.Errorf("List() = %v, want %v", got, want)
+		}
+		assertCalls(t, r, []string{"brew bundle list --file=" + path + " --formula"})
+	})
+
+	t.Run("missing Brewfile is empty without calling brew", func(t *testing.T) {
+		r := &fakeRunner{}
+		got, err := List(ctx, r, "/p/Brewfile", KindFormula)
+		if err != nil {
+			t.Fatalf("List() error: %v", err)
+		}
+		if len(got) != 0 || len(r.calls) != 0 {
+			t.Errorf("List() = %v with calls %v, want neither", got, r.calls)
+		}
+	})
+}
+
 func TestUpgrade(t *testing.T) {
 	r := &fakeRunner{}
 	if err := Upgrade(context.Background(), r, "/p/Brewfile"); err != nil {
@@ -541,7 +698,7 @@ func TestDump(t *testing.T) {
 }
 
 func TestKindFlags(t *testing.T) {
-	for kind, want := range map[Kind]string{KindFormula: "--formula", KindFlatpak: "--flatpak", "mas": "--mas"} {
+	for kind, want := range map[Kind]string{KindFormula: "--formula", KindFlatpak: "--flatpak", KindMAS: "--mas"} {
 		if got := kind.flag(); got != want {
 			t.Errorf("flag(%s) = %q, want %q", kind, got, want)
 		}

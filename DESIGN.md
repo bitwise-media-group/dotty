@@ -414,6 +414,31 @@ Opens the brewfile in the default editor
 dotty [--profile=<profile>] brewfile edit [--sync | --upgrade]
 ```
 
+## Remove an entry from the brewfile
+
+Command: remove Aliases: rm
+
+Removes entries from the specified brewfile by delegating the edit to
+`brew bundle remove`, which takes the same type flags as add plus `--mas` (mas
+entries cannot be added, but dump writes them). Names brew's parser does not
+list for the kind are skipped with a notice. Trust grants recorded for removed
+tap-qualified formulas and casks, and for taps, are revoked best-effort via
+`brew untrust` — a failed revocation warns without failing the removal. Nothing
+is uninstalled: removed entries stay on the machine until `dotty brewfile sync`
+runs; the `--sync` flag runs it immediately, with sync's own confirmation gating
+the uninstalls. With no names, an interactive checklist of the kind's entries is
+offered. The flow is:
+
+```text
+brew bundle list --file=<profile-path>/Brewfile [--formula | --cask | ...]
+brew bundle remove --file=<profile-path>/Brewfile [--formula | --cask | ...] <name> [...]
+brew untrust [--formula | --cask | --tap] <name>
+```
+
+```text
+dotty [--profile=<profile>] brewfile remove [--tap | --cask | --formula | --mas | ...] [--sync] [<name> ...]
+```
+
 # Generic Credentials
 
 Command: env
