@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.1](https://github.com/bitwise-media-group/dotty/compare/v0.3.0...v0.3.1) (2026-08-12)
+
+
+### Features
+
+* **brewfile:** add remove command with trust revocation ([7fcd9b3](https://github.com/bitwise-media-group/dotty/commit/7fcd9b37d7a75e4d8a7ab80a11158b16fa46e8d5))
+* **codex:** render config as a profile layer so codex owns config.toml ([b717722](https://github.com/bitwise-media-group/dotty/commit/b7177229726fa1e2fef99b99d817af6d7e9cd182))
+* **linker:** deploy grok hooks as real file copies, not symlinks ([0998766](https://github.com/bitwise-media-group/dotty/commit/099876625999ff0dc32da315eda8cedcebc2e8f0))
+* **private:** encrypted per-profile private dotfiles (dotty private) ([056797d](https://github.com/bitwise-media-group/dotty/commit/056797dad8396009c48a5aed60cb75e658582866))
+* **scaffold:** allow ~/.local/state in agent sandbox configs ([a59b2dc](https://github.com/bitwise-media-group/dotty/commit/a59b2dc0ab1278bdc1909e7e3d22d768c5713538))
+
+
+### Bug Fixes
+
+* **brewfile:** run brew bundle install with the terminal attached ([443cf40](https://github.com/bitwise-media-group/dotty/commit/443cf40df8021c67fec84c76f84b908315d0adab))
+
 ## [0.3.0](https://github.com/bitwise-media-group/dotty/compare/v0.2.6...v0.3.0) (2026-07-28)
 
 
