@@ -111,7 +111,11 @@ func syncDir(src, dst string) error {
 	for _, e := range entries {
 		names[e.Name()] = true
 		s, d := filepath.Join(src, e.Name()), filepath.Join(dst, e.Name())
-		if di, err := os.Lstat(d); err == nil && di.IsDir() != e.IsDir() {
+		// A symlink at the entry site must go before copying, not be written
+		// through: copyFile opens dst with O_TRUNC, and a per-file symlink
+		// left by the unfolded linked deployment names the repository source
+		// itself — following it would truncate the source to nothing.
+		if di, err := os.Lstat(d); err == nil && (di.Mode()&os.ModeSymlink != 0 || di.IsDir() != e.IsDir()) {
 			if err := os.RemoveAll(d); err != nil {
 				return fmt.Errorf("clear %s: %w", d, err)
 			}

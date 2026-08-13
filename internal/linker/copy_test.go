@@ -110,6 +110,38 @@ func TestApplyCopyDirReplacesSymlink(t *testing.T) {
 	}
 }
 
+// TestApplyCopyDirReplacesEntrySymlinks pins the unfolded-deployment
+// migration: a real site directory whose entries are per-file symlinks into
+// the repository becomes a directory of real copies, and the repository
+// sources the symlinks name survive with their content intact. Before the
+// fix, copyFile wrote through each entry symlink and truncated its target —
+// the repository source itself — leaving empty sources behind symlinks.
+func TestApplyCopyDirReplacesEntrySymlinks(t *testing.T) {
+	dir := t.TempDir()
+	tree := copyTree(t, dir)
+	hooks := filepath.Join(tree.Target, "hooks")
+	if err := os.MkdirAll(hooks, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"policy", "policy.json"} {
+		if err := os.Symlink(filepath.Join(tree.Source, "hooks", name), filepath.Join(hooks, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rep, err := Apply(tree, resolveAll(ResFail), "")
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if len(rep.Copied) != 1 {
+		t.Fatalf("Copied = %v, want the hooks site", rep.Copied)
+	}
+	assertRealFile(t, filepath.Join(hooks, "policy"), "#!/bin/sh\n", 0o755)
+	assertRealFile(t, filepath.Join(hooks, "policy.json"), "{}", 0o644)
+	assertRealFile(t, filepath.Join(tree.Source, "hooks", "policy"), "#!/bin/sh\n", 0o755)
+	assertRealFile(t, filepath.Join(tree.Source, "hooks", "policy.json"), "{}", 0o644)
+}
+
 func TestApplyCopyDirResyncsDrift(t *testing.T) {
 	dir := t.TempDir()
 	tree := copyTree(t, dir)
