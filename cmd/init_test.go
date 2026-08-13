@@ -246,12 +246,36 @@ func TestInitRerunExtendsProfile(t *testing.T) {
 		t.Fatalf("first init: %v", err)
 	}
 
+	// A user-added Brewfile entry (dotty brewfile add, or by hand) must
+	// survive the re-run — issue 109.
+	brewPath := filepath.Join(repo, "profiles", "box", "Brewfile")
+	brews, err := os.ReadFile(brewPath)
+	if err != nil {
+		t.Fatalf("read profile Brewfile: %v", err)
+	}
+	// The composed Brewfile carries no trailing newline; start a fresh line.
+	brews = append(brews, "\nbrew \"user-added\"\n"...)
+	if err := os.WriteFile(brewPath, brews, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	// Extend: a new add-on list; no path flags — the stored answers locate
 	// the repository, and untouched answers (agents, marketplace) survive.
 	initFlags = wizard.Flags{}
 	if err := execDotty(t, "init", "--profile-name=box", "--addons=tmux,lsd",
 		"--yes", "--skip-font", "--skip-git", "--on-conflict=fail"); err != nil {
 		t.Fatalf("re-run: %v", err)
+	}
+
+	merged, err := os.ReadFile(brewPath)
+	if err != nil {
+		t.Fatalf("read profile Brewfile after re-run: %v", err)
+	}
+	if !containsLine(string(merged), `brew "user-added"`) {
+		t.Errorf("user Brewfile entry destroyed by re-run:\n%s", merged)
+	}
+	if strings.Count(string(merged), `brew "tmux"`) != 1 {
+		t.Errorf("tmux not exactly once after re-run:\n%s", merged)
 	}
 
 	answers, err := scaffold.LoadAnswers(filepath.Join(home, ".config", "dotty", "box"))
@@ -725,6 +749,12 @@ func TestInitMigratesLegacyLayout(t *testing.T) {
 	}
 	if !answers.Harden || !slices.Equal(answers.Agents, []string{"claude-code"}) {
 		t.Errorf("merged answers lost selections: %+v", answers)
+	}
+	// The legacy profile's Brewfile entries survive the migration re-render.
+	if brews, err := os.ReadFile(filepath.Join(profileDir, "Brewfile")); err != nil {
+		t.Errorf("migrated Brewfile missing: %v", err)
+	} else if !containsLine(string(brews), `brew "tmux"`) {
+		t.Errorf("migrated Brewfile lost the legacy tmux entry:\n%s", brews)
 	}
 	if answers.Description != "legacy box" || answers.CreatedAt.IsZero() {
 		t.Errorf("metadata lost in merge: description=%q created=%v", answers.Description, answers.CreatedAt)

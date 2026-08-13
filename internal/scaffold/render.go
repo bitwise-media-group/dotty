@@ -14,6 +14,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/bitwise-media-group/dotty/internal/brewfile"
 	"github.com/bitwise-media-group/dotty/internal/cli"
 )
 
@@ -262,30 +263,54 @@ func ComposeBrewfile(a Answers) ([]byte, error) {
 	return bytes.TrimRight(out.Bytes(), "\n"), nil
 }
 
-// MergeBrewfile appends composed's package lines to an existing Brewfile
-// (typically a fresh `brew bundle dump`), skipping lines the dump already
-// carries and leaving comments and blanks as structure.
+// MergeBrewfile appends composed's package lines to an existing Brewfile,
+// skipping entries the file already carries and leaving comments and blanks
+// as structure. Entries match by package, not by exact line, so an existing
+// `brew "x", trusted: true` suppresses a composed `brew "x"`.
 func MergeBrewfile(existing, composed []byte) []byte {
+	return mergeUnder(existing, composed, "# template packages")
+}
+
+// mergeUnder appends extra's entry lines not already present in existing
+// under a header comment. Entry lines compare by brewfile.LineKey so the
+// same package with different options, casing, or tap qualification counts
+// as present; non-entry lines compare verbatim.
+func mergeUnder(existing, extra []byte, header string) []byte {
 	present := make(map[string]bool)
 	for line := range strings.Lines(string(existing)) {
-		present[strings.TrimRight(line, "\n")] = true
+		present[entryKey(strings.TrimRight(line, "\n"))] = true
 	}
 	out := bytes.TrimRight(existing, "\n")
-	var extra []string
-	for line := range strings.Lines(string(composed)) {
+	var added []string
+	for line := range strings.Lines(string(extra)) {
 		trimmed := strings.TrimRight(line, "\n")
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || present[trimmed] {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		present[trimmed] = true
-		extra = append(extra, trimmed)
+		key := entryKey(trimmed)
+		if present[key] {
+			continue
+		}
+		present[key] = true
+		added = append(added, trimmed)
 	}
-	if len(extra) == 0 {
+	if len(added) == 0 {
 		return append(out, '\n')
 	}
-	out = append(out, "\n\n# template packages\n"...)
-	out = append(out, strings.Join(extra, "\n")...)
+	out = append(out, "\n\n"...)
+	out = append(out, header...)
+	out = append(out, '\n')
+	out = append(out, strings.Join(added, "\n")...)
 	return append(out, '\n')
+}
+
+// entryKey is brewfile.LineKey with the exact line as fallback, so non-entry
+// lines still dedupe verbatim.
+func entryKey(trimmed string) string {
+	if key := brewfile.LineKey(trimmed); key != "" {
+		return key
+	}
+	return trimmed
 }
 
 // Unfold returns the $HOME-relative directories that must exist as real

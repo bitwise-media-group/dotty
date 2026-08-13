@@ -6,6 +6,7 @@ package scaffold
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -175,9 +176,12 @@ func withMetadata(a Answers, profileDir string) Answers {
 	return a
 }
 
-// composeProfileBrewfile writes the composed Brewfile into the repository's
-// profile directory, seeding from brew bundle dump first when asked. Written
-// before Activate on purpose: Activate dumps only when none exists.
+// composeProfileBrewfile merges the composed template packages into the
+// profile's Brewfile, optionally seeded from a brew bundle dump. An existing
+// Brewfile is user-owned — its lines are preserved verbatim and only
+// genuinely new entries are appended: dumped packages under "# installed
+// packages", template extras under "# template packages". Written before
+// Activate on purpose: Activate dumps only when none exists.
 func composeProfileBrewfile(ctx context.Context, ios cli.IOStreams, r brewfile.Runner,
 	repoProfileDir string, a Answers) error {
 	composed, err := ComposeBrewfile(a)
@@ -185,15 +189,48 @@ func composeProfileBrewfile(ctx context.Context, ios cli.IOStreams, r brewfile.R
 		return err
 	}
 	brewPath := profile.BrewfilePath(repoProfileDir)
+	base, err := os.ReadFile(brewPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("read profile Brewfile: %w", err)
+	}
 
 	// Seeding is a convenience — a broken brew must not fail the init, it
-	// just means the Brewfile starts from the template alone.
+	// just means the Brewfile starts without the installed packages.
 	if a.DumpBrews {
-		if err := brewfile.Dump(ctx, r, brewPath, false, true); err != nil {
+		if dumped, err := dumpBrewsToScratch(ctx, r, repoProfileDir); err != nil {
 			tui.Warnf(ios, "Could not seed from the installed packages (dotty brewfile dump retries later): %v", err)
-		} else if existing, err := os.ReadFile(brewPath); err == nil {
-			composed = MergeBrewfile(existing, composed)
+		} else if len(base) > 0 {
+			base = mergeUnder(base, dumped, "# installed packages")
+		} else {
+			base = dumped
 		}
 	}
+	if len(base) > 0 {
+		composed = MergeBrewfile(base, composed)
+	}
 	return cli.AtomicWriteFile(brewPath, composed, 0o644)
+}
+
+// dumpBrewsToScratch runs brew bundle dump into a scratch file beside the
+// profile Brewfile and returns its contents; the real Brewfile is never the
+// dump target, so a re-run cannot destroy entries the dump does not cover.
+func dumpBrewsToScratch(ctx context.Context, r brewfile.Runner, repoProfileDir string) ([]byte, error) {
+	tmp, err := os.CreateTemp(repoProfileDir, ".Brewfile.dump-*")
+	if err != nil {
+		return nil, fmt.Errorf("create scratch dump file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+	if err := tmp.Close(); err != nil {
+		return nil, fmt.Errorf("close scratch dump file: %w", err)
+	}
+	// force only because CreateTemp pre-creates the file.
+	if err := brewfile.Dump(ctx, r, tmpPath, false, true); err != nil {
+		return nil, err
+	}
+	dumped, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("read scratch dump file: %w", err)
+	}
+	return dumped, nil
 }

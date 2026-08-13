@@ -63,3 +63,36 @@ func dslWord(kind Kind) string {
 	}
 	return string(kind)
 }
+
+// wordKinds is the inverse of dslWord: each Brewfile DSL keyword mapped back
+// to its entry kind.
+var wordKinds = func() map[string]Kind {
+	kinds := []Kind{KindFormula, KindCask, KindTap, KindVSCode, KindGo,
+		KindCargo, KindUV, KindFlatpak, KindKrew, KindNPM, KindMAS}
+	m := make(map[string]Kind, len(kinds))
+	for _, k := range kinds {
+		m[dslWord(k)] = k
+	}
+	return m
+}()
+
+// LineKey returns a comparison key for a Brewfile entry line: the DSL word
+// plus the canonicalised name, so the same package compares equal regardless
+// of trailing options (`, trusted: true`), casing, or tap qualification.
+// Comments, blanks, and lines that are not entries return "".
+func LineKey(line string) string {
+	word, rest, cut := strings.Cut(strings.TrimSpace(line), " ")
+	kind, known := wordKinds[word]
+	if !cut || !known {
+		return ""
+	}
+	rest = strings.TrimSpace(rest)
+	if !strings.HasPrefix(rest, `"`) {
+		return ""
+	}
+	name, _, closed := strings.Cut(rest[1:], `"`)
+	if !closed || name == "" {
+		return ""
+	}
+	return word + " " + canonicalName(kind, name)
+}

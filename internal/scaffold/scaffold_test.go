@@ -5,13 +5,17 @@ package scaffold
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/bitwise-media-group/dotty/internal/cli"
 )
 
 // everything selects every component the manifest knows.
@@ -430,6 +434,158 @@ func TestMergeBrewfile(t *testing.T) {
 	if !strings.Contains(merged, `brew "tmux"`) {
 		t.Errorf("tmux missing:\n%s", merged)
 	}
+}
+
+// TestMergeBrewfileMatchesByEntry pins the tolerant matching: an existing
+// entry with options, different casing, or tap qualification suppresses the
+// composed bare entry instead of duplicating it.
+func TestMergeBrewfileMatchesByEntry(t *testing.T) {
+	existing := []byte(`brew "git", trusted: true
+brew "LazyGit"
+cask "acme/tap/Widget"
+`)
+	composed := []byte(`# core
+brew "git"
+brew "lazygit"
+cask "widget"
+brew "tmux"
+`)
+	merged := string(MergeBrewfile(existing, composed))
+	if strings.Count(merged, `brew "git"`) != 1 {
+		t.Errorf("options-bearing git entry did not suppress the bare one:\n%s", merged)
+	}
+	if strings.Contains(merged, `brew "lazygit"`) {
+		t.Errorf("casing variant duplicated lazygit:\n%s", merged)
+	}
+	if strings.Contains(merged, `cask "widget"`) {
+		t.Errorf("tap-qualified cask duplicated widget:\n%s", merged)
+	}
+	if strings.Count(merged, `brew "tmux"`) != 1 {
+		t.Errorf("tmux not appended exactly once:\n%s", merged)
+	}
+	if !strings.Contains(merged, "# template packages") {
+		t.Errorf("appended lines missing their header:\n%s", merged)
+	}
+}
+
+// dumpRunner satisfies brewfile.Runner, answering `brew bundle dump` by
+// writing canned content to the --file= target.
+type dumpRunner struct {
+	content string
+	err     error
+}
+
+func (f *dumpRunner) Run(_ context.Context, _ string, args ...string) error {
+	if f.err != nil {
+		return f.err
+	}
+	for _, arg := range args {
+		if path, ok := strings.CutPrefix(arg, "--file="); ok {
+			return os.WriteFile(path, []byte(f.content), 0o644)
+		}
+	}
+	return nil
+}
+
+func (f *dumpRunner) Output(context.Context, string, ...string) ([]byte, error) {
+	return nil, f.err
+}
+
+// composeForTest runs composeProfileBrewfile against a profile directory
+// holding existing (nothing pre-existing when empty) and returns the written
+// Brewfile plus the warning stream.
+func composeForTest(t *testing.T, existing string, r *dumpRunner, a Answers) (string, *bytes.Buffer) {
+	t.Helper()
+	dir := t.TempDir()
+	if existing != "" {
+		if err := os.WriteFile(filepath.Join(dir, "Brewfile"), []byte(existing), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	errOut := &bytes.Buffer{}
+	ios := cli.IOStreams{In: strings.NewReader(""), Out: &bytes.Buffer{}, ErrOut: errOut}
+	if err := composeProfileBrewfile(context.Background(), ios, r, dir, a); err != nil {
+		t.Fatalf("composeProfileBrewfile: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "Brewfile"))
+	if err != nil {
+		t.Fatalf("read Brewfile: %v", err)
+	}
+	assertNoScratchFiles(t, dir)
+	return string(got), errOut
+}
+
+// assertNoScratchFiles fails when a dump scratch file survived the compose.
+func assertNoScratchFiles(t *testing.T, dir string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".Brewfile.dump-") {
+			t.Errorf("scratch dump file %s left behind", e.Name())
+		}
+	}
+}
+
+// wantParts fails when got is missing any of parts.
+func wantParts(t *testing.T, got string, parts ...string) {
+	t.Helper()
+	for _, part := range parts {
+		if !strings.Contains(got, part) {
+			t.Errorf("missing %q:\n%s", part, got)
+		}
+	}
+}
+
+// wantOnce fails unless part appears in got exactly once.
+func wantOnce(t *testing.T, got, part string) {
+	t.Helper()
+	if strings.Count(got, part) != 1 {
+		t.Errorf("%q not exactly once:\n%s", part, got)
+	}
+}
+
+// TestComposeProfileBrewfile pins the merge-not-overwrite contract from issue
+// 109: an existing profile Brewfile is user-owned, and neither the template
+// compose nor the dump seed may destroy its entries.
+func TestComposeProfileBrewfile(t *testing.T) {
+	answers := func(dump bool) Answers {
+		return Answers{ProfileName: "box", AddOns: []string{"tmux"}, DumpBrews: dump}
+	}
+
+	t.Run("no dump preserves an existing Brewfile", func(t *testing.T) {
+		got, _ := composeForTest(t, "brew \"user-added\"\nbrew \"tmux\"\n",
+			&dumpRunner{}, answers(false))
+		wantParts(t, got, `brew "user-added"`, `brew "git"`)
+		wantOnce(t, got, `brew "tmux"`)
+	})
+
+	t.Run("dump merges without touching the existing Brewfile", func(t *testing.T) {
+		r := &dumpRunner{content: "brew \"dumped\"\nbrew \"recorded-not-installed\"\n"}
+		got, _ := composeForTest(t, "tap \"acme/tap\"\nbrew \"recorded-not-installed\"\n",
+			r, answers(true))
+		wantParts(t, got, `tap "acme/tap"`, // not covered by the dump
+			"# installed packages\nbrew \"dumped\"", "# template packages", `brew "tmux"`)
+		wantOnce(t, got, `brew "recorded-not-installed"`)
+	})
+
+	t.Run("dump seeds a fresh Brewfile", func(t *testing.T) {
+		got, _ := composeForTest(t, "", &dumpRunner{content: "brew \"dumped\"\n"}, answers(true))
+		if !strings.HasPrefix(got, `brew "dumped"`) {
+			t.Errorf("dump did not seed the file:\n%s", got)
+		}
+		wantParts(t, got, "# template packages", `brew "tmux"`)
+	})
+
+	t.Run("dump failure warns and still writes the template", func(t *testing.T) {
+		got, errOut := composeForTest(t, "", &dumpRunner{err: errors.New("no brew")}, answers(true))
+		wantParts(t, got, `brew "tmux"`)
+		if errOut.Len() == 0 {
+			t.Error("dump failure produced no warning")
+		}
+	})
 }
 
 func TestAnswersRoundTrip(t *testing.T) {

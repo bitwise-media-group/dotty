@@ -52,6 +52,34 @@ func TestTrustStoreName(t *testing.T) {
 	}
 }
 
+func TestLineKey(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: `brew "jq"`, want: "brew jq"},
+		{in: `brew "jq", trusted: true`, want: "brew jq"},            // options ignored
+		{in: `  brew "JQ"  `, want: "brew jq"},                       // whitespace and casing
+		{in: `brew "homebrew/homebrew/foo"`, want: "brew foo"},       // formula canonicalisation
+		{in: `cask "Acme/homebrew-tap/Widget"`, want: "cask widget"}, // casks reduce to short token
+		{in: `tap "FluxCD/homebrew-tap"`, want: "tap fluxcd/tap"},
+		{in: `vscode "GitHub.Copilot"`, want: "vscode GitHub.Copilot"}, // extension kinds verbatim
+		{in: `mas "Xcode", id: 497799835`, want: "mas Xcode"},
+		{in: "# a comment", want: ""},
+		{in: "", want: ""},
+		{in: "   ", want: ""},
+		{in: `install "jq"`, want: ""},       // unknown DSL word
+		{in: "brew jq", want: ""},            // unquoted name
+		{in: `brew "unterminated`, want: ""}, // unclosed quote
+		{in: `brew ""`, want: ""},            // empty name
+	}
+	for _, tt := range tests {
+		if got := LineKey(tt.in); got != tt.want {
+			t.Errorf("LineKey(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 func TestDslWord(t *testing.T) {
 	for kind, want := range map[Kind]string{KindFormula: "brew", KindCask: "cask", KindTap: "tap", KindNPM: "npm"} {
 		if got := dslWord(kind); got != want {
