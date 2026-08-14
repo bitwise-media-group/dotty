@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2](https://github.com/bitwise-media-group/dotty/compare/v0.3.1...v0.3.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* **init:** merge into an existing profile Brewfile instead of overwriting ([ce0a229](https://github.com/bitwise-media-group/dotty/commit/ce0a229f0c0b0ae447d3c4f56d748a66e1fa9c9e)), closes [#109](https://github.com/bitwise-media-group/dotty/issues/109)
+* **linker:** remove entry symlinks before mirroring copy-deployed files ([a4a4f01](https://github.com/bitwise-media-group/dotty/commit/a4a4f015be348cebeae8bd6d02329c2129695c7f))
+
 ## [0.3.1](https://github.com/bitwise-media-group/dotty/compare/v0.3.0...v0.3.1) (2026-08-12)
 
 
