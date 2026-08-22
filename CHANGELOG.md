@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.3](https://github.com/bitwise-media-group/dotty/compare/v0.3.2...v0.3.3) (2026-08-22)
+
+
+### Bug Fixes
+
+* **deps:** update bitwise-media-group/github-workflows action to v6.1.1 ([#122](https://github.com/bitwise-media-group/dotty/issues/122)) ([a7c5123](https://github.com/bitwise-media-group/dotty/commit/a7c5123e7caceeb4562ea562442a5bf7051ebc11))
+* **deps:** update bitwise-media-group/github-workflows action to v6.2.0 ([#128](https://github.com/bitwise-media-group/dotty/issues/128)) ([880ad91](https://github.com/bitwise-media-group/dotty/commit/880ad91eaee881e772a4e5c0978265249d4de27f))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.9 ([#134](https://github.com/bitwise-media-group/dotty/issues/134)) ([dc04a38](https://github.com/bitwise-media-group/dotty/commit/dc04a38362edf02eac8e96cece88c3a672a7f8b4))
+* **deps:** update module charm.land/lipgloss/v2 to v2.0.6 ([#126](https://github.com/bitwise-media-group/dotty/issues/126)) ([ab9983c](https://github.com/bitwise-media-group/dotty/commit/ab9983cd2cbfcaf229e9f59f013962acb65a569f))
+
 ## [0.3.2](https://github.com/bitwise-media-group/dotty/compare/v0.3.1...v0.3.2) (2026-08-14)
 
 
