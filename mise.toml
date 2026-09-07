@@ -6,6 +6,13 @@
 # and the Makefile is a thin forwarder (.mise/mise.mk). Structural knobs live
 # in [vars]; repo-local tasks live in tasks.toml (see [task_config] below).
 
+[settings]
+lockfile = true
+
+[tools]
+go = "1.26.6"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.7.0"
+
 [vars]
 app = "dotty"
 app_pkg = "./cmd"
