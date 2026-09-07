@@ -5,9 +5,10 @@
 # release-please watches main and keeps a release PR current from the Conventional
 # Commit history; when that PR merges the workflow cuts the draft GitHub release +
 # vX.Y.Z tag and GoReleaser adopts it — binary archives + checksums + SBOMs +
-# keyless cosign signatures, the Homebrew cask pushed to
-# bitwise-media-group/homebrew-tap, and a SLSA build-provenance attestation over
-# everything in checksums.txt. Because a zensical.toml lives at the repo root, the
+# keyless cosign signatures (linux), Developer ID-signed + notarized darwin
+# binaries, the Homebrew cask pushed to bitwise-media-group/homebrew-tap, and a
+# SLSA build-provenance attestation over everything in checksums.txt. Because a
+# zensical.toml lives at the repo root, the
 # reusable workflow's docs job also rebuilds the Zensical site and publishes it to
 # GitHub Pages on each release (needs Settings → Pages → Source → GitHub Actions).
 #
@@ -34,7 +35,7 @@ permissions: {}
 
 jobs:
     release:
-        uses: bitwise-media-group/github-workflows/.github/workflows/release.yaml@1eaff010e2929a3583c50ffa325690216bc70462 # v6.2.0
+        uses: bitwise-media-group/github-workflows/.github/workflows/release.yaml@a0d0170124ad80a06082078b60669d7c99d33ee6 # v6.3.0
         # ceiling for the reusable workflow's release-please + goreleaser + docs jobs.
         # GitHub resolves a reusable workflow's permissions as the union of every job
         # and ignores `if:`, so the caller must grant the goreleaser job's id-token /
@@ -67,3 +68,14 @@ jobs:
             # PAT with write access to bitwise-media-group/homebrew-tap — the default
             # GITHUB_TOKEN cannot push the cask to another repository.
             homebrew-tap-token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+            # Apple signing + notarization of the darwin binaries (notarize.macos in
+            # .goreleaser.yaml). Org secrets scoped to the notarizing repos: the
+            # shared open-source Developer ID Application certificate (+ its export
+            # password) and the App Store Connect team API key. Setup is documented
+            # in github-workflows README → "macOS notarization: org setup".
+            macos-sign-p12: ${{ secrets.MACOS_SIGN_P12 }}
+            macos-sign-password: ${{ secrets.MACOS_SIGN_PASSWORD }}
+            macos-notary-issuer-id: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+            macos-notary-key-id: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+            macos-notary-key: ${{ secrets.MACOS_NOTARY_KEY }}
+

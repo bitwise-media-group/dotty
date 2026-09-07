@@ -6,8 +6,9 @@
 # Installation
 
 The recommended way to install dotty is the [Homebrew tap](#homebrew). The
-alternative methods below all install the same signed binary, and every release
-ships checksums, keyless [cosign](#signatures) signatures, and a SLSA
+alternative methods below all install the same signed binary: the macOS binaries
+are Developer ID-signed and notarized by Apple, the Linux binaries carry keyless
+[cosign](#signatures) signatures, and every release ships checksums and a SLSA
 build-provenance [attestation](#attestations) you can verify yourself.
 
 ## Homebrew
@@ -22,9 +23,9 @@ brew trust bitwise-media-group/tap/dotty
 brew install bitwise-media-group/tap/dotty
 ```
 
-The cask also installs the man pages and shell completions, and strips the macOS
-quarantine attribute so the binary runs without a Gatekeeper prompt. Upgrade and
-uninstall the usual way:
+The cask also installs the man pages and shell completions. The binary is
+Developer ID-signed and notarized, so it runs without a Gatekeeper prompt.
+Upgrade and uninstall the usual way:
 
 ```sh
 brew upgrade dotty
@@ -64,10 +65,12 @@ install -m 0755 dotty /usr/local/bin/dotty
 
 ## Verifying the artifacts
 
-Every release attaches a `checksums.txt`, a cosign signature bundle per binary,
-SPDX SBOMs, and a GitHub build-provenance attestation. None of the steps below
-require trusting a long-lived key — cosign and `gh` verify against Sigstore's
-transparency log and GitHub's attestation API.
+Every release attaches a `checksums.txt`, a cosign signature bundle per Linux
+binary, SPDX SBOMs, and a GitHub build-provenance attestation; the macOS
+binaries carry an Apple Developer ID signature and notarization ticket instead
+of a cosign bundle. None of the steps below require trusting a long-lived key —
+cosign and `gh` verify against Sigstore's transparency log and GitHub's
+attestation API, and `codesign` / `spctl` verify against Apple's root.
 
 ### Checksums
 
@@ -83,18 +86,36 @@ On macOS without the GNU coreutils, use
 
 ### Signatures
 
-Each binary is signed keyless with [cosign](https://docs.sigstore.dev/) in the
-release workflow; the signature travels as a Sigstore bundle named
-`dotty_<os>_<arch>.sigstore.json` on the release. Extract the binary from its
-archive, download the matching bundle, then verify the binary against it:
+**Linux.** Each Linux binary is signed keyless with
+[cosign](https://docs.sigstore.dev/) in the release workflow; the signature
+travels as a Sigstore bundle named `dotty_<os>_<arch>.sigstore.json` on the
+release. Extract the binary from its archive, download the matching bundle, then
+verify the binary against it:
 
 ```sh
 cosign verify-blob \
   --certificate-identity-regexp '^https://github.com/bitwise-media-group/' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-  --bundle dotty_darwin_arm64.sigstore.json \
+  --bundle dotty_linux_arm64.sigstore.json \
   dotty
 ```
+
+**macOS.** The darwin binaries are signed with Bitwise Media Group's Apple
+Developer ID Application certificate and notarized by Apple in the same release
+workflow, so they ship no cosign bundle — the signature is embedded in the
+binary and Gatekeeper checks it (and fetches the notarization ticket) on first
+run. Inspect and verify it with the tools already on your Mac:
+
+```sh
+# Authority=Developer ID Application: … (TEAMID); flags include "runtime"
+codesign -dv --verbose=4 dotty
+codesign --verify --strict --verbose=2 dotty
+# source=Notarized Developer ID
+spctl -a -vv -t install dotty
+```
+
+The build-provenance [attestation](#attestations) below covers the darwin
+archives too, so it is the provenance check for macOS.
 
 !!! info "Why a regexp for the identity"
 
