@@ -57,6 +57,57 @@ func EnclosingRepo() string {
 	}
 }
 
+// AdoptableRoot returns the git repository root the working directory sits in
+// when init may target it without an explicit path: the root already carries
+// the private marker, or it is a fresh clone — nothing beyond its .git and
+// hosting furniture that a scaffold could disturb. "" when the working
+// directory is outside any git repository or the repository holds unrelated
+// content, so a stray init inside a project cannot scaffold it.
+func AdoptableRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if IsRepo(dir) {
+			return dir
+		}
+		// A .git file (worktree, submodule) marks a root as well as a dir.
+		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+			if freshClone(dir) {
+				return dir
+			}
+			return ""
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// freshClone reports whether dir holds nothing a scaffold could disturb: only
+// its .git and the furniture a hosting service seeds a new repository with.
+func freshClone(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		name := strings.ToLower(e.Name())
+		switch name {
+		case ".git", ".ds_store", ".gitignore", ".gitattributes":
+			continue
+		}
+		if strings.HasPrefix(name, "readme") || strings.HasPrefix(name, "license") {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 // ProfilesDir returns the directory the repository's private profiles live in.
 func ProfilesDir(repo string) string { return filepath.Join(repo, "profiles") }
 

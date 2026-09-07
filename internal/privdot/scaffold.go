@@ -46,9 +46,19 @@ set -eu
 exec dotty private verify --staged
 `
 
-// Scaffold creates or completes a private repository at repo with an empty
-// profile named profileName. Existing files are left alone, so adopting a
-// repository and re-running init are both safe.
+// skeletonDirs are the $HOME-relative directories every profile's home tree
+// starts with — the drop-in sites the public templates already include
+// (`Include ~/.ssh/config.d/*.conf` in the ssh config, `path =
+// ~/.config/private/git/config` in the git config), so the places dotty
+// private link deploys into are visible before the first encrypt.
+var skeletonDirs = []string{
+	filepath.Join(".ssh", "config.d"),
+	filepath.Join(".config", "private", "git"),
+}
+
+// Scaffold creates or completes a private repository at repo with a profile
+// named profileName carrying the skeletonDirs drop-in shape. Existing files
+// are left alone, so adopting a repository and re-running init are both safe.
 func Scaffold(repo, profileName string) error {
 	if err := cli.EnsureDir(repo, 0o755); err != nil {
 		return err
@@ -83,18 +93,32 @@ func Scaffold(repo, profileName string) error {
 			return err
 		}
 	}
-	for _, dir := range []string{AgeDir(repo, profileName), HomeDir(repo, profileName)} {
-		if err := cli.EnsureDir(dir, 0o755); err != nil {
+	home := HomeDir(repo, profileName)
+	dirs := []string{AgeDir(repo, profileName)}
+	for _, rel := range skeletonDirs {
+		dirs = append(dirs, filepath.Join(home, rel))
+	}
+	for _, dir := range dirs {
+		if err := ensureKept(dir); err != nil {
 			return err
-		}
-		// Git tracks files only; the placeholder keeps the empty profile
-		// shape committable.
-		keep := filepath.Join(dir, ".gitkeep")
-		if _, err := os.Stat(keep); os.IsNotExist(err) {
-			if err := cli.AtomicWriteFile(keep, nil, 0o644); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
+}
+
+// ensureKept creates dir and, while it holds nothing else, a .gitkeep
+// placeholder — git tracks files only, and the placeholder keeps the empty
+// shape committable without cluttering directories that already have content.
+func ensureKept(dir string) error {
+	if err := cli.EnsureDir(dir, 0o755); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", dir, err)
+	}
+	if len(entries) > 0 {
+		return nil
+	}
+	return cli.AtomicWriteFile(filepath.Join(dir, gitkeepName), nil, 0o644)
 }

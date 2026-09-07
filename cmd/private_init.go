@@ -22,12 +22,19 @@ var privateInitCmd = &cobra.Command{
 	Short: "Scaffold or adopt the private repository.",
 	Long: `Create the private repository skeleton at path — the private marker, the
 git attributes and ignore guards, a pre-commit hook running dotty private
-verify, and an empty profile matching the active one — and record the path in
-the active profile's answers so every machine of the class finds it. An
-existing repository is adopted: nothing already there is touched, so
-re-running init is always safe. Without a path, the stored answer is reused,
-falling back to dotfiles.private beside the public repository.`,
+verify, and a profile matching the active one — and record the path in the
+active profile's answers so every machine of the class finds it. The profile's
+home tree is seeded with the drop-in directories the public templates already
+include and dotty private link deploys: .ssh/config.d (ssh host blocks) and
+.config/private/git (the private git identity). An existing repository is
+adopted: nothing already there is touched, so re-running init is always safe.
+Without a path, a git repository at the working directory is preferred when
+init may safely target it — it already carries the private marker, or it is a
+fresh clone holding nothing a scaffold could disturb; otherwise the stored
+answer is reused, falling back to dotfiles.private beside the public
+repository.`,
 	Example: `  dotty private init ~/Repos/dotfiles.private
+  cd ~/Repos/dotfiles.private && dotty private init
   dotty private init`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,11 +51,17 @@ falling back to dotfiles.private beside the public repository.`,
 		reposDir := scaffold.ExpandTilde(answers.ReposDir, home)
 
 		repo := ""
+		cwdRepo := privdot.AdoptableRoot()
 		switch {
 		case len(args) == 1:
 			repo = args[0]
 		case privateFlags.Repo != "":
 			repo = privateFlags.Repo
+		case cwdRepo != "":
+			// Standing inside an adoptable repository beats the stored
+			// answer — running init from a fresh clone means "this one",
+			// mirroring how the other verbs prefer the enclosing repo.
+			repo = cwdRepo
 		case answers.PrivateRepo != "":
 			if repo = scaffold.ExpandTilde(answers.PrivateRepo, home); !filepath.IsAbs(repo) {
 				repo = filepath.Join(reposDir, repo)
@@ -61,7 +74,7 @@ falling back to dotfiles.private beside the public repository.`,
 		}
 		if !filepath.IsAbs(repo) {
 			if repo, err = filepath.Abs(repo); err != nil {
-				return fmt.Errorf("resolve %s: %w", args[0], err)
+				return fmt.Errorf("resolve %s: %w", repo, err)
 			}
 		}
 

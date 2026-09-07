@@ -6,11 +6,17 @@ Scaffold or adopt the private repository.
 
 Create the private repository skeleton at path — the private marker, the
 git attributes and ignore guards, a pre-commit hook running dotty private
-verify, and an empty profile matching the active one — and record the path in
-the active profile's answers so every machine of the class finds it. An
-existing repository is adopted: nothing already there is touched, so
-re-running init is always safe. Without a path, the stored answer is reused,
-falling back to dotfiles.private beside the public repository.
+verify, and a profile matching the active one — and record the path in the
+active profile's answers so every machine of the class finds it. The profile's
+home tree is seeded with the drop-in directories the public templates already
+include and dotty private link deploys: .ssh/config.d (ssh host blocks) and
+.config/private/git (the private git identity). An existing repository is
+adopted: nothing already there is touched, so re-running init is always safe.
+Without a path, a git repository at the working directory is preferred when
+init may safely target it — it already carries the private marker, or it is a
+fresh clone holding nothing a scaffold could disturb; otherwise the stored
+answer is reused, falling back to dotfiles.private beside the public
+repository.
 
 ```
 dotty private init [path] [flags]
@@ -20,6 +26,7 @@ dotty private init [path] [flags]
 
 ```
   dotty private init ~/Repos/dotfiles.private
+  cd ~/Repos/dotfiles.private && dotty private init
   dotty private init
 ```
 

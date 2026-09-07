@@ -54,6 +54,19 @@ dotty private encrypt ~/.ssh/known_hosts      # adopt files, one by one
 dotty private link                            # decrypt + symlink into $HOME
 ```
 
+The path is optional when you are standing in the repository: from inside a
+fresh clone (or an existing private repository) `dotty private init` targets
+that clone and records its path. Anywhere else the stored answer is reused, so a
+stray init inside an unrelated project can never scaffold it.
+
+`init` seeds the profile's home tree with the drop-in directories the public
+templates already include — `.ssh/config.d/` (`Include ~/.ssh/config.d/*.conf`
+in the ssh config) and `.config/private/git/`
+(`path = ~/.config/private/git/config` in the git config) — so the landing spots
+for `encrypt` and [`dotty private edit`](../cli/dotty_private_edit.md) exist
+before the first secret does. The placeholders are repository furniture: `link`
+never deploys them.
+
 `enroll` uses [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey)
 (both come from the security-keys Brewfile fragment): the identity lands in a
 PIV **retired** slot, so smart-card login and your SSH signing keys are
