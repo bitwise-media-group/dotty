@@ -10,7 +10,7 @@
 lockfile = true
 
 [tools]
-go = "1.26.6"
+go = "1.27.1"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.7.0"
 
 [vars]
