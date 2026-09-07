@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.4](https://github.com/bitwise-media-group/dotty/compare/v0.3.3...v0.3.4) (2026-09-07)
+
+
+### Features
+
+* **private:** adopt the enclosing repo and seed drop-in dirs on init ([066c99a](https://github.com/bitwise-media-group/dotty/commit/066c99a9eedd34aa8ccd256782f7cbbb45e20edc))
+* **release:** sign and notarize macOS binaries ([787add2](https://github.com/bitwise-media-group/dotty/commit/787add2d7630b917ed4aaeee49608924947cba22))
+
+
+### Bug Fixes
+
+* **deps:** update bitwise-media-group/github-workflows action to v6.3.0 ([#147](https://github.com/bitwise-media-group/dotty/issues/147)) ([9445e0e](https://github.com/bitwise-media-group/dotty/commit/9445e0e07dea284e02ac2a6234503467334372d9))
+* **deps:** update module charm.land/bubbles/v2 to v2.2.1 ([#138](https://github.com/bitwise-media-group/dotty/issues/138)) ([b67f619](https://github.com/bitwise-media-group/dotty/commit/b67f619b954c20d58b1748e37664d07744da67ff))
+
 ## [0.3.3](https://github.com/bitwise-media-group/dotty/compare/v0.3.2...v0.3.3) (2026-08-24)
 
 
