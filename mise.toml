@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: MIT
 #
 # dotty consumes the shared toolchain (bitwise-media-group/toolchain) as the
-# .mise/ submodule: pinned tools + the go-cli task archetype come from there,
-# and the Makefile is a thin forwarder (.mise/mise.mk). Structural knobs live
-# in [vars]; repo-local tasks live in tasks.toml (see [task_config] below).
+# .mise/ submodule: pinned tools come from its config.toml (loaded natively as
+# .mise/config.toml), the shared tasks from common/ and the go archetype, and
+# the Makefile is a thin forwarder (.mise/archetypes/go/include.mk). Structural
+# knobs live in [vars]; repo-local tasks live in tasks.toml (see [task_config]
+# below).
 
 [settings]
 lockfile = true
@@ -18,7 +20,12 @@ app = "dotty"
 app_pkg = "./cmd"
 
 [task_config]
-# Repo-local tasks live in tasks.toml, included AFTER the archetype so a
-# same-named task there (fuzz) replaces the archetype's definition — an
-# included file wins over this config's own [tasks] on name collisions.
-includes = [".mise/tasks/go-cli.toml", "tasks.toml"]
+# common first, then exactly one archetype, then the repo-local tasks.toml —
+# included AFTER the archetype so a same-named task there (fuzz) replaces the
+# archetype's definition (later includes win whole-task, and an included file
+# also beats this config's own [tasks] on name collisions).
+includes = [
+  ".mise/common/tasks.toml",
+  ".mise/archetypes/go/tasks.toml",
+  "tasks.toml",
+]

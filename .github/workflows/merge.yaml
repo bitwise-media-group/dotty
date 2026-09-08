@@ -33,7 +33,7 @@ name: Merge
 on:
     issue_comment:
         types: [created]
-    workflow_run:
+    workflow_run: # zizmor: ignore[dangerous-triggers]
         workflows:
             - "Continuous Integration"
             - "Security Analysis"

@@ -72,10 +72,12 @@ stub path printed by `dotty signing-key get`.
 make pr    # the full local gate: tidy fmt lint test build commit
 ```
 
-Go developer CLIs are pinned by the shared Makefile library (the `make/`
-submodule's `.<tool>-version` files) and installed on demand into `.bin/`; Node
-tooling is pinned in `package.json`. CI, security analysis, and releases run
-through the org's reusable GitHub Actions workflows
+Developer CLIs (golangci-lint, govulncheck, gotestsum, goreleaser, addlicense,
+prettier, markdownlint, ...) are pinned by the shared toolchain library (the
+`.mise/` submodule's `config.toml` + `mise.lock`) and installed on demand by
+mise; the Go runtime is pinned in the root `mise.toml`. Run `mise trust --all`
+once per clone. CI, security analysis, and releases run through the org's
+reusable GitHub Actions workflows
 ([bitwise-media-group/github-workflows](https://github.com/bitwise-media-group/github-workflows)).
 Releases are driven by
 [release-please](https://github.com/googleapis/release-please): merging its

@@ -1,12 +1,7 @@
 # Copyright 2026 BitWise Media Group Ltd
 # SPDX-License-Identifier: MIT
 
-# MANAGED FILE — do not edit in a consuming repo.
-#
-# This is the canonical caller that `org-config.sh workflows-sync` fans out to
-# `.github/workflows/add-to-project.yaml` in every non-archived org repo. Edit it
-# here in github-settings and re-run the sync; a hand-edit in a consuming repo is
-# overwritten on the next sync.
+# Add to project — thin caller for the org's reusable add-to-project workflow.
 #
 # When an issue or pull request is opened it is added to the shared org "Roadmap"
 # project so every repo's work collects in one board. The reusable workflow mints a
@@ -25,7 +20,7 @@ on:
     # a fork's pull_request event runs without secrets, so minting the App token would
     # fail. Safe here because the reusable workflow never checks out PR code — it only
     # adds the item to the board.
-    pull_request_target:
+    pull_request_target: # zizmor: ignore[dangerous-triggers]
         types: [opened]
 
 # the App token does the privileged work; the caller grants nothing

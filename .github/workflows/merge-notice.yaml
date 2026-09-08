@@ -16,7 +16,7 @@
 name: Merge Notice
 
 on:
-    pull_request_target:
+    pull_request_target: # zizmor: ignore[dangerous-triggers]
         types: [opened]
 
 # the reusable workflow comments with GITHUB_TOKEN; grant just that
