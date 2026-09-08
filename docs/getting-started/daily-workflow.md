@@ -11,12 +11,12 @@ two or three commands, with a guide behind it when you need more.
 ## Packages
 
 ```sh
-dotty brewfile add jq          # install + record in the profile's Brewfile
+dotty packages add aqua:jqlang/jq   # install + record + lock in the profile
 git -C ~/Repos/dotfiles commit -am "feat: add jq" && git push
 ```
 
-On your other machines: pull, then `dotty brewfile sync` to converge — mind that
-[sync removes unlisted packages](../guides/brewfile.md).
+On your other machines: pull, then `dotty packages sync` to converge — mind
+that [sync removes undeclared packages](../guides/packages.md).
 
 ## Dotfiles
 
@@ -60,6 +60,6 @@ jumps between sessions and their agent worktrees.
 ## Staying in sync
 
 The repo is the sync channel — there is no daemon. Commit and push changes; on
-other machines pull, then `dotty dotfiles link` and `dotty brewfile sync` as
+other machines pull, then `dotty dotfiles link` and `dotty packages sync` as
 needed. When an agent has been working in a worktree,
 [`dotty git resign`](../guides/worktrees.md) before you merge.

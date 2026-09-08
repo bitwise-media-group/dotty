@@ -17,8 +17,10 @@ share one palette.
 
 dotty relocates zsh under XDG: a one-line `~/.zshenv` sets
 `ZDOTDIR=$XDG_CONFIG_HOME/zsh`, and everything else lives in `.config/zsh/`. The
-env file defines the XDG base dirs, pins Homebrew's global Brewfile to
-`$XDG_DATA_HOME/homebrew/Brewfile` (with `HOMEBREW_REQUIRE_TAP_TRUST=1`), moves
+env file defines the XDG base dirs, builds the PATH every shell needs (the
+Homebrew prefix mise pours bootstrap packages into, mise's shims, then
+`~/.local/bin` where dotty installs mise), trusts the profile tree for mise
+(`MISE_TRUSTED_CONFIG_PATHS`, since `~/.config/mise` is a symlink into it), moves
 Go's caches under XDG, wires `SSH_ASKPASS` to the dotty askpass applet (see
 [Signing keys](../getting-started/signing.md)), and sources the active profile's
 `env.zsh` — which is how per-profile values like `$DOTTY_WORKTREES` and agent

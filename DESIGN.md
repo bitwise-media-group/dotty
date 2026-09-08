@@ -58,18 +58,17 @@ init() {
 }
 ```
 
-The root command should have a `--profile=<name>` global flag, which is only
-used by the `brewfile` command below, but will be used for other purposes in the
-future.
+The root command should have a `--profile=<name>` global flag, which selects
+the profile the `packages` and `profile` verbs operate on (the active profile
+when unset).
 
 # System Profiles
 
 Comand: profile
 
 Manage profiles that are unique configurations to use across machines. These
-include things such as an oh-my-posh prompt, a brew bundle Brewfile, and
-terminal themes. For now it will only manage a brew bundle file, but more will
-come later.
+include the profile's mise package directory, the per-profile renders of
+anything machine-class-specific, and the init answers.
 
 ## Create a profile
 
@@ -103,9 +102,10 @@ a new profile. Upon confirmation, invoke the cmd for
 `dotty profile new --name=<name>`, which ends with the new profile active.
 
 To activate a profile, update the `${XDG_CONFIG_HOME}/dotty/active-profile`
-symlink to point to the profile path. Determine if a Brewfile exists in that
-path. If no brewfile exists, execute the cmd for `dotty brewfile dump` defined
-below.
+symlink to point to the profile path. Everything reached through the link —
+including `~/.config/mise`, which names the active profile's mise directory —
+swaps with it; converging the machine's packages is `dotty packages sync`'s
+job, so activation itself never installs or removes anything.
 
 ```text
 dotty profile activate [--name=<name>]
@@ -129,7 +129,8 @@ Command: get
 
 Print one profile's metadata alongside the state only the machine knows: the
 profile directory, the repository directory it links to, whether it is active,
-and how many entries its Brewfile carries. Without a name, describe the active
+and how many packages it declares (and how many of those come from component
+fragments). Without a name, describe the active
 profile — or the one the global `--profile` names. `--format=json` prints
 `profile.json` verbatim instead, answers included.
 
@@ -333,111 +334,101 @@ Command: profile
 
 Create a system-level profile that can be copied across machines.
 
-# Brewfile Manipulation
+# Package Management
 
-Command: brewfile Aliases: brew
+Command: packages Aliases: pkg
 
-Manage a homebrew bundle Brewfile to maintain reproducible brew configurations
-on and across systems.
-
-## Add an entry to the brewfile
-
-Command: add
-
-Adds a brew cask, formula, or other supported brew types to the specified
-brewfile. If the name of the brew contains more than one forward slash (/), then
-determine if the brew is currently trusted via
-`brew trust [--formula | --cask | --tap] --json v1`. If it is not trusted,
-prompt the user to ask if they want to trust it before proceeding. If they
-confirm, add the trust, and then the brew. This only applies to taps, casks, and
-formulas. If no type is specified, the default is formulas. If other types are
-specified, pass the arguments to `brew bundle add` as-is. The flow is:
+Manage the profile's packages through mise so a machine's installs stay
+reproducible on and across systems. A profile carries a whole mise
+global-config directory, which dotty links to `~/.config/mise`:
 
 ```text
-brew trust [--formula | --cask | --tap] <name>
-brew bundle add [--formula | --cask | --tap] <name>
-brew bundle install --file=<profile-path>/Brewfile
+profiles/<name>/mise/
+├── config.toml   # user-owned: [settings] lockfile, [bootstrap.brew] adopt, the user's [tools] and [bootstrap.packages]
+├── conf.d/       # one fragment per selected component (core.toml, addon-nvim.toml, …), rendered by init
+└── mise.lock     # written by mise for every platform; committed
 ```
 
-If a profile argument is specified, use the Brewfile in the profile path;
-otherwise, use the symlinked path. If the path is not available, print an error.
+Two kinds of entry live there. `[tools]` are full backend ids
+(`aqua:sharkdp/bat`, `github:owner/repo`, `npm:x`, `pipx:x`, or a mise core tool
+such as `go`), locked per platform in `mise.lock` and installed by mise itself.
+`[bootstrap.packages]` are `brew:`, `brew-cask:`, `mas:`, `flatpak:`, `apt:`, …
+entries mise pours into the Homebrew prefix or the OS package manager at their
+latest version — for what has no static build (git, curl, zsh, native libraries)
+and for GUI apps and fonts. The coding-agent CLIs are tools, not casks: the
+registry carries `aqua:anthropics/claude-code`, `aqua:openai/codex`,
+`aqua:google-antigravity/antigravity-cli`, and `http:grok`. Registry shorthand (`git`, `flux`) is refused everywhere: it
+resolves to whichever registry entry claims the name.
 
-```text
-dotty [--profile=<profile>] brewfile add [--tap | --cask | --formula] <name> [...]
-```
+Ownership splits by file: the fragments under `conf.d/` are rendered by
+`dotty init` from the selected components and pruned when a component is
+deselected; `config.toml` is rendered once from the template and then belongs
+to the user — `dotty packages add`, `mise use -g`, and hand edits all write
+there, and a re-render never resets it. dotty never merges TOML documents: it
+only appends entry lines under a header comment or drops a single entry line.
 
-## Upgrade all brews
+Every mise invocation carries `MISE_CONFIG_DIR=<profile>/mise`, so the active
+profile and `--profile=<other>` share one code path. mise itself is installed
+by dotty into `~/.local/bin` from the signed installer (`install.sh.sig`,
+verified against the embedded release key before it runs) when the machine has
+none outside a Homebrew keg — the brew keg is not a declared package, so sync
+would prune it from under the running process.
 
-Upgrade all brews in the brewfile. This is akin to running:
+| Verb | Invocations (with `MISE_CONFIG_DIR=<profile>/mise`) |
+| --- | --- |
+| `add <id>…` | ids already declared are skipped; tools: `mise use --global --yes <ids>` then `mise lock --global`; packages: `mise bootstrap packages use --global --yes <ids>`; all skipped: `mise lock --global`, `mise install --yes`, `mise bootstrap packages apply --yes` |
+| `remove [--sync] [<id>…]` | undeclared ids are reported, ids a fragment declares are refused (deselect the component); tools: `mise unuse --global <ids>`; packages: the entry line is dropped from config.toml (mise has no `bootstrap packages unuse`) |
+| `sync [--force]` | unless forced: `mise bootstrap packages prune --dry-run` and a confirmation of the listed removals (declining changes nothing); then `mise lock --global`, `mise install --yes`, `mise prune --yes`, `mise bootstrap packages apply --yes`, and `mise bootstrap packages prune --yes` when removals were confirmed or forced |
+| `upgrade` | `mise upgrade --yes`, `mise lock --global`, `mise bootstrap packages upgrade --yes` |
+| `status` (alias `ls`) | `mise ls --global`, `mise bootstrap packages status` |
+| `lock` | `mise lock --global` |
+| `import [--all]` | `mise bootstrap packages import --manager brew --path <scratch> [--all]`, then the new entries merge into config.toml under `# installed packages` |
+| `import --brewfile <path>` | converts a Brewfile (below) and merges the new entries under `# imported from Brewfile` |
+| `edit [--sync \| --upgrade]` | opens config.toml in `$VISUAL`/`$EDITOR`, then the named verb |
 
-```sh
-brew bundle install --file=${XDG_CONFIG_HOME}/dotty/profile/Brewfile --upgrade
-```
+Locking always precedes installing (`mise lock --global` resolves every
+platform's URL and checksum, then `mise install` uses them), and `locked`
+is left unset in `[settings]`: with a lockfile present it makes `mise use`
+refuse a new tool and `mise install` refuse backends that carry no download
+URL (pipx, npm, the core runtimes). `lockfile = true` alone makes mise resolve
+"latest" to the locked version, which is the reproducibility that matters.
 
-```text
-dotty [--profile=<profile>] brewfile upgrade
-```
+dotty only ever calls `mise install/upgrade/prune/lock/use/unuse` and
+`mise bootstrap packages …`; `mise bootstrap` as a whole (dotfiles, macOS
+defaults, launchd, shell activation) overlaps dotty's own linker and is left
+alone.
 
-## Sync bundles
+## Migrating from a Brewfile
 
-Synchronise the machine with whatever is in the brewfile. If any brews would be
-removed, prompt the user to confirm unless the force flag is set. This is akin
-to running:
+A profile from before packages moved to mise carries a `Brewfile`. `dotty init`
+converts it once, and `dotty packages import --brewfile` converts any other:
 
-```sh
-brew bundle install --file=${XDG_CONFIG_HOME}/dotty/profile/Brewfile --force --force-cleanup --upgrade --zap
-```
+- `brew "x"` becomes the locked tool the template's fragments replaced it with
+  (`brew "ripgrep"` → `aqua:BurntSushi/ripgrep`, `brew "derailed/k9s/k9s"` →
+  `aqua:derailed/k9s`, `brew "go"` → `go`) when there is one, else the locked
+  tool that stands in for a formula mise cannot pour (`kubectl` is a Homebrew
+  alias with no API entry; `hashicorp/tap/terraform` and `fluxcd/tap/flux`
+  come from taps that publish no API metadata) — kubectl, terraform, flux,
+  awscli, yt-dlp, actions-up — else the `brew:x` bootstrap package. Any other
+  tap-qualified formula records its tap under `[bootstrap.brew.taps]` with a
+  warning that mise needs the tap to publish `api/formula/<name>.json`.
+- `cask "x"` becomes `"brew-cask:x" = { version = "latest", os = "macos" }`,
+  except the bitwise tap's casks (dotty, evolve, patchy), which become
+  `github:bitwise-media-group/<x>` tools — the tap publishes no cask API — and
+  the agent casks (`claude-code@latest`, `codex`, `antigravity`, `grok-build`),
+  which become the tools their fragments declare.
+- `mas "…", id: N` → `mas:N`; `flatpak` → `flatpak:`; `go`/`cargo`/`npm` →
+  `go:`/`cargo:`/`npm:` tools; `uv` → `pipx:`.
+- `brew "mise"` is dropped (dotty installs mise); `tap` lines survive only
+  while a `brew:` package still needs them; `vscode`, `krew`, and unknown
+  words are reported and dropped.
 
-```text
-dotty [--profile=<profile>] brewfile sync [--force]
-```
-
-## Dump existing brews
-
-Dumps any currently installed brews into the brewfile. This should only dump
-mas, formula, cask, and flatpack unless the `--all` flag is set. This is akin to
-running:
-
-```sh
-brew bundle dump --mas --flatpack --formulae --casks
-```
-
-```text
-dotty [--profile=<profile>] brewfile dump [--all]
-```
-
-## Edit the brewfile
-
-Opens the brewfile in the default editor
-
-```text
-dotty [--profile=<profile>] brewfile edit [--sync | --upgrade]
-```
-
-## Remove an entry from the brewfile
-
-Command: remove Aliases: rm
-
-Removes entries from the specified brewfile by delegating the edit to
-`brew bundle remove`, which takes the same type flags as add plus `--mas` (mas
-entries cannot be added, but dump writes them). Names brew's parser does not
-list for the kind are skipped with a notice. Trust grants recorded for removed
-tap-qualified formulas and casks, and for taps, are revoked best-effort via
-`brew untrust` — a failed revocation warns without failing the removal. Nothing
-is uninstalled: removed entries stay on the machine until `dotty brewfile sync`
-runs; the `--sync` flag runs it immediately, with sync's own confirmation gating
-the uninstalls. With no names, an interactive checklist of the kind's entries is
-offered. The flow is:
-
-```text
-brew bundle list --file=<profile-path>/Brewfile [--formula | --cask | ...]
-brew bundle remove --file=<profile-path>/Brewfile [--formula | --cask | ...] <name> [...]
-brew untrust [--formula | --cask | --tap] <name>
-```
-
-```text
-dotty [--profile=<profile>] brewfile remove [--tap | --cask | --formula | --mas | ...] [--sync] [<name> ...]
-```
+Entries the profile already declares (in `config.toml` or a fragment) are
+skipped, so the conversion is idempotent. The Brewfile is left in place for the
+user to delete once the result checks out. Seeding works the same way: when
+`~/.config/mise` is still a real directory at init time, its `config.toml` and
+`mise.lock` are copied into the profile (with the lockfile, locked, and
+cask-adopt settings added) before the linker backs the directory up.
 
 # Generic Credentials
 
@@ -574,7 +565,8 @@ tab-completable suggestions. The paths persist portably in the profile: the
 repositories directory home-relative, the repository relative to it, and
 rendered shell files use `${HOME}` so no machine-specific prefix enters the
 repository. The wizard also asks for a profile name when creating one (machine
-name by default), whether to seed the Brewfile from the installed packages,
+name by default), whether to import the installed Homebrew formulae into the
+profile's packages,
 optional add-ons (nvim, btop, k9s, lazygit, lsd, tmux, yazi), and coding agents
 (claude-code, codex, opencode, antigravity, grok). Once at least one agent is
 selected, init offers the bitwise skills marketplace; choosing it wires the
@@ -594,7 +586,8 @@ per profile: a work class can run hardened while a personal one does not.
 init then asks whether the machine class uses security keys. Answering yes
 renders the profile's signing config (gpg/ssh via dotty), the `~/.ssh/config`
 that signs and authenticates through `dotty signing-key link`, adds ykman and
-pinentry-mac to the Brewfile, creates the `dotty-ssh-askpass` applet symlink in
+pinentry-mac to the profile's packages, creates the `dotty-ssh-askpass` applet
+symlink in
 the data directory (OpenSSH PIN prompts route through it to pinentry-mac, which
 caches the YubiKey PIN), and offers to import an existing resident-key stub or
 enroll a new key — the same flows as `dotty signing-key import` and `new`.
@@ -620,7 +613,7 @@ declined sudo never unwinds a completed init.
 Profiles are shared through the repository and activated per machine: one
 dotfiles repo serves every machine, and a profile (personal, work) captures how
 a class of machines differs — a `profile.json` (metadata plus the wizard answers
-in one document), the composed Brewfile, a `home/` tree holding every
+in one document), the mise package directory, a `home/` tree holding every
 `$HOME`-relative file whose content varies by profile (paths like the
 repositories directory, agent sandbox roots, marketplace enablement, signing
 config), and loose files like `env.zsh` and the git includes at the profile
@@ -650,10 +643,13 @@ persists project trust, hook state, and desktop-app integration into it, and
 linking that file into the repository would commit machine state to every clone.
 
 After confirmation, init renders the selected template components (shared files
-into the repo, profile-varying files into `profiles/<name>`), composes the
-Brewfile, runs `git init` and stages everything (the first commit is left to the
-user so it can be signed), links the repository's `home` tree into `$HOME` plus
-the profile-varying files through active-profile, activates the profile, and
+into the repo, profile-varying files into `profiles/<name>`, the mise fragments
+into `profiles/<name>/mise/conf.d`), converts a legacy Brewfile and imports the
+installed packages when asked, installs mise into `~/.local/bin` when the
+machine has none, runs `git init` and stages everything (the first commit is
+left to the user so it can be signed), links the repository's `home` tree into
+`$HOME` plus the profile-varying files and `~/.config/mise` through
+active-profile, activates the profile, and
 downloads the pinned lobe-icons glyph font into the user font directory (a
 warning, never a failure, when offline). Re-running init against an existing
 repository and profile asks the same questions with the stored answers as the
@@ -672,7 +668,7 @@ backed up and rewritten in place as a real machine-local file — restorable wit
 
 ```text
 dotty init [--repo=<dir>] [--repos-dir=<dir>] [--profile-name=<name>]
-           [--addons=<a,b>] [--agents=<a,b>] [--dump-brews] [--marketplace]
+           [--addons=<a,b>] [--agents=<a,b>] [--import-packages] [--marketplace]
            [--harden] [--security-keys] [--git-name=<name>] [--git-email=<email>]
            [--allowed-serials=<a,b>] [--worktrees=<dir>]
            [--macos-defaults=<a,b>] [--wallpaper=<image>] [--piv]

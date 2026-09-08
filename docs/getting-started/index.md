@@ -17,8 +17,9 @@ path; each step links deeper when you want the details.
   [reference pages](../reference/layout.md) lives in it, editable and versioned.
 - A **[profile](../guides/profiles.md)** describing this machine's class
   (personal, work, …) that travels with the repo to your other machines.
-- A **[Brewfile](../guides/brewfile.md)** that makes your package set
-  reproducible.
+- A **[mise package directory](../guides/packages.md)** that makes your
+  package set reproducible — locked tools plus the Homebrew bottles and casks
+  mise pours for you.
 - Optional: **[coding agents](agents.md)** (Claude Code, Codex, OpenCode, Grok)
   confined by a shared [sandbox policy](../reference/agent-sandboxing.md).
 - Optional: **[commit signing](signing.md)** with SSH keys that live on a
@@ -33,7 +34,9 @@ flowchart LR
 
 ## Prerequisites
 
-- macOS with [Homebrew](https://brew.sh) installed.
+- macOS (or Linux). Homebrew is optional: mise pours bottles and casks into
+  the Homebrew prefix itself, and `dotty init` installs mise when the machine
+  has none.
 - An account on a Git host for the repo you're about to create.
 
 !!! note "YubiKeys are optional"
@@ -45,8 +48,7 @@ flowchart LR
 ## The fast path
 
 ```sh
-brew trust bitwise-media-group/tap/dotty
-brew install bitwise-media-group/tap/dotty
+mise use -g github:bitwise-media-group/dotty
 dotty init
 ```
 
@@ -55,8 +57,8 @@ following pages explain what it's asking and why.
 
 ## The steps
 
-1. **[Install](../install.md)** — install dotty with Homebrew (or `go install`,
-   or a release archive) and optionally verify the artifacts.
+1. **[Install](../install.md)** — install dotty with mise (or Homebrew,
+   `go install`, or a release archive) and optionally verify the artifacts.
 2. **[Initialise a dotfiles repo](initialise.md)** — run the `dotty init`
    wizard: scaffold the repo, pick addons and agents, link `$HOME`, activate
    your first profile.

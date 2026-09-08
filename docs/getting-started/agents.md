@@ -6,11 +6,11 @@
 # Coding agents & hardening
 
 dotty scaffolds configuration for four terminal coding agents — **Claude
-Code**, **Codex**, **OpenCode**, and **Grok** — plus the Antigravity cask,
+Code**, **Codex**, **OpenCode**, and **Grok** — plus the Antigravity CLI,
 and can confine all of them behind one consistent security policy. Pick
 agents in the wizard or with `--agents=claude-code,codex,…`; each
-selection adds the agent's Brewfile entry and renders its config into your
-repo under `home/.config/<agent>/`.
+selection adds the agent's locked tool to the profile's packages and renders
+its config into your repo under `home/.config/<agent>/`.
 
 ## What `--harden` does
 

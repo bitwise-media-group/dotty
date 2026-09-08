@@ -19,12 +19,11 @@ the mental model.
 ```text
 dotfiles/
 ├── .dotty-version            # marks this repo as dotty-managed
-├── Brewfile                  # composed from brewfile.d for the profile
-├── brewfile.d/               # per-component Brewfile fragments
 ├── profiles/                 # one directory per profile
 │   ├── personal/
 │   │   ├── profile.json      # metadata + the profile's stored init answers
-│   │   ├── Brewfile          # the profile's package set
+│   │   ├── mise/             # the profile's packages: config.toml (yours),
+│   │   │                     #   conf.d/<component>.toml (rendered), mise.lock
 │   │   ├── env.zsh           # profile-varying files (also git.gitconfig,
 │   │   │                     #   worktrees.gitconfig)
 │   │   └── home/             # profile-varying $HOME entries
@@ -49,11 +48,13 @@ work), not individual machines. See [Profiles](../guides/profiles.md).
 | -------------------------------- | --------------------------------------------------------------------------------- |
 | `~/.config/dotty/<profile>/`     | Symlinks into the repo's `profiles/<name>` directories                            |
 | `~/.config/dotty/active-profile` | Symlink to the active profile — the **only** machine-local piece of profile state |
+| `~/.config/mise`                 | Symlink to `active-profile/mise`: mise's global config is the active profile's package directory |
 
 Nothing here is secret: it is symlinks into your dotfiles repo plus one more.
 Retargeting `active-profile`
 ([`dotty profile activate`](../cli/dotty_profile_activate.md)) atomically swaps
-every per-profile rendered file at once.
+every per-profile rendered file — and the machine's package declarations — at
+once.
 
 ## Private data — `$XDG_DATA_HOME/dotty`
 

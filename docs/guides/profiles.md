@@ -18,7 +18,7 @@ Each profile directory contains:
 ```text
 profiles/work/
 ├── profile.json         # metadata + the stored init answers (addons, agents, …)
-├── Brewfile             # the profile's package set
+├── mise/                # the profile's package set: config.toml, conf.d/, mise.lock
 ├── env.zsh              # per-profile environment (DOTTY_WORKTREES, agent homes)
 ├── git.gitconfig        # signing config, when this class uses security keys
 ├── worktrees.gitconfig  # signing-off include for agent worktrees
@@ -63,10 +63,11 @@ dotty profile activate --name=work
 ```
 
 [`dotty profile activate`](../cli/dotty_profile_activate.md) retargets the
-`active-profile` symlink and, if the profile has no Brewfile yet, dumps the
-current machine's packages as a starting point. After switching classes on a
-machine, follow with [`dotty brewfile sync`](brewfile.md) to make the installed
-packages match the new profile.
+`active-profile` symlink; `~/.config/mise` resolves through it, so the new
+profile's packages and lockfile are what mise sees from then on. After
+switching classes on a machine, follow with
+[`dotty packages sync`](packages.md) to make the installed packages match the
+new profile.
 
 ```mermaid
 flowchart LR
@@ -91,7 +92,8 @@ dotty profile get work --format=json
 [`dotty profile list`](../cli/dotty_profile_list.md) is the inventory — name,
 description, creation date. [`dotty profile get`](../cli/dotty_profile_get.md)
 adds what only this machine knows: the profile directory, the repository
-directory behind it, whether it is active, and its Brewfile size. Named without
+directory behind it, whether it is active, and how many packages it declares.
+Named without
 an argument, both work on the active profile, and the global `--profile` picks
 another. `--format=json` prints `profile.json` verbatim, so the stored init
 answers come with it.

@@ -35,7 +35,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
             <p class="dt-lede">
                 Utilities for a terminal-driven workflow and dotfiles: one
                 wizard that scaffolds your dotfiles repo, system profiles
-                that travel across machines, reproducible Homebrew Brewfiles,
+                that travel across machines, reproducible packages locked through mise,
                 hardened coding agents, and SSH signing keys that live on
                 YubiKeys — including git commit signing. One Go binary.
             </p>
@@ -46,7 +46,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                 </div>
                 <div class="dt-copy">
                     <span class="dt-p">$</span>
-                    <code>brew install bitwise-media-group/tap/dotty</code>
+                    <code>mise use -g github:bitwise-media-group/dotty</code>
                     <div class="md-code__nav">
                         <button
                             class="md-code__button"
@@ -159,8 +159,8 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                         <div class="dt-arow">
                             <span class="gl" style="color: var(--dt-ink)"
                                 >✓</span
-                            ><span class="k">brewfile</span
-                            ><span class="v">48 casks · in sync</span>
+                            ><span class="k">packages</span
+                            ><span class="v">64 entries · in sync</span>
                         </div>
                         <div class="dt-arow">
                             <span class="gl" style="color: var(--dt-ink)"
@@ -189,7 +189,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
         </div>
         <p class="dt-shot__cap">
             Fuzzy-pick a profile and dotty relinks the machine —
-            <b>[1] profiles</b> · <b>[2] active profile</b>, Brewfile, keys and
+            <b>[1] profiles</b> · <b>[2] active profile</b>, packages, keys and
             all.
         </p>
     </section>
@@ -198,7 +198,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
     {# External tools dotty drives and the standards it speaks. Rendered twice
     so the translateX(-50%) scroll loops seamlessly; aria-hidden because it is
     decorative and would otherwise be announced twice. #} {% set dt_marquee =
-    ["brew", "brew bundle", "ykman", "fido2-token", "libfido2", "ssh-keygen",
+    ["mise", "mise.lock", "ykman", "fido2-token", "libfido2", "ssh-keygen",
     "OpenSSH 8.2+", "FIDO2", "YubiKey", "XDG dirs", "GoReleaser"] %}
     <div class="dt-marquee" aria-hidden="true">
         <div class="dt-marquee__track">
@@ -278,11 +278,11 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                         <path d="M12 22V12" />
                     </svg>
                 </div>
-                <h3>Reproducible Brewfiles</h3>
+                <h3>Reproducible packages</h3>
                 <p>
-                    Add casks and formulae through dotty, then
-                    <code>dotty brewfile sync</code> makes the machine match the
-                    Brewfile. Powered by <code>brew bundle</code>.
+                    Add tools and casks through dotty, then
+                    <code>dotty packages sync</code> makes the machine match the
+                    profile — one <code>mise.lock</code> for macOS and Linux.
                 </p>
             </div>
             <div class="dt-feat">
@@ -379,7 +379,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                     Every command is
                     <code>dotty &lt;noun&gt; &lt;verb&gt;</code>. No services,
                     no daemons — terminal-native, install once with
-                    <code>brew</code>.
+                    <code>mise</code>.
                 </p>
             </div>
         </div>
@@ -391,7 +391,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                         >profile</span
                     >
                     <span class="dt-chip" style="--chip: var(--dt-yellow)"
-                        >brewfile</span
+                        >packages</span
                     >
                     <span class="dt-chip" style="--chip: var(--dt-yellow)"
                         >security-key</span
@@ -405,7 +405,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                 <h3>Drives</h3>
                 <div class="dt-chips">
                     <span class="dt-chip" style="--chip: var(--dt-yellow-2)"
-                        >brew</span
+                        >mise</span
                     >
                     <span class="dt-chip" style="--chip: var(--dt-yellow-2)"
                         >ykman</span
@@ -459,15 +459,15 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                 </div>
                 <div class="dt-cmdrow">
                     <code
-                        ><span class="p">$</span> dotty brewfile add --cask
-                        ghostty</code
+                        ><span class="p">$</span> dotty packages add
+                        brew-cask:ghostty</code
                     >
-                    <span class="cmt"># add to the Brewfile and install</span>
+                    <span class="cmt"># add to the profile and install</span>
                 </div>
                 <div class="dt-cmdrow">
-                    <code><span class="p">$</span> dotty brewfile sync</code>
+                    <code><span class="p">$</span> dotty packages sync</code>
                     <span class="cmt"
-                        ># make the machine match the Brewfile</span
+                        ># make the machine match the profile</span
                     >
                 </div>
                 <div class="dt-cmdrow">
@@ -494,8 +494,8 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                     <div class="dt-step__num">01</div>
                     <h3>Install</h3>
                     <p>
-                        Install the Homebrew cask — it carries the binary, man
-                        pages and completions.
+                        Install with mise — the same tool dotty then drives for
+                        every other package.
                     </p>
                     <a class="dt-step__alt" href="{{ 'install/' | url }}"
                         >Alternative methods
@@ -515,7 +515,7 @@ extends "main.html" %} {% block tabs %} {{ super() }}
                 </div>
                 <div class="dt-cmd">
                     <span class="dt-p">$</span>
-                    <code>brew install bitwise-media-group/tap/dotty</code>
+                    <code>mise use -g github:bitwise-media-group/dotty</code>
                     <div class="md-code__nav">
                         <button
                             class="md-code__button"

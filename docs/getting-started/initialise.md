@@ -113,9 +113,7 @@ What to do when a real file already exists where a symlink should go:
 ```text
 dotfiles/
 ├── .dotty-version
-├── Brewfile              # composed from brewfile.d fragments
-├── brewfile.d/
-├── profiles/<profile>/   # profile.json (answers), Brewfile, env.zsh, home/
+├── profiles/<profile>/   # profile.json (answers), mise/ (packages + lockfile), env.zsh, home/
 └── home/                 # linked into $HOME
     └── .config/{zsh,git,ghostty,tmux,nvim,claude,…}/
 ```

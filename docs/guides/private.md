@@ -68,7 +68,7 @@ before the first secret does. The placeholders are repository furniture: `link`
 never deploys them.
 
 `enroll` uses [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey)
-(both come from the security-keys Brewfile fragment): the identity lands in a
+(both come from the security-keys package fragment): the identity lands in a
 PIV **retired** slot, so smart-card login and your SSH signing keys are
 untouched. Two caveats worth knowing:
 

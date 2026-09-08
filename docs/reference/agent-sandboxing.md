@@ -41,7 +41,8 @@ can't express a rule. Without `--harden`, agents get only the non-security parts
 | tmux status      | hooks in `settings.json`        | `[[hooks.*]]` in `config.toml`  | `hooks/tmux-status.json`             | `plugin/agent-tmux-status.js` |
 
 All four share the same Bash allowlist (read-only inspection commands, read-only
-`brew` and `git`, plus `git add`/`restore`/`checkout`/`switch`/ `commit`) and
+`mise` (`ls`, `registry`, `outdated`, `config ls`, `bootstrap packages status`)
+and `git`, plus `git add`/`restore`/`checkout`/`switch`/ `commit`) and
 deny the same credential set: `~/.aws`, `~/.azure`, `~/.config/gcloud`,
 `~/.ssh`, `~/.gnupg`, and `**/.env*`.
 

@@ -5,11 +5,29 @@
 
 # Installation
 
-The recommended way to install dotty is the [Homebrew tap](#homebrew). The
-alternative methods below all install the same signed binary: the macOS binaries
+The recommended way to install dotty is [mise](#mise), which is also what dotty
+drives to manage every other package; the [Homebrew tap](#homebrew) still
+works. The alternative methods below all install the same signed binary: the
+macOS binaries
 are Developer ID-signed and notarized by Apple, the Linux binaries carry keyless
 [cosign](#signatures) signatures, and every release ships checksums and a SLSA
 build-provenance [attestation](#attestations) you can verify yourself.
+
+## mise
+
+dotty ships per-platform release archives that mise's GitHub backend installs
+and locks:
+
+```sh
+mise use -g github:bitwise-media-group/dotty
+```
+
+A profile rendered by `dotty init` declares this entry itself (in the core
+fragment), so once a machine is initialised, `dotty packages sync` keeps dotty
+current along with everything else. If the machine has no mise yet, install it
+from the [official installer](https://mise.jdx.dev/installing-mise.html) —
+verify the script's signature as mise's docs describe; `dotty init` does the
+same verification when it installs mise on your behalf.
 
 ## Homebrew
 
@@ -44,8 +62,8 @@ go install github.com/bitwise-media-group/dotty/cmd@latest
 
     A `go install` build is compiled on your machine, so it carries no release
     version stamp and is not covered by the cosign signature or attestation
-    below. Use the Homebrew cask or a release archive when you want a verifiable
-    artifact.
+    below. Use mise, the Homebrew cask, or a release archive when you want a
+    verifiable artifact.
 
 ## Manually
 

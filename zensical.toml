@@ -6,7 +6,7 @@
 
 [project]
 site_name = "dotty"
-site_description = "Utilities for a terminal-driven workflow and dotfiles: system profiles, reproducible Brewfiles, security-key aliases, and YubiKey-resident SSH signing keys."
+site_description = "Utilities for a terminal-driven workflow and dotfiles: system profiles, reproducible packages locked through mise, security-key aliases, and YubiKey-resident SSH signing keys."
 site_url = "https://oss.bitwisemedia.uk/dotty/"
 repo_url = "https://github.com/bitwise-media-group/dotty"
 repo_name = "bitwise-media-group/dotty"
@@ -30,7 +30,7 @@ nav = [
   ] },
   { "Guides" = [
     { "Profiles" = "guides/profiles.md" },
-    { "Brewfile workflow" = "guides/brewfile.md" },
+    { "Packages workflow" = "guides/packages.md" },
     { "Credentials & the Keychain" = "guides/credentials.md" },
     { "Private dotfiles, encrypted" = "guides/private.md" },
     { "Agent worktrees & re-signing" = "guides/worktrees.md" },

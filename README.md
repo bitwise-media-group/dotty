@@ -1,7 +1,7 @@
 # dotty
 
 Utilities for a terminal-driven workflow and dotfiles: system profiles that
-travel across machines, reproducible Homebrew Brewfiles, named aliases for
+travel across machines, reproducible packages locked through mise, named aliases for
 hardware security keys, and SSH signing keys that live on YubiKeys — including
 git commit signing.
 
@@ -10,8 +10,8 @@ Every command follows `dotty <noun> <verb>`:
 ```sh
 dotty profile new --name=work        # create a profile (runs the init interview for it)
 dotty profile activate               # fuzzy-pick and activate a profile
-dotty brewfile add --cask ghostty    # add to the Brewfile and install
-dotty brewfile sync                  # make the machine match the Brewfile
+dotty packages add brew-cask:ghostty # add to the profile and install
+dotty packages sync                  # make the machine match the profile
 dotty security-key add --name=work   # alias a YubiKey serial
 dotty signing-key new                # enroll a resident SSH signing key
 ```
@@ -19,6 +19,12 @@ dotty signing-key new                # enroll a resident SSH signing key
 The generated command reference lives in [docs/cli](docs/cli/dotty.md).
 
 ## Install
+
+```sh
+mise use -g github:bitwise-media-group/dotty
+```
+
+or from the Homebrew tap:
 
 ```sh
 brew install bitwise-media-group/tap/dotty
@@ -32,8 +38,8 @@ go install github.com/bitwise-media-group/dotty/cmd@latest
 
 or download an archive from the
 [releases page](https://github.com/bitwise-media-group/dotty/releases). External
-tools dotty drives: `brew` (with `brew bundle`), `ykman`, `fido2-token`
-(libfido2), and `ssh-keygen` (OpenSSH 8.2+ with FIDO support).
+tools dotty drives: `mise` (installed for you when missing), `ykman`,
+`fido2-token` (libfido2), and `ssh-keygen` (OpenSSH 8.2+ with FIDO support).
 
 ## Where things live
 
