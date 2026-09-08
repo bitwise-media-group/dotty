@@ -12,18 +12,20 @@ dotty-init - Scaffold a new dotfiles repository and set up this machine.
 .SH DESCRIPTION
 Create a dotfiles repository from the template embedded in dotty, driven by
 a short wizard: where repositories live, which optional tools and coding
-agents to include, and how to seed the Brewfile. ghostty, oh-my-posh, vivid,
-zsh, and git config are always included.
+agents to include, and whether to seed the packages from what is installed.
+ghostty, oh-my-posh, vivid, zsh, and git config are always included.
 
 .PP
 Nothing is written until a summary is confirmed. init then renders the
-repository — including the profile (answers, Brewfile, and the per-profile
-renders of anything machine-class-specific) under profiles/, so
+repository — including the profile (answers, the mise package directory,
+and the per-profile renders of anything machine-class-specific) under
+profiles/, so
 profiles travel with the repo and are shared across machines of the same
 class — stages it with git (the first commit is left for you to sign), links
-the home/ tree into your home directory, activates the profile (the
-active-profile symlink is the only machine-local state), and installs the
-lobe-icons glyph font. Files already in the way of a link are resolved per
+the home/ tree into your home directory and ~/.config/mise to the profile's
+packages, activates the profile (the active-profile symlink is the only
+machine-local state), installs mise into ~/.local/bin when the machine has
+none, and installs the lobe-icons glyph font. Files already in the way of a link are resolved per
 --on-conflict, and legacy files that shadow the rendered configuration from
 outside any link site (~/.gitconfig, ~/.zshrc and the other bare zsh startup
 files) are retired; backups land under $XDG_DATA_HOME/dotty/backups and are
@@ -58,10 +60,6 @@ clone the same way — run init from inside it, or point --repo at it.
 	short description of the profile
 
 .PP
-\fB--dump-brews\fP[=false]
-	seed the Brewfile from the installed packages
-
-.PP
 \fB--git-email\fP=""
 	git identity email for the private git config
 
@@ -76,6 +74,10 @@ clone the same way — run init from inside it, or point --repo at it.
 .PP
 \fB-h\fP, \fB--help\fP[=false]
 	help for init
+
+.PP
+\fB--import-packages\fP[=false]
+	seed the profile's packages from the installed Homebrew formulae
 
 .PP
 \fB--macos-defaults\fP=[]

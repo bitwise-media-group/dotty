@@ -38,7 +38,7 @@ type Flags struct {
 	Description    string
 	AddOns         []string
 	Agents         []string
-	DumpBrews      bool
+	ImportPackages bool
 	Marketplace    bool
 	Harden         bool
 	SecurityKeys   bool
@@ -97,7 +97,7 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 		answers = mergeAnswers(prev, flags, reposDir, repo, home)
 	} else {
 		answers = scaffold.Answers{ProfileName: profileName, Description: flags.Description,
-			AddOns: flags.AddOns, Agents: flags.Agents, DumpBrews: flags.DumpBrews,
+			AddOns: flags.AddOns, Agents: flags.Agents, ImportPackages: flags.ImportPackages,
 			Marketplace: flags.Marketplace, Harden: flags.Harden, SecurityKeys: flags.SecurityKeys,
 			MacOSDefaults: flags.MacOSDefaults, Wallpaper: flags.Wallpaper, PIV: flags.PIV,
 			AllowedSerials: flags.AllowedSerials, Worktrees: flags.Worktrees}
@@ -405,16 +405,17 @@ func askPath(ios cli.IOStreams, title, def string, suggestions []string) (string
 }
 
 // collectSelections asks the what-goes-on-this-machine-class questions:
-// Brewfile seeding, add-ons, agents, and — once agents are chosen — the
+// package seeding, add-ons, agents, and — once agents are chosen — the
 // marketplace, hardening, and security keys. Flags silence their question,
 // as does --yes when the stored profile already answers it; everything else
 // is asked with the seeded answer (a previous run's, or the zero value) as
 // the default, so a re-run revisits every choice.
 func collectSelections(ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys, answers *scaffold.Answers) error {
 	var err error
-	if !flags.DumpBrews && ios.IsInteractive() && !flags.reuses(known.DumpBrews) {
-		if answers.DumpBrews, err = tui.ConfirmDefault(ios, "Seed the Brewfile from what is installed now?",
-			"brew bundle dump, merged with the template's packages", answers.DumpBrews); err != nil {
+	if !flags.ImportPackages && ios.IsInteractive() && !flags.reuses(known.ImportPackages) {
+		if answers.ImportPackages, err = tui.ConfirmDefault(ios,
+			"Import the Homebrew formulae installed now into the profile's packages?",
+			"mise bootstrap packages import, merged with the components' packages", answers.ImportPackages); err != nil {
 			return err
 		}
 	}
@@ -458,7 +459,7 @@ func collectFeatureConfirms(
 
 	if !flags.SecurityKeys && !flags.reuses(known.SecurityKeys) {
 		if answers.SecurityKeys, err = tui.ConfirmDefault(ios, "Do you use security keys (YubiKey)?",
-			"wires SSH and git signing through the hardware key, and adds ykman + pinentry-mac to the Brewfile",
+			"wires SSH and git signing through the hardware key, and adds ykman + pinentry-mac to the packages",
 			answers.SecurityKeys); err != nil {
 			return err
 		}
@@ -558,8 +559,8 @@ func mergeAnswers(prev scaffold.Answers, flags Flags, reposDir, repo, home strin
 	if flags.Description != "" {
 		prev.Description = flags.Description
 	}
-	if flags.DumpBrews {
-		prev.DumpBrews = true
+	if flags.ImportPackages {
+		prev.ImportPackages = true
 	}
 	if flags.AddOns != nil {
 		prev.AddOns = flags.AddOns

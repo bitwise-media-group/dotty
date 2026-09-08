@@ -4,14 +4,9 @@
 package profile
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-
-	"github.com/bitwise-media-group/dotty/internal/brewfile"
 )
 
 // Activate points the active-profile symlink at the named profile and returns
@@ -20,9 +15,10 @@ import (
 // the bare profile name (relative), which survives a home-directory move and
 // reads cleanly in a dotfiles repository.
 //
-// A profile activated without a Brewfile gets one dumped from the currently
-// installed brews, so `dotty brewfile ...` works immediately after.
-func Activate(ctx context.Context, r brewfile.Runner, configDir, name string) (string, error) {
+// Everything reached through the link — the per-profile renders, the mise
+// package directory behind ~/.config/mise — swaps with it; converging the
+// machine's packages on the new profile is `dotty packages sync`'s job.
+func Activate(configDir, name string) (string, error) {
 	if !Exists(configDir, name) {
 		return "", fmt.Errorf("profile %q: %w", name, ErrNotFound)
 	}
@@ -37,12 +33,5 @@ func Activate(ctx context.Context, r brewfile.Runner, configDir, name string) (s
 		_ = os.Remove(tmp)
 		return "", fmt.Errorf("swap active-profile symlink: %w", err)
 	}
-
-	dir := Dir(configDir, name)
-	if _, err := os.Stat(BrewfilePath(dir)); errors.Is(err, fs.ErrNotExist) {
-		if err := brewfile.Dump(ctx, r, BrewfilePath(dir), false, false); err != nil {
-			return dir, fmt.Errorf("dump Brewfile for fresh profile: %w", err)
-		}
-	}
-	return dir, nil
+	return Dir(configDir, name), nil
 }

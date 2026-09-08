@@ -5,15 +5,15 @@ Utilities for a terminal-driven workflow and dotfiles.
 ### Synopsis
 
 dotty manages the moving parts of a terminal-centric machine setup:
-system profiles that travel across machines, the Homebrew Brewfile that keeps
-installs reproducible, named aliases for hardware security keys, and SSH
+system profiles that travel across machines, the mise-managed packages that
+keep installs reproducible, named aliases for hardware security keys, and SSH
 signing keys that live on those keys (including git commit signing).
 
 ### Examples
 
 ```
   dotty profile new --name=work
-  dotty brewfile add --cask ghostty
+  dotty packages add brew-cask:ghostty
   dotty security-key add --name=primary
   dotty signing-key new
 ```
@@ -27,12 +27,12 @@ signing keys that live on those keys (including git commit signing).
 
 ### SEE ALSO
 
-* [dotty brewfile](dotty_brewfile.md)	 - Manage the profile's Brewfile for reproducible brews.
 * [dotty completion](dotty_completion.md)	 - Generate the autocompletion script for the specified shell
 * [dotty dotfiles](dotty_dotfiles.md)	 - Operate on the dotfiles repository dotty init generated.
 * [dotty env](dotty_env.md)	 - Store and inject credentials from the macOS Keychain.
 * [dotty git](dotty_git.md)	 - Git helpers built on dotty's commit signing.
 * [dotty init](dotty_init.md)	 - Scaffold a new dotfiles repository and set up this machine.
+* [dotty packages](dotty_packages.md)	 - Manage the profile's packages (mise tools and bootstrap packages).
 * [dotty private](dotty_private.md)	 - Manage the encrypted private dotfiles repository.
 * [dotty profile](dotty_profile.md)	 - Manage system profiles that travel across machines.
 * [dotty security-key](dotty_security-key.md)	 - Manage hardware security keys.

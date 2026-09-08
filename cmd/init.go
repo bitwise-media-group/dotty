@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/git"
 	"github.com/bitwise-media-group/dotty/internal/linker"
 	"github.com/bitwise-media-group/dotty/internal/macos"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/privdot"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
@@ -35,17 +37,19 @@ var initCmd = &cobra.Command{
 	Short: "Scaffold a new dotfiles repository and set up this machine.",
 	Long: `Create a dotfiles repository from the template embedded in dotty, driven by
 a short wizard: where repositories live, which optional tools and coding
-agents to include, and how to seed the Brewfile. ghostty, oh-my-posh, vivid,
-zsh, and git config are always included.
+agents to include, and whether to seed the packages from what is installed.
+ghostty, oh-my-posh, vivid, zsh, and git config are always included.
 
 Nothing is written until a summary is confirmed. init then renders the
-repository — including the profile (answers, Brewfile, and the per-profile
-renders of anything machine-class-specific) under profiles/<name>, so
+repository — including the profile (answers, the mise package directory,
+and the per-profile renders of anything machine-class-specific) under
+profiles/<name>, so
 profiles travel with the repo and are shared across machines of the same
 class — stages it with git (the first commit is left for you to sign), links
-the home/ tree into your home directory, activates the profile (the
-active-profile symlink is the only machine-local state), and installs the
-lobe-icons glyph font. Files already in the way of a link are resolved per
+the home/ tree into your home directory and ~/.config/mise to the profile's
+packages, activates the profile (the active-profile symlink is the only
+machine-local state), installs mise into ~/.local/bin when the machine has
+none, and installs the lobe-icons glyph font. Files already in the way of a link are resolved per
 --on-conflict, and legacy files that shadow the rendered configuration from
 outside any link site (~/.gitconfig, ~/.zshrc and the other bare zsh startup
 files) are retired; backups land under $XDG_DATA_HOME/dotty/backups and are
@@ -94,8 +98,8 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 		"optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi")
 	cmd.Flags().StringSliceVar(&flags.Agents, "agents", nil,
 		"coding agents: claude-code,codex,opencode,antigravity,grok")
-	cmd.Flags().BoolVar(&flags.DumpBrews, "dump-brews", false,
-		"seed the Brewfile from the installed packages")
+	cmd.Flags().BoolVar(&flags.ImportPackages, "import-packages", false,
+		"seed the profile's packages from the installed Homebrew formulae")
 	cmd.Flags().BoolVar(&flags.Marketplace, "marketplace", false,
 		"add the bitwise skills marketplace to the selected agents")
 	cmd.Flags().BoolVar(&flags.Harden, "harden", false,
@@ -164,6 +168,11 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	}
 
 	runner := newRunner(ios)
+	// mise first: the render imports packages through it, and a fresh
+	// machine has no mise until dotty installs one.
+	if _, err := mise.EnsureInstalled(ctx, runner, exec.LookPath, mise.Fetch, home); err != nil {
+		return err
+	}
 	pruned, err := scaffold.RenderRepository(ctx, ios, runner, answers, repo, home)
 	if err != nil {
 		return err
@@ -184,11 +193,11 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	linker.Summarize(ios, report, backupDir)
 	linker.PruneSites(ios, home, pruned)
 
-	if _, err := profile.Activate(ctx, runner, configDir, answers.ProfileName); err != nil {
+	if _, err := profile.Activate(configDir, answers.ProfileName); err != nil {
 		return err
 	}
 	tui.Successf(ios, "Profile %s active", answers.ProfileName)
-	tui.Infof(ios, "Install everything with: dotty brewfile sync")
+	tui.Infof(ios, "Install everything with: dotty packages sync")
 	if !iv.hadAllowlist && len(answers.AllowedSerials) > 0 {
 		tui.Successf(ios, "Profile %s allows only these security keys: %s",
 			answers.ProfileName, strings.Join(answers.AllowedSerials, ", "))

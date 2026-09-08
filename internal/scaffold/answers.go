@@ -46,11 +46,14 @@ type Answers struct {
 	// ReposDir and Repo are stored portably so answers travel across
 	// machines with different homes: ReposDir folds a home prefix to ~, and
 	// Repo is relative to ReposDir (absolute only when outside it).
-	ReposDir  string   `json:"reposDir"`
-	Repo      string   `json:"repo"`
-	AddOns    []string `json:"addons,omitzero"`
-	Agents    []string `json:"agents,omitzero"`
-	DumpBrews bool     `json:"dumpBrews"`
+	ReposDir string   `json:"reposDir"`
+	Repo     string   `json:"repo"`
+	AddOns   []string `json:"addons,omitzero"`
+	Agents   []string `json:"agents,omitzero"`
+	// ImportPackages seeds the profile's packages from the Homebrew formulae
+	// installed on the machine. It was dumpBrews before packages moved to
+	// mise; readAnswers still honours the old key.
+	ImportPackages bool `json:"importPackages"`
 
 	SecurityKeys bool `json:"securityKeys"`
 	Harden       bool `json:"harden"`
@@ -99,18 +102,18 @@ func SaveAnswers(profileDir string, a Answers) error {
 // an answered question (reusable, even when the answer is a falsy "no" or an
 // empty pick) from one the document predates and must still ask.
 type AnswerKeys struct {
-	ReposDir      bool
-	Repo          bool
-	AddOns        bool
-	Agents        bool
-	DumpBrews     bool
-	SecurityKeys  bool
-	Harden        bool
-	Marketplace   bool
-	MacOSDefaults bool
-	Wallpaper     bool
-	PIV           bool
-	PrivateRepo   bool
+	ReposDir       bool
+	Repo           bool
+	AddOns         bool
+	Agents         bool
+	ImportPackages bool
+	SecurityKeys   bool
+	Harden         bool
+	Marketplace    bool
+	MacOSDefaults  bool
+	Wallpaper      bool
+	PIV            bool
+	PrivateRepo    bool
 }
 
 // answerKeys derives AnswerKeys from a document's raw keys; the literals here
@@ -122,18 +125,18 @@ func answerKeys(raw map[string]json.RawMessage) AnswerKeys {
 		return ok && string(v) != "null"
 	}
 	return AnswerKeys{
-		ReposDir:      has("reposDir"),
-		Repo:          has("repo"),
-		AddOns:        has("addons"),
-		Agents:        has("agents"),
-		DumpBrews:     has("dumpBrews"),
-		SecurityKeys:  has("securityKeys"),
-		Harden:        has("harden"),
-		Marketplace:   has("marketplace"),
-		MacOSDefaults: has("macosDefaults"),
-		Wallpaper:     has("wallpaper"),
-		PIV:           has("piv"),
-		PrivateRepo:   has("privateRepo"),
+		ReposDir:       has("reposDir"),
+		Repo:           has("repo"),
+		AddOns:         has("addons"),
+		Agents:         has("agents"),
+		ImportPackages: has("importPackages") || has(legacyImportKey),
+		SecurityKeys:   has("securityKeys"),
+		Harden:         has("harden"),
+		Marketplace:    has("marketplace"),
+		MacOSDefaults:  has("macosDefaults"),
+		Wallpaper:      has("wallpaper"),
+		PIV:            has("piv"),
+		PrivateRepo:    has("privateRepo"),
 	}
 }
 
@@ -171,7 +174,13 @@ func LoadAnswersWithKeys(profileDir string) (Answers, AnswerKeys, error) {
 		filepath.Join(profileDir, AnswersFile), fs.ErrNotExist)
 }
 
-// readAnswers parses one answers document.
+// legacyImportKey is the json key ImportPackages had while packages came
+// from a Brewfile.
+const legacyImportKey = "dumpBrews"
+
+// readAnswers parses one answers document. A document from before packages
+// moved to mise answers the import question under the legacy key; its value
+// carries over.
 func readAnswers(path string) (Answers, AnswerKeys, error) {
 	var a Answers
 	data, err := os.ReadFile(path)
@@ -184,6 +193,11 @@ func readAnswers(path string) (Answers, AnswerKeys, error) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return a, AnswerKeys{}, fmt.Errorf("parse %s: %w", path, err)
+	}
+	if legacy, ok := raw[legacyImportKey]; ok {
+		if _, current := raw["importPackages"]; !current {
+			_ = json.Unmarshal(legacy, &a.ImportPackages) // a malformed legacy value reads as unanswered
+		}
 	}
 	return a, answerKeys(raw), nil
 }

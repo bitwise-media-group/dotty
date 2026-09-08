@@ -1,0 +1,11 @@
+# User-owned: `dotty packages add` / `mise use -g` write here.
+# Component packages live in conf.d/ and are managed by `dotty init`.
+[settings]
+lockfile = true
+
+[bootstrap.brew]
+adopt = true
+
+[tools]
+
+[bootstrap.packages]

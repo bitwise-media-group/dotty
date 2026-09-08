@@ -9,12 +9,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/bitwise-media-group/dotty/internal/brewfile"
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/tui"
 )
@@ -110,13 +111,14 @@ func EnclosingRepo() string {
 // RenderRepository renders the template into the repository, including the
 // profile: the profile lives at profiles/<name> so a machine class —
 // personal, work — shares it across machines (answers, per-profile renders,
-// Brewfile). Only the active-profile symlink, the machine's choice of
-// profile, stays local. A repository in the legacy layout is migrated first,
-// and renders the plan no longer produces are pruned from the profile — the
-// migration preserves paths as-is, so a template relocation would otherwise
-// leave a stale render at the old destination. It returns the pruned paths
-// relative to the profile's home/ tree.
-func RenderRepository(ctx context.Context, ios cli.IOStreams, r brewfile.Runner,
+// the mise package directory). Only the active-profile symlink, the
+// machine's choice of profile, stays local. A repository in the legacy
+// layout is migrated first, and renders the plan no longer produces are
+// pruned from the profile — the migration preserves paths as-is, so a
+// template relocation would otherwise leave a stale render at the old
+// destination. It returns the pruned paths relative to the profile
+// directory.
+func RenderRepository(ctx context.Context, ios cli.IOStreams, r mise.Runner,
 	answers Answers, repo, home string) ([]string, error) {
 	if err := MigrateLayout(ios, repo); err != nil {
 		return nil, err
@@ -125,6 +127,11 @@ func RenderRepository(ctx context.Context, ios cli.IOStreams, r brewfile.Runner,
 	repoProfileDir := profile.Dir(ProfilesDir(repo), answers.ProfileName)
 	answers = withMetadata(answers, repoProfileDir)
 	if err := cli.EnsureDir(repoProfileDir, 0o755); err != nil {
+		return nil, err
+	}
+	// Seed before rendering: the template's config.toml is a keep-existing
+	// render, so a seeded file wins over the empty default.
+	if err := seedMiseConfig(ios, mise.Dir(repoProfileDir)); err != nil {
 		return nil, err
 	}
 
@@ -148,7 +155,7 @@ func RenderRepository(ctx context.Context, ios cli.IOStreams, r brewfile.Runner,
 		tui.Infof(ios, "Pruned %d obsolete profile renders: %s", len(pruned), strings.Join(pruned, ", "))
 	}
 
-	return pruned, composeProfileBrewfile(ctx, ios, r, repoProfileDir, answers)
+	return pruned, composeProfilePackages(ctx, ios, r, repoProfileDir, answers, home)
 }
 
 // withMetadata completes the profile metadata that shares profile.json with
@@ -176,61 +183,116 @@ func withMetadata(a Answers, profileDir string) Answers {
 	return a
 }
 
-// composeProfileBrewfile merges the composed template packages into the
-// profile's Brewfile, optionally seeded from a brew bundle dump. An existing
-// Brewfile is user-owned — its lines are preserved verbatim and only
-// genuinely new entries are appended: dumped packages under "# installed
-// packages", template extras under "# template packages". Written before
-// Activate on purpose: Activate dumps only when none exists.
-func composeProfileBrewfile(ctx context.Context, ios cli.IOStreams, r brewfile.Runner,
-	repoProfileDir string, a Answers) error {
-	composed, err := ComposeBrewfile(a)
+// seedMiseConfig gives a profile that has no mise config.toml yet the one
+// the machine already runs on: when ~/.config/mise is still a real
+// directory with a config.toml (from before dotty owned it), its
+// config.toml and mise.lock are copied into the profile, with the settings
+// dotty relies on — the lockfile, cask adoption — added if missing. The linker backs the real directory up afterwards, so
+// nothing is lost either way. A profile that already has a config.toml is
+// left alone.
+func seedMiseConfig(ios cli.IOStreams, miseDir string) error {
+	if _, err := os.Stat(mise.ConfigPath(miseDir)); err == nil {
+		return nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("inspect %s: %w", mise.ConfigPath(miseDir), err)
+	}
+	configDir, err := cli.ConfigDir()
 	if err != nil {
 		return err
 	}
-	brewPath := profile.BrewfilePath(repoProfileDir)
-	base, err := os.ReadFile(brewPath)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("read profile Brewfile: %w", err)
+	live := filepath.Join(filepath.Dir(configDir), "mise")
+	if info, err := os.Lstat(live); err != nil || !info.IsDir() {
+		return nil // no live config, or already the profile link
 	}
-
-	// Seeding is a convenience — a broken brew must not fail the init, it
-	// just means the Brewfile starts without the installed packages.
-	if a.DumpBrews {
-		if dumped, err := dumpBrewsToScratch(ctx, r, repoProfileDir); err != nil {
-			tui.Warnf(ios, "Could not seed from the installed packages (dotty brewfile dump retries later): %v", err)
-		} else if len(base) > 0 {
-			base = mergeUnder(base, dumped, "# installed packages")
-		} else {
-			base = dumped
+	data, err := os.ReadFile(mise.ConfigPath(live))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read %s: %w", mise.ConfigPath(live), err)
+	}
+	data, _ = mise.MergeEntries(data, "settings", []string{"lockfile = true"}, "dotty: lock every tool")
+	data, _ = mise.MergeEntries(data, "bootstrap.brew", []string{"adopt = true"}, "dotty: keep the casks already installed")
+	if err := cli.EnsureDir(miseDir, 0o755); err != nil {
+		return err
+	}
+	if err := cli.AtomicWriteFile(mise.ConfigPath(miseDir), data, 0o644); err != nil {
+		return err
+	}
+	if lock, err := os.ReadFile(mise.LockPath(live)); err == nil {
+		if err := cli.AtomicWriteFile(mise.LockPath(miseDir), lock, 0o644); err != nil {
+			return err
 		}
 	}
-	if len(base) > 0 {
-		composed = MergeBrewfile(base, composed)
-	}
-	return cli.AtomicWriteFile(brewPath, composed, 0o644)
+	tui.Successf(ios, "Seeded %s from %s", mise.ConfigPath(miseDir), live)
+	return nil
 }
 
-// dumpBrewsToScratch runs brew bundle dump into a scratch file beside the
-// profile Brewfile and returns its contents; the real Brewfile is never the
-// dump target, so a re-run cannot destroy entries the dump does not cover.
-func dumpBrewsToScratch(ctx context.Context, r brewfile.Runner, repoProfileDir string) ([]byte, error) {
-	tmp, err := os.CreateTemp(repoProfileDir, ".Brewfile.dump-*")
+// composeProfilePackages fills in the user-owned side of the profile's
+// packages after the fragments are rendered: a Brewfile left over from
+// before packages moved to mise is converted into config.toml entries, and
+// when asked the machine's installed Homebrew formulae are imported. Both
+// merge — an existing config.toml is user-owned, its lines are preserved
+// verbatim and only genuinely new entries are appended under a header
+// comment — and skip what the fragments already declare.
+func composeProfilePackages(ctx context.Context, ios cli.IOStreams, r mise.Runner,
+	repoProfileDir string, a Answers, home string) error {
+	miseDir := mise.Dir(repoProfileDir)
+	if err := mise.EnsureConfig(miseDir); err != nil {
+		return err
+	}
+	if err := convertProfileBrewfile(ios, repoProfileDir); err != nil {
+		return err
+	}
+	if !a.ImportPackages {
+		return nil
+	}
+	// Importing is a convenience — a missing mise or brew must not fail
+	// the init, it just means the profile starts without the installed
+	// packages.
+	bin, err := mise.Lookup(exec.LookPath, home)
 	if err != nil {
-		return nil, fmt.Errorf("create scratch dump file: %w", err)
+		tui.Warnf(ios, "Could not import the installed packages (dotty packages import retries later): %v", err)
+		return nil
 	}
-	tmpPath := tmp.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-	if err := tmp.Close(); err != nil {
-		return nil, fmt.Errorf("close scratch dump file: %w", err)
-	}
-	// force only because CreateTemp pre-creates the file.
-	if err := brewfile.Dump(ctx, r, tmpPath, false, true); err != nil {
-		return nil, err
-	}
-	dumped, err := os.ReadFile(tmpPath)
+	entries, err := mise.ImportToScratch(ctx, r, bin, miseDir, false)
 	if err != nil {
-		return nil, fmt.Errorf("read scratch dump file: %w", err)
+		tui.Warnf(ios, "Could not import the installed packages (dotty packages import retries later): %v", err)
+		return nil
 	}
-	return dumped, nil
+	added, err := mise.MergeImported(miseDir, entries)
+	if err != nil {
+		return err
+	}
+	if added > 0 {
+		tui.Successf(ios, "Imported %d installed packages into %s", added, mise.ConfigPath(miseDir))
+	}
+	return nil
+}
+
+// convertProfileBrewfile merges a legacy profile Brewfile into the mise
+// config.toml as tools and bootstrap packages. The Brewfile stays where it
+// is — the conversion is best-effort and the file is the user's to delete
+// once the result checks out; a re-run finds nothing new and stays quiet.
+func convertProfileBrewfile(ios cli.IOStreams, repoProfileDir string) error {
+	brewPath := filepath.Join(repoProfileDir, "Brewfile")
+	data, err := os.ReadFile(brewPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read %s: %w", brewPath, err)
+	}
+	miseDir := mise.Dir(repoProfileDir)
+	conv := mise.ConvertBrewfile(data)
+	added, err := mise.MergeConversion(miseDir, conv)
+	if err != nil || added == 0 {
+		return err
+	}
+	for _, w := range conv.Warnings {
+		tui.Warnf(ios, "Brewfile: %s", w)
+	}
+	tui.Successf(ios, "Converted %d Brewfile entries into %s", added, mise.ConfigPath(miseDir))
+	tui.Infof(ios, "%s is no longer read; delete it once the packages look right", brewPath)
+	return nil
 }

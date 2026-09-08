@@ -35,11 +35,11 @@ dotty profile new [flags]
       --agents strings            coding agents: claude-code,codex,opencode,antigravity,grok
       --allowed-serials strings   restrict the profile to these security-key serials
       --description string        short description of the profile
-      --dump-brews                seed the Brewfile from the installed packages
       --git-email string          git identity email for the private git config
       --git-name string           git identity name for the private git config
       --harden                    confine the coding agents: sandbox, credential-read denies, ask-first permissions
   -h, --help                      help for new
+      --import-packages           seed the profile's packages from the installed Homebrew formulae
       --macos-defaults strings    macOS defaults groups to apply (see the wizard picklist; empty for none)
       --marketplace               add the bitwise skills marketplace to the selected agents
       --name string               name for the new profile

@@ -1,2 +1,0 @@
-brew "lazygit"
-brew "neovim"

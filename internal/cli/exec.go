@@ -49,11 +49,38 @@ func (r *ExecRunner) Output(ctx context.Context, name string, args ...string) ([
 	return stdout.Bytes(), nil
 }
 
+// OutputEnv is Output with extraEnv appended to the current process
+// environment (later entries win, per os/exec semantics). A nil extraEnv
+// leaves the child inheriting dotty's environment unchanged.
+func (r *ExecRunner) OutputEnv(ctx context.Context, extraEnv []string, name string, args ...string) ([]byte, error) {
+	r.log.LogAttrs(ctx, slog.LevelDebug, "exec output", slog.String("cmd", name), slog.Any("args", args))
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = appendEnv(extraEnv)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return stdout.Bytes(), fmt.Errorf("run %s: %w: %s", name, err, msg)
+		}
+		return stdout.Bytes(), fmt.Errorf("run %s: %w", name, err)
+	}
+	return stdout.Bytes(), nil
+}
+
 // Run runs name with args, streaming stdout and stderr to the IOStreams. Stdin
 // is not connected; use RunInteractive for programs that prompt.
 func (r *ExecRunner) Run(ctx context.Context, name string, args ...string) error {
+	return r.RunEnv(ctx, nil, name, args...)
+}
+
+// RunEnv is Run with extraEnv appended to the current process environment
+// (later entries win, per os/exec semantics). A nil extraEnv leaves the child
+// inheriting dotty's environment unchanged.
+func (r *ExecRunner) RunEnv(ctx context.Context, extraEnv []string, name string, args ...string) error {
 	r.log.LogAttrs(ctx, slog.LevelDebug, "exec run", slog.String("cmd", name), slog.Any("args", args))
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = appendEnv(extraEnv)
 	cmd.Stdout = r.ios.Out
 	cmd.Stderr = r.ios.ErrOut
 	if err := cmd.Run(); err != nil {
@@ -62,9 +89,18 @@ func (r *ExecRunner) Run(ctx context.Context, name string, args ...string) error
 	return nil
 }
 
+// appendEnv builds the child environment for the *Env variants: nil when
+// extraEnv is empty (inherit), else the process environment plus extraEnv.
+func appendEnv(extraEnv []string) []string {
+	if len(extraEnv) == 0 {
+		return nil
+	}
+	return append(os.Environ(), extraEnv...)
+}
+
 // RunInteractive runs name with args wired to the full IOStreams, stdin
 // included. When the streams are the process's own, the child inherits the
-// terminal — required for editors, brew prompts, and ssh-keygen PIN entry.
+// terminal — required for editors, mise prompts, and ssh-keygen PIN entry.
 // A non-zero exit comes back as an *ExitError carrying the child's code.
 func (r *ExecRunner) RunInteractive(ctx context.Context, name string, args ...string) error {
 	return r.runInteractive(ctx, "", nil, name, args...)
@@ -78,11 +114,7 @@ func (r *ExecRunner) RunInteractive(ctx context.Context, name string, args ...st
 // reliably overridden — appending can't, since getenv returns the first of any
 // duplicate.
 func (r *ExecRunner) RunInteractiveEnv(ctx context.Context, extraEnv []string, name string, args ...string) error {
-	var env []string
-	if len(extraEnv) > 0 {
-		env = append(os.Environ(), extraEnv...)
-	}
-	return r.runInteractive(ctx, "", env, name, args...)
+	return r.runInteractive(ctx, "", appendEnv(extraEnv), name, args...)
 }
 
 // RunInteractiveEnvReplace is RunInteractive with the child's environment set to
@@ -178,7 +210,7 @@ func (r *ExecRunner) OutputStdin(ctx context.Context, stdin []byte, name string,
 func (r *ExecRunner) LookPath(name string) (string, error) {
 	path, err := exec.LookPath(name)
 	if err != nil {
-		return "", fmt.Errorf("%s not found in PATH (install it, e.g. `brew install %s`): %w", name, name, err)
+		return "", fmt.Errorf("%s not found in PATH (install it, e.g. `mise use -g %s`): %w", name, name, err)
 	}
 	return path, nil
 }

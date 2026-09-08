@@ -5,13 +5,6 @@ if [ -n "${ZSHPROFILE:-}" ]; then
 	zmodload zsh/zprof
 fi
 
-# ensure that brew is configured
-if command -v brew &> /dev/null; then
-	eval "$(brew shellenv)"
-elif [ -x '/opt/homebrew/bin/brew' ]; then
-	eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
-
 # set colors for the terminal
 export LS_COLORS="$(vivid generate ${VIVID_THEME:-cyberdream})"
 

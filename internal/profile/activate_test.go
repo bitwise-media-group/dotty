@@ -4,36 +4,11 @@
 package profile
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
-
-// fakeRunner satisfies brewfile.Runner, recording brew invocations.
-type fakeRunner struct {
-	calls [][]string
-	err   error
-}
-
-func (f *fakeRunner) Run(_ context.Context, name string, args ...string) error {
-	f.calls = append(f.calls, append([]string{name}, args...))
-	return f.err
-}
-
-func (f *fakeRunner) Output(_ context.Context, name string, args ...string) ([]byte, error) {
-	f.calls = append(f.calls, append([]string{name}, args...))
-	return nil, f.err
-}
-
-func activateForTest(t *testing.T, configDir, name string) (string, *fakeRunner, error) {
-	t.Helper()
-	r := &fakeRunner{}
-	dir, err := Activate(context.Background(), r, configDir, name)
-	return dir, r, err
-}
 
 // assertActive checks that dir's active profile resolves to name across the
 // symlink, ActiveDir, and ActiveName.
@@ -57,42 +32,19 @@ func assertActive(t *testing.T, dir, name string) {
 }
 
 func TestActivate(t *testing.T) {
-	t.Run("points the symlink at the profile and dumps a Brewfile", func(t *testing.T) {
+	t.Run("points the symlink at the profile", func(t *testing.T) {
 		dir := t.TempDir()
 		if _, err := Create(dir, "work", ""); err != nil {
 			t.Fatal(err)
 		}
-		got, r, err := activateForTest(t, dir, "work")
+		got, err := Activate(dir, "work")
 		if err != nil {
 			t.Fatalf("Activate() error: %v", err)
 		}
 		if want := Dir(dir, "work"); got != want {
 			t.Errorf("Activate() dir = %q, want %q", got, want)
 		}
-
 		assertActive(t, dir, "work")
-
-		// No Brewfile existed, so a dump must have been requested.
-		if len(r.calls) != 1 || !strings.Contains(strings.Join(r.calls[0], " "), "bundle dump") {
-			t.Errorf("brew calls = %v, want one bundle dump", r.calls)
-		}
-	})
-
-	t.Run("existing Brewfile is not re-dumped", func(t *testing.T) {
-		dir := t.TempDir()
-		if _, err := Create(dir, "work", ""); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(BrewfilePath(Dir(dir, "work")), []byte("brew \"jq\"\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		_, r, err := activateForTest(t, dir, "work")
-		if err != nil {
-			t.Fatalf("Activate() error: %v", err)
-		}
-		if len(r.calls) != 0 {
-			t.Errorf("brew calls = %v, want none", r.calls)
-		}
 	})
 
 	t.Run("re-activation swaps an existing link", func(t *testing.T) {
@@ -102,10 +54,10 @@ func TestActivate(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if _, _, err := activateForTest(t, dir, "one"); err != nil {
+		if _, err := Activate(dir, "one"); err != nil {
 			t.Fatal(err)
 		}
-		if _, _, err := activateForTest(t, dir, "two"); err != nil {
+		if _, err := Activate(dir, "two"); err != nil {
 			t.Fatalf("second Activate() error: %v", err)
 		}
 		name, err := ActiveName(dir)
@@ -115,7 +67,7 @@ func TestActivate(t *testing.T) {
 	})
 
 	t.Run("unknown profile is ErrNotFound", func(t *testing.T) {
-		_, _, err := activateForTest(t, t.TempDir(), "ghost")
+		_, err := Activate(t.TempDir(), "ghost")
 		if !errors.Is(err, ErrNotFound) {
 			t.Errorf("error = %v, want ErrNotFound", err)
 		}

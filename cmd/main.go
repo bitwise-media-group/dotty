@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 // Command dotty provides common utilities for operating a terminal-driven
-// workflow and dotfiles: machine profiles, Brewfile management, hardware
-// security-key aliases, and SSH signing keys on YubiKeys.
+// workflow and dotfiles: machine profiles, package management through mise,
+// hardware security-key aliases, and SSH signing keys on YubiKeys.
 package main
 
 import (
@@ -41,11 +41,11 @@ var (
 		Use:   "dotty <noun> <verb>",
 		Short: "Utilities for a terminal-driven workflow and dotfiles.",
 		Long: `dotty manages the moving parts of a terminal-centric machine setup:
-system profiles that travel across machines, the Homebrew Brewfile that keeps
-installs reproducible, named aliases for hardware security keys, and SSH
+system profiles that travel across machines, the mise-managed packages that
+keep installs reproducible, named aliases for hardware security keys, and SSH
 signing keys that live on those keys (including git commit signing).`,
 		Example: `  dotty profile new --name=work
-  dotty brewfile add --cask ghostty
+  dotty packages add brew-cask:ghostty
   dotty security-key add --name=primary
   dotty signing-key new`,
 		Version:       version.Version,

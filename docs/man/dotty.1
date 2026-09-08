@@ -11,8 +11,8 @@ dotty - Utilities for a terminal-driven workflow and dotfiles.
 
 .SH DESCRIPTION
 dotty manages the moving parts of a terminal-centric machine setup:
-system profiles that travel across machines, the Homebrew Brewfile that keeps
-installs reproducible, named aliases for hardware security keys, and SSH
+system profiles that travel across machines, the mise-managed packages that
+keep installs reproducible, named aliases for hardware security keys, and SSH
 signing keys that live on those keys (including git commit signing).
 
 
@@ -28,11 +28,11 @@ signing keys that live on those keys (including git commit signing).
 .SH EXAMPLE
 .EX
   dotty profile new --name=work
-  dotty brewfile add --cask ghostty
+  dotty packages add brew-cask:ghostty
   dotty security-key add --name=primary
   dotty signing-key new
 .EE
 
 
 .SH SEE ALSO
-\fBdotty-brewfile(1)\fP, \fBdotty-completion(1)\fP, \fBdotty-dotfiles(1)\fP, \fBdotty-env(1)\fP, \fBdotty-git(1)\fP, \fBdotty-init(1)\fP, \fBdotty-private(1)\fP, \fBdotty-profile(1)\fP, \fBdotty-security-key(1)\fP, \fBdotty-signing-key(1)\fP, \fBdotty-tmux(1)\fP, \fBdotty-worktree(1)\fP
+\fBdotty-completion(1)\fP, \fBdotty-dotfiles(1)\fP, \fBdotty-env(1)\fP, \fBdotty-git(1)\fP, \fBdotty-init(1)\fP, \fBdotty-packages(1)\fP, \fBdotty-private(1)\fP, \fBdotty-profile(1)\fP, \fBdotty-security-key(1)\fP, \fBdotty-signing-key(1)\fP, \fBdotty-tmux(1)\fP, \fBdotty-worktree(1)\fP

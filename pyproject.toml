@@ -4,7 +4,7 @@
 [project]
 name = "dotty"
 version = "0.1.0"
-description = "Utilities for a terminal-driven workflow and dotfiles: profiles, Brewfiles, security-key aliases and YubiKey-resident SSH signing keys."
+description = "Utilities for a terminal-driven workflow and dotfiles: profiles, mise-locked packages, security-key aliases and YubiKey-resident SSH signing keys."
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT"

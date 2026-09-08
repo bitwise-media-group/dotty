@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 	"github.com/bitwise-media-group/dotty/internal/wizard"
@@ -48,9 +49,14 @@ func profileEnv(t *testing.T) (configDir, backing string) {
 		[]byte(`{"profile":"work","description":"employer machines"}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// A Brewfile keeps activation from dumping one off the real machine.
-	if err := os.WriteFile(profile.BrewfilePath(backing),
-		[]byte("# work packages\nbrew \"jq\"\n\ncask \"ghostty\"\n"), 0o644); err != nil {
+	// The work profile declares two packages of its own and none from
+	// components.
+	if err := os.MkdirAll(mise.Dir(backing), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mise.ConfigPath(mise.Dir(backing)),
+		[]byte("[bootstrap.packages]\n\"brew:jq\" = \"latest\"\n\"brew-cask:ghostty\" = { version = \"latest\", os = \"macos\" }\n"),
+		0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(backing, profile.Dir(configDir, "work")); err != nil {
@@ -113,8 +119,11 @@ func TestProfileNewRunsInit(t *testing.T) {
 		!slices.Contains(answers.AddOns, "tmux") {
 		t.Errorf("stored answers = %+v", answers)
 	}
-	if _, err := os.Stat(profile.BrewfilePath(profileDir)); err != nil {
-		t.Errorf("profile has no Brewfile: %v", err)
+	for _, want := range []string{mise.ConfigPath(mise.Dir(profileDir)),
+		filepath.Join(mise.ConfDDir(mise.Dir(profileDir)), "addon-tmux.toml")} {
+		if _, err := os.Stat(want); err != nil {
+			t.Errorf("profile missing %s: %v", want, err)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(repo, "home", ".config", "tmux", "tmux.conf")); err != nil {
 		t.Errorf("repository not rendered: %v", err)
@@ -169,7 +178,7 @@ func TestProfileGet(t *testing.T) {
 		"PATH         " + profile.Dir(configDir, "work"),
 		"LINKS TO     " + backing,
 		"ACTIVE       no",
-		"BREWFILE     2 entries",
+		"PACKAGES     2 entries (0 from components)",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("get output missing %q:\n%s", want, out)
@@ -177,12 +186,12 @@ func TestProfileGet(t *testing.T) {
 	}
 
 	// No name: the active profile, which is a plain directory with no
-	// Brewfile and so has neither a link target nor entries to report.
+	// mise directory and so has neither a link target nor entries to report.
 	out, err = captureOut(t, func() error { return execDotty(t, "profile", "get") })
 	if err != nil {
 		t.Fatalf("profile get: %v", err)
 	}
-	for _, want := range []string{"NAME         personal", "ACTIVE       yes", "BREWFILE     none"} {
+	for _, want := range []string{"NAME         personal", "ACTIVE       yes", "PACKAGES     none"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("get output missing %q:\n%s", want, out)
 		}

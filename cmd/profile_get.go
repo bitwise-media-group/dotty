@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 )
 
@@ -30,8 +30,8 @@ var profileGetCmd = &cobra.Command{
 	Short: "Show a profile's metadata and where it lives.",
 	Long: `Print a profile's metadata — name, description, creation date — alongside the
 machine state around it: the profile directory, the dotfiles repository
-directory it links to, whether it is the active profile, and how many entries
-its Brewfile carries. Without a name dotty describes the active profile, or
+directory it links to, whether it is the active profile, and how many
+packages it declares (and how many of those come from component fragments). Without a name dotty describes the active profile, or
 the one the global --profile names.
 
 --format=json prints profile.json verbatim instead, which for a profile dotty
@@ -70,7 +70,7 @@ machine, so the link target and active flag are text-mode only.`,
 		if err != nil && !errors.Is(err, profile.ErrNoActiveProfile) {
 			return err
 		}
-		entries, err := brewfileEntries(profile.BrewfilePath(site))
+		packages, err := packagesSummary(mise.Dir(site))
 		if err != nil {
 			return err
 		}
@@ -88,7 +88,7 @@ machine, so the link target and active flag are text-mode only.`,
 		}
 		fields = append(fields,
 			[2]string{"ACTIVE", yesNo(name == active)},
-			[2]string{"BREWFILE", brewfileSummary(entries)},
+			[2]string{"PACKAGES", packages},
 		)
 		for _, f := range fields {
 			_, _ = fmt.Fprintf(ios.Out, "%-11s  %s\n", f[0], f[1])
@@ -121,32 +121,25 @@ func printProfileJSON(ios cli.IOStreams, site string, p profile.Profile) error {
 	return nil
 }
 
-// brewfileEntries counts a Brewfile's declarations, -1 when the profile has no
-// Brewfile yet. brew bundle writes one entry per line, so the non-blank,
-// non-comment lines are the entries.
-func brewfileEntries(path string) (int, error) {
-	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return -1, nil
+// packagesSummary renders how many packages the profile's mise directory
+// declares and how many of them come from component fragments; "none" for
+// a profile with no mise directory yet.
+func packagesSummary(dir string) (string, error) {
+	if _, err := os.Stat(mise.ConfigPath(dir)); errors.Is(err, fs.ErrNotExist) {
+		return "none", nil
 	}
+	declared, err := mise.Declared(dir)
 	if err != nil {
-		return 0, fmt.Errorf("read Brewfile %s: %w", path, err)
+		return "", err
 	}
-	count := 0
-	for _, line := range strings.Split(string(data), "\n") {
-		if trimmed := strings.TrimSpace(line); trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			count++
+	fromFragments := 0
+	for _, e := range declared {
+		if e.File != mise.ConfigPath(dir) {
+			fromFragments++
 		}
 	}
-	return count, nil
-}
-
-// brewfileSummary renders the count brewfileEntries returned.
-func brewfileSummary(entries int) string {
-	if entries < 0 {
-		return "none"
-	}
-	return fmt.Sprintf("%d entr%s", entries, plural(entries, "y", "ies"))
+	return fmt.Sprintf("%d entr%s (%d from components)", len(declared), plural(len(declared), "y", "ies"),
+		fromFragments), nil
 }
 
 // yesNo renders a boolean the way the get tables read it.

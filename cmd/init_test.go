@@ -24,6 +24,8 @@ func initEnv(t *testing.T) string {
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+	// A fake mise in the home keeps init from installing the real one.
+	installFakeMise(t, home)
 	return home
 }
 
@@ -34,7 +36,7 @@ func TestInitEndToEnd(t *testing.T) {
 	err := execDotty(t, "init",
 		"--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"),
 		"--profile-name=testbox", "--addons=tmux,lsd", "--agents=claude-code,codex",
-		"--dump-brews=false", "--marketplace", "--on-conflict=backup", "--yes", "--skip-font", "--skip-git")
+		"--import-packages=false", "--marketplace", "--on-conflict=backup", "--yes", "--skip-font", "--skip-git")
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -92,13 +94,22 @@ func assertRepoAndProfile(t *testing.T, home, repo string) {
 		}
 	}
 
-	// The profile exists, is active, and its Brewfile carries the selections.
-	brew, err := os.ReadFile(filepath.Join(profileDir, "Brewfile"))
+	// The profile exists, is active, and its mise directory carries the
+	// selections as fragments beside the user-owned config.
+	fragment, err := os.ReadFile(filepath.Join(profileDir, "mise", "conf.d", "addon-tmux.toml"))
 	if err != nil {
-		t.Fatalf("profile Brewfile: %v", err)
+		t.Fatalf("profile tmux fragment: %v", err)
 	}
-	if !containsLine(string(brew), `brew "tmux"`) {
-		t.Errorf("Brewfile missing tmux:\n%s", brew)
+	if !containsLine(string(fragment), `"aqua:tmux/tmux-builds" = "latest"`) {
+		t.Errorf("tmux fragment missing the tool:\n%s", fragment)
+	}
+	if _, err := os.Stat(filepath.Join(profileDir, "mise", "conf.d", "addon-yazi.toml")); err == nil {
+		t.Error("unselected add-on yazi has a fragment")
+	}
+	if got, err := os.ReadFile(filepath.Join(profileDir, "mise", "config.toml")); err != nil {
+		t.Errorf("profile mise config: %v", err)
+	} else if !containsLine(string(got), "lockfile = true") {
+		t.Errorf("profile mise config is not the template:\n%s", got)
 	}
 	active, err := os.Readlink(filepath.Join(home, ".config", "dotty", "active-profile"))
 	if err != nil || filepath.Base(active) != "testbox" {
@@ -120,6 +131,13 @@ func assertHomeLinks(t *testing.T, home, repo string) {
 		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 			t.Errorf("~/%s should be a real directory: %v, %v", real, info, err)
 		}
+	}
+	wantMise := filepath.Join(home, ".config", "dotty", "active-profile", "mise")
+	if link, err := os.Readlink(filepath.Join(home, ".config", "mise")); err != nil || link != wantMise {
+		t.Errorf("~/.config/mise link = %q, %v (want %s)", link, err, wantMise)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".config", "mise", "config.toml")); err != nil {
+		t.Errorf("~/.config/mise does not resolve to the profile's config: %v", err)
 	}
 	wantDest := filepath.Join(home, ".config", "dotty", "active-profile",
 		"home", ".config", "claude", "settings.json")
@@ -151,7 +169,7 @@ func TestInitRerunInsideRepo(t *testing.T) {
 
 	if err := execDotty(t, "init",
 		"--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"), "--profile-name=personal",
-		"--addons=", "--agents=", "--dump-brews=false", "--on-conflict=backup",
+		"--addons=", "--agents=", "--import-packages=false", "--on-conflict=backup",
 		"--yes", "--skip-font", "--skip-git"); err != nil {
 		t.Fatalf("first init: %v", err)
 	}
@@ -206,7 +224,7 @@ func TestInitRepoFlagAdoptsClone(t *testing.T) {
 
 	if err := execDotty(t, "init",
 		"--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"), "--profile-name=personal",
-		"--addons=tmux", "--agents=", "--dump-brews=false", "--on-conflict=backup",
+		"--addons=tmux", "--agents=", "--import-packages=false", "--on-conflict=backup",
 		"--yes", "--skip-font", "--skip-git"); err != nil {
 		t.Fatalf("first init: %v", err)
 	}
@@ -241,21 +259,20 @@ func TestInitRerunExtendsProfile(t *testing.T) {
 
 	if err := execDotty(t, "init",
 		"--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"), "--profile-name=box",
-		"--addons=tmux", "--agents=claude-code", "--marketplace", "--dump-brews=false",
+		"--addons=tmux", "--agents=claude-code", "--marketplace", "--import-packages=false",
 		"--on-conflict=backup", "--yes", "--skip-font", "--skip-git"); err != nil {
 		t.Fatalf("first init: %v", err)
 	}
 
-	// A user-added Brewfile entry (dotty brewfile add, or by hand) must
-	// survive the re-run — issue 109.
-	brewPath := filepath.Join(repo, "profiles", "box", "Brewfile")
-	brews, err := os.ReadFile(brewPath)
+	// A user-added package (dotty packages add, or by hand) must survive
+	// the re-run — issue 109.
+	configPath := filepath.Join(repo, "profiles", "box", "mise", "config.toml")
+	config, err := os.ReadFile(configPath)
 	if err != nil {
-		t.Fatalf("read profile Brewfile: %v", err)
+		t.Fatalf("read profile mise config: %v", err)
 	}
-	// The composed Brewfile carries no trailing newline; start a fresh line.
-	brews = append(brews, "\nbrew \"user-added\"\n"...)
-	if err := os.WriteFile(brewPath, brews, 0o644); err != nil {
+	config = append(config, "\"brew:user-added\" = \"latest\"\n"...)
+	if err := os.WriteFile(configPath, config, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -267,15 +284,18 @@ func TestInitRerunExtendsProfile(t *testing.T) {
 		t.Fatalf("re-run: %v", err)
 	}
 
-	merged, err := os.ReadFile(brewPath)
+	merged, err := os.ReadFile(configPath)
 	if err != nil {
-		t.Fatalf("read profile Brewfile after re-run: %v", err)
+		t.Fatalf("read profile mise config after re-run: %v", err)
 	}
-	if !containsLine(string(merged), `brew "user-added"`) {
-		t.Errorf("user Brewfile entry destroyed by re-run:\n%s", merged)
+	if !containsLine(string(merged), `"brew:user-added" = "latest"`) {
+		t.Errorf("user package destroyed by re-run:\n%s", merged)
 	}
-	if strings.Count(string(merged), `brew "tmux"`) != 1 {
-		t.Errorf("tmux not exactly once after re-run:\n%s", merged)
+	if strings.Contains(string(merged), "tmux") {
+		t.Errorf("component package leaked into the user config:\n%s", merged)
+	}
+	if _, err := os.Stat(filepath.Join(repo, "profiles", "box", "mise", "conf.d", "addon-lsd.toml")); err != nil {
+		t.Errorf("extended add-on lsd has no fragment: %v", err)
 	}
 
 	answers, err := scaffold.LoadAnswers(filepath.Join(home, ".config", "dotty", "box"))
@@ -290,6 +310,53 @@ func TestInitRerunExtendsProfile(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(repo, "home", ".config", "lsd")); err != nil {
 		t.Errorf("extended add-on lsd not rendered: %v", err)
+	}
+}
+
+// TestInitAdoptsLiveMiseConfig pins the takeover of a machine's existing
+// ~/.config/mise: its config is seeded into the profile, the real directory
+// is backed up, and the site becomes the profile link.
+func TestInitAdoptsLiveMiseConfig(t *testing.T) {
+	home := initEnv(t)
+	repo := filepath.Join(home, "Repos", "dotfiles")
+	live := filepath.Join(home, ".config", "mise")
+	if err := os.MkdirAll(live, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	liveConfig := "[tools]\nnode = \"lts\"\n"
+	if err := os.WriteFile(filepath.Join(live, "config.toml"), []byte(liveConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(live, "mise.lock"), []byte("lockfile_version = 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := execDotty(t, "init", "--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"),
+		"--profile-name=box", "--addons=", "--agents=", "--import-packages=false",
+		"--on-conflict=backup", "--yes", "--skip-font", "--skip-git"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	profileMise := filepath.Join(repo, "profiles", "box", "mise")
+	config, err := os.ReadFile(filepath.Join(profileMise, "config.toml"))
+	if err != nil {
+		t.Fatalf("profile mise config: %v", err)
+	}
+	for _, want := range []string{`node = "lts"`, "lockfile = true", "adopt = true"} {
+		if !containsLine(string(config), want) {
+			t.Errorf("seeded config missing %s:\n%s", want, config)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(profileMise, "mise.lock")); err != nil {
+		t.Errorf("lockfile not carried into the profile: %v", err)
+	}
+	wantLink := filepath.Join(home, ".config", "dotty", "active-profile", "mise")
+	if link, err := os.Readlink(live); err != nil || link != wantLink {
+		t.Errorf("~/.config/mise = %q, %v (want link to %s)", link, err, wantLink)
+	}
+	backups, err := filepath.Glob(filepath.Join(home, ".local", "share", "dotty", "backups", "*", live, "config.toml"))
+	if err != nil || len(backups) != 1 {
+		t.Errorf("live mise config not backed up: %v, %v", backups, err)
 	}
 }
 
@@ -308,7 +375,7 @@ func TestInitBacksUpConflicts(t *testing.T) {
 
 	err := execDotty(t, "init",
 		"--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"), "--profile-name=box",
-		"--addons=", "--agents=", "--dump-brews=false", "--on-conflict=backup",
+		"--addons=", "--agents=", "--import-packages=false", "--on-conflict=backup",
 		"--yes", "--skip-font", "--skip-git")
 	if err != nil {
 		t.Fatalf("init: %v", err)
@@ -343,7 +410,7 @@ func TestDotfilesStatusAndLink(t *testing.T) {
 	t.Setenv("REPOS_DIR", filepath.Join(home, "Repos"))
 
 	if err := execDotty(t, "init", "--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"),
-		"--profile-name=box", "--addons=", "--agents=", "--dump-brews=false",
+		"--profile-name=box", "--addons=", "--agents=", "--import-packages=false",
 		"--yes", "--skip-font", "--skip-git"); err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -374,7 +441,7 @@ func TestInitSecurityKeys(t *testing.T) {
 
 	err := execDotty(t, "init",
 		"--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"), "--profile-name=keys",
-		"--addons=", "--agents=", "--dump-brews=false", "--security-keys",
+		"--addons=", "--agents=", "--import-packages=false", "--security-keys",
 		"--git-name=Ada Lovelace", "--git-email=ada@example.com", "--allowed-serials=111,222",
 		"--on-conflict=backup", "--yes", "--skip-font", "--skip-git", "--skip-keys")
 	if err != nil {
@@ -406,10 +473,10 @@ func TestInitSecurityKeys(t *testing.T) {
 		t.Errorf("re-run overwrote the private config:\n%s", got)
 	}
 
-	// The Brewfile picked up the security-key packages.
-	brew, err := os.ReadFile(filepath.Join(repo, "profiles", "keys", "Brewfile"))
-	if err != nil || !containsLine(string(brew), `brew "ykman"`) {
-		t.Errorf("Brewfile missing ykman: %v", err)
+	// The profile picked up the security-key packages.
+	fragment, err := os.ReadFile(filepath.Join(repo, "profiles", "keys", "mise", "conf.d", "feature-security-keys.toml"))
+	if err != nil || !containsLine(string(fragment), `"pipx:yubikey-manager" = "latest"`) {
+		t.Errorf("security-keys fragment missing ykman: %v", err)
 	}
 }
 
@@ -493,7 +560,7 @@ func testInitUsesExistingKeys(t *testing.T, allowed string) {
 	initFlags = wizard.Flags{}
 	args := []string{"init",
 		"--repo=" + repo, "--repos-dir=" + filepath.Join(home, "Repos"), "--profile-name=adopted",
-		"--addons=", "--agents=", "--dump-brews=false", "--security-keys",
+		"--addons=", "--agents=", "--import-packages=false", "--security-keys",
 		"--git-name=T", "--git-email=t@x", "--on-conflict=backup", "--yes", "--skip-font", "--skip-git"}
 	if allowed != "" {
 		args = append(args, "--allowed-serials="+allowed)
@@ -517,7 +584,7 @@ func TestInitWithoutSecurityKeys(t *testing.T) {
 
 	err := execDotty(t, "init",
 		"--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"), "--profile-name=nokeys",
-		"--addons=", "--agents=", "--dump-brews=false", "--security-keys=false",
+		"--addons=", "--agents=", "--import-packages=false", "--security-keys=false",
 		"--git-name=Ada", "--git-email=ada@example.com",
 		"--on-conflict=backup", "--yes", "--skip-font", "--skip-git", "--skip-keys")
 	if err != nil {
@@ -750,11 +817,18 @@ func TestInitMigratesLegacyLayout(t *testing.T) {
 	if !answers.Harden || !slices.Equal(answers.Agents, []string{"claude-code"}) {
 		t.Errorf("merged answers lost selections: %+v", answers)
 	}
-	// The legacy profile's Brewfile entries survive the migration re-render.
-	if brews, err := os.ReadFile(filepath.Join(profileDir, "Brewfile")); err != nil {
-		t.Errorf("migrated Brewfile missing: %v", err)
-	} else if !containsLine(string(brews), `brew "tmux"`) {
-		t.Errorf("migrated Brewfile lost the legacy tmux entry:\n%s", brews)
+	// The legacy profile's Brewfile entries are converted into the mise
+	// config — tmux is not a selected component here, so it lands in the
+	// user-owned config as its tool — and the Brewfile itself stays for
+	// the user to delete.
+	if config, err := os.ReadFile(filepath.Join(profileDir, "mise", "config.toml")); err != nil {
+		t.Errorf("migrated profile has no mise config: %v", err)
+	} else if !containsLine(string(config), `"aqua:tmux/tmux-builds" = "latest"`) ||
+		!containsLine(string(config), "# imported from Brewfile") {
+		t.Errorf("migrated config lost the legacy tmux entry:\n%s", config)
+	}
+	if _, err := os.Stat(filepath.Join(profileDir, "Brewfile")); err != nil {
+		t.Errorf("legacy Brewfile removed by the migration: %v", err)
 	}
 	if answers.Description != "legacy box" || answers.CreatedAt.IsZero() {
 		t.Errorf("metadata lost in merge: description=%q created=%v", answers.Description, answers.CreatedAt)

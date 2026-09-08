@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
 	"text/template"
 
-	"github.com/bitwise-media-group/dotty/internal/brewfile"
 	"github.com/bitwise-media-group/dotty/internal/cli"
 )
 
@@ -29,7 +29,15 @@ type FileOp struct {
 	Mode       fs.FileMode
 	Templated  bool
 	PerProfile bool // renders into the profile's dir, not the repo root
+	// KeepExisting renders the file only when the destination is missing:
+	// the first render seeds it, after which the user owns it.
+	KeepExisting bool
 }
+
+// MiseFragmentsDir is the profile-relative directory the selected
+// components' mise fragments render into; mise merges every *.toml in it
+// with the profile's config.toml.
+const MiseFragmentsDir = "mise/conf.d"
 
 // Plan resolves the answers' selections against the manifest and returns the
 // file operations that build the repository, deterministically ordered.
@@ -59,6 +67,13 @@ func Plan(a Answers) ([]FileOp, error) {
 			}
 			ops = append(ops, newOp(src, dst))
 		}
+		if c.Mise != "" {
+			if _, err := fs.Stat(templateFS, c.Mise); err != nil {
+				return nil, fmt.Errorf("component %s: %w", c.ID, err)
+			}
+			ops = append(ops, FileOp{Src: c.Mise, Dst: path.Join(MiseFragmentsDir, path.Base(c.Mise)),
+				Mode: 0o644, PerProfile: true})
+		}
 	}
 	ops = append(ops, sharedDocOps(components)...)
 
@@ -85,7 +100,8 @@ func newOp(src, dst string) FileOp {
 	if executable[src] {
 		mode = 0o755
 	}
-	return FileOp{Src: src, Dst: dst, Mode: mode, Templated: templated[src], PerProfile: perProfile[src]}
+	return FileOp{Src: src, Dst: dst, Mode: mode, Templated: templated[src], PerProfile: perProfile[src],
+		KeepExisting: keepExisting[src]}
 }
 
 // sharedDocOps places the shared agent-memory doc: rendered once at the
@@ -133,6 +149,11 @@ func Render(ops []FileOp, repoDir, profileDir string, v Vars) error {
 		if err := cli.EnsureDir(filepath.Dir(dst), 0o755); err != nil {
 			return err
 		}
+		if op.KeepExisting {
+			if _, err := os.Lstat(dst); err == nil {
+				continue
+			}
+		}
 		if op.LinkTo != "" {
 			if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("clear %s: %w", dst, err)
@@ -159,13 +180,18 @@ func Render(ops []FileOp, repoDir, profileDir string, v Vars) error {
 	return nil
 }
 
-// PrunePerProfile removes entries under the profile's home/ tree that ops no
-// longer render — orphans left behind when a template file relocates
-// (~/.claude/settings.json → ~/.config/claude/settings.json) or a component
-// is deselected. The tree is wholly machine-rendered, so an unplanned entry
-// is never a user file; directories the pruning empties go too. It returns
-// the pruned paths relative to the home/ tree, so the caller can heal the
-// live symlinks they leave dangling.
+// prunedRoots are the profile-relative trees that are wholly
+// machine-rendered: an unplanned entry under them is never a user file.
+var prunedRoots = []string{"home", MiseFragmentsDir}
+
+// PrunePerProfile removes entries under the profile's rendered trees — the
+// home/ tree and the mise fragments — that ops no longer render: orphans
+// left behind when a template file relocates (~/.claude/settings.json →
+// ~/.config/claude/settings.json) or a component is deselected. The trees
+// are wholly machine-rendered, so an unplanned entry is never a user file;
+// directories the pruning empties go too. It returns the pruned paths
+// relative to the profile directory, so the caller can heal the live
+// symlinks they leave dangling.
 func PrunePerProfile(profileDir string, ops []FileOp) ([]string, error) {
 	planned := make(map[string]bool, len(ops))
 	for _, op := range ops {
@@ -174,41 +200,42 @@ func PrunePerProfile(profileDir string, ops []FileOp) ([]string, error) {
 		}
 	}
 
-	root := filepath.Join(profileDir, "home")
-	var orphans []string
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		rel, err := filepath.Rel(profileDir, path)
-		if err != nil {
-			return err
-		}
-		if !planned[rel] {
-			orphans = append(orphans, path)
-		}
-		return nil
-	})
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil // no home tree yet — nothing to prune
-	}
-	if err != nil {
-		return nil, fmt.Errorf("prune profile renders: %w", err)
-	}
-
 	var pruned []string
-	for _, path := range orphans {
-		if err := os.Remove(path); err != nil {
-			return pruned, fmt.Errorf("prune %s: %w", path, err)
+	for _, rootRel := range prunedRoots {
+		root := filepath.Join(profileDir, rootRel)
+		var orphans []string
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			rel, err := filepath.Rel(profileDir, path)
+			if err != nil {
+				return err
+			}
+			if !planned[rel] {
+				orphans = append(orphans, path)
+			}
+			return nil
+		})
+		if errors.Is(err, fs.ErrNotExist) {
+			continue // no such tree yet — nothing to prune
 		}
-		rel, err := filepath.Rel(root, path)
 		if err != nil {
-			return pruned, err
+			return pruned, fmt.Errorf("prune profile renders: %w", err)
 		}
-		pruned = append(pruned, rel)
-		for dir := filepath.Dir(path); dir != root; dir = filepath.Dir(dir) {
-			if os.Remove(dir) != nil {
-				break // still holds planned renders; so do its parents
+		for _, path := range orphans {
+			if err := os.Remove(path); err != nil {
+				return pruned, fmt.Errorf("prune %s: %w", path, err)
+			}
+			rel, err := filepath.Rel(profileDir, path)
+			if err != nil {
+				return pruned, err
+			}
+			pruned = append(pruned, rel)
+			for dir := filepath.Dir(path); dir != root; dir = filepath.Dir(dir) {
+				if os.Remove(dir) != nil {
+					break // still holds planned renders; so do its parents
+				}
 			}
 		}
 	}
@@ -226,91 +253,6 @@ func render(name string, data []byte, v Vars) ([]byte, error) {
 		return nil, fmt.Errorf("render %s: %w", name, err)
 	}
 	return buf.Bytes(), nil
-}
-
-// ComposeBrewfile concatenates the core Brewfile fragment with each
-// selection's, dropping lines already emitted so shared dependencies appear
-// once.
-func ComposeBrewfile(a Answers) ([]byte, error) {
-	components, err := selected(a)
-	if err != nil {
-		return nil, err
-	}
-
-	var out bytes.Buffer
-	seen := make(map[string]bool)
-	for _, c := range components {
-		if c.Brewfile == "" {
-			continue
-		}
-		data, err := fs.ReadFile(templateFS, c.Brewfile)
-		if err != nil {
-			return nil, fmt.Errorf("component %s: %w", c.ID, err)
-		}
-		for line := range strings.Lines(string(data)) {
-			trimmed := strings.TrimRight(line, "\n")
-			if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-				if seen[trimmed] {
-					continue
-				}
-				seen[trimmed] = true
-			}
-			out.WriteString(trimmed)
-			out.WriteByte('\n')
-		}
-		out.WriteByte('\n')
-	}
-	return bytes.TrimRight(out.Bytes(), "\n"), nil
-}
-
-// MergeBrewfile appends composed's package lines to an existing Brewfile,
-// skipping entries the file already carries and leaving comments and blanks
-// as structure. Entries match by package, not by exact line, so an existing
-// `brew "x", trusted: true` suppresses a composed `brew "x"`.
-func MergeBrewfile(existing, composed []byte) []byte {
-	return mergeUnder(existing, composed, "# template packages")
-}
-
-// mergeUnder appends extra's entry lines not already present in existing
-// under a header comment. Entry lines compare by brewfile.LineKey so the
-// same package with different options, casing, or tap qualification counts
-// as present; non-entry lines compare verbatim.
-func mergeUnder(existing, extra []byte, header string) []byte {
-	present := make(map[string]bool)
-	for line := range strings.Lines(string(existing)) {
-		present[entryKey(strings.TrimRight(line, "\n"))] = true
-	}
-	out := bytes.TrimRight(existing, "\n")
-	var added []string
-	for line := range strings.Lines(string(extra)) {
-		trimmed := strings.TrimRight(line, "\n")
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		key := entryKey(trimmed)
-		if present[key] {
-			continue
-		}
-		present[key] = true
-		added = append(added, trimmed)
-	}
-	if len(added) == 0 {
-		return append(out, '\n')
-	}
-	out = append(out, "\n\n"...)
-	out = append(out, header...)
-	out = append(out, '\n')
-	out = append(out, strings.Join(added, "\n")...)
-	return append(out, '\n')
-}
-
-// entryKey is brewfile.LineKey with the exact line as fallback, so non-entry
-// lines still dedupe verbatim.
-func entryKey(trimmed string) string {
-	if key := brewfile.LineKey(trimmed); key != "" {
-		return key
-	}
-	return trimmed
 }
 
 // Unfold returns the $HOME-relative directories that must exist as real

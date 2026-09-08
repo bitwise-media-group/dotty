@@ -8,14 +8,14 @@ package scaffold
 const sharedDoc = "template/shared/AGENTS.md"
 
 // Component is one selectable unit of the template: the embedded paths it
-// contributes, its Brewfile fragment, and the $HOME directories that must
+// contributes, its mise fragment, and the $HOME directories that must
 // stay real directories (Unfold) so tools writing runtime state beside their
 // config never write through a folded symlink into the repository.
 type Component struct {
 	ID       string
 	Prefixes []string          // embedded dirs/files copied to the same repo-relative path
 	Renames  map[string]string // embedded path → repo-relative destination
-	Brewfile string            // embedded Brewfile fragment
+	Mise     string            // embedded mise conf.d fragment (tools and bootstrap packages)
 	Unfold   []string          // $HOME-relative dirs pre-created as real dirs
 	Doc      string            // repo-relative home of the shared agent doc
 }
@@ -53,6 +53,7 @@ var templated = map[string]bool{
 // profile swaps them all at once, and the shared repository never carries a
 // machine-specific byte.
 var perProfile = map[string]bool{
+	"template/mise/config.toml":                     true,
 	"template/machine/env.zsh":                      true,
 	"template/machine/git.gitconfig":                true,
 	"template/machine/worktrees.gitconfig":          true,
@@ -61,6 +62,13 @@ var perProfile = map[string]bool{
 	"template/home/.config/opencode/opencode.jsonc": true,
 	"template/home/.config/grok/config.toml":        true,
 	"template/home/.config/grok/sandbox.toml":       true,
+}
+
+// keepExisting lists the embedded files rendered once and then owned by the
+// user: the profile's mise config.toml, which `dotty packages add` and
+// `mise use -g` write into, so a re-render must not reset it.
+var keepExisting = map[string]bool{
+	"template/mise/config.toml": true,
 }
 
 // executable lists the embedded files written 0o755 — go:embed does not
@@ -92,8 +100,9 @@ var manifest = []Component{
 			"template/machine/env.zsh":             "env.zsh",
 			"template/machine/git.gitconfig":       "git.gitconfig",
 			"template/machine/worktrees.gitconfig": "worktrees.gitconfig",
+			"template/mise/config.toml":            "mise/config.toml",
 		},
-		Brewfile: "template/brewfile.d/core.Brewfile",
+		Mise: "template/mise.d/core.toml",
 		// .config/dotty stays a real directory so the machine-local
 		// active-profile symlink lives beside the repo-linked profiles.
 		Unfold: []string{".config", ".config/dotty", ".config/zsh"},
@@ -102,71 +111,71 @@ var manifest = []Component{
 	{
 		ID:       "addon:btop",
 		Prefixes: []string{"template/home/.config/btop"},
-		Brewfile: "template/brewfile.d/addon-btop.Brewfile",
+		Mise:     "template/mise.d/addon-btop.toml",
 	},
 	{
 		ID:       "addon:k9s",
 		Prefixes: []string{"template/home/.config/k9s"},
-		Brewfile: "template/brewfile.d/addon-k9s.Brewfile",
+		Mise:     "template/mise.d/addon-k9s.toml",
 	},
 	{
 		ID:       "addon:lazygit",
 		Prefixes: []string{"template/home/.config/lazygit"},
-		Brewfile: "template/brewfile.d/addon-lazygit.Brewfile",
+		Mise:     "template/mise.d/addon-lazygit.toml",
 	},
 	{
 		ID:       "addon:lsd",
 		Prefixes: []string{"template/home/.config/lsd"},
-		Brewfile: "template/brewfile.d/addon-lsd.Brewfile",
+		Mise:     "template/mise.d/addon-lsd.toml",
 	},
 	{
 		ID:       "addon:tmux",
 		Prefixes: []string{"template/home/.config/tmux"},
-		Brewfile: "template/brewfile.d/addon-tmux.Brewfile",
+		Mise:     "template/mise.d/addon-tmux.toml",
 	},
 	{
 		ID:       "addon:yazi",
 		Prefixes: []string{"template/home/.config/yazi"},
-		Brewfile: "template/brewfile.d/addon-yazi.Brewfile",
+		Mise:     "template/mise.d/addon-yazi.toml",
 	},
 	{
 		// The issue couples nvim with lazygit; the fragment carries both.
 		ID:       "addon:nvim",
 		Prefixes: []string{"template/home/.config/nvim", "template/home/.config/lazygit"},
-		Brewfile: "template/brewfile.d/addon-nvim.Brewfile",
+		Mise:     "template/mise.d/addon-nvim.toml",
 	},
 
 	{
 		ID:       "agent:claude-code",
 		Prefixes: []string{"template/home/.config/claude"},
 		Renames:  map[string]string{"template/home/.config/oh-my-posh/claude.yaml": "home/.config/oh-my-posh/claude.yaml"},
-		Brewfile: "template/brewfile.d/agent-claude-code.Brewfile",
+		Mise:     "template/mise.d/agent-claude-code.toml",
 		Unfold:   []string{".config/claude"},
 		Doc:      "home/.config/claude/CLAUDE.md",
 	},
 	{
 		ID:       "agent:codex",
 		Prefixes: []string{"template/home/.config/codex"},
-		Brewfile: "template/brewfile.d/agent-codex.Brewfile",
+		Mise:     "template/mise.d/agent-codex.toml",
 		Unfold:   []string{".config/codex"},
 		Doc:      "home/.config/codex/AGENTS.md",
 	},
 	{
 		ID:       "agent:opencode",
 		Prefixes: []string{"template/home/.config/opencode"},
-		Brewfile: "template/brewfile.d/agent-opencode.Brewfile",
+		Mise:     "template/mise.d/agent-opencode.toml",
 		Unfold:   []string{".config/opencode"},
 		Doc:      "home/.config/opencode/AGENTS.md",
 	},
 	{
-		// No dotfiles exist for antigravity upstream; it ships as a cask only.
-		ID:       "agent:antigravity",
-		Brewfile: "template/brewfile.d/agent-antigravity.Brewfile",
+		// No dotfiles exist for antigravity upstream; only its CLI is installed.
+		ID:   "agent:antigravity",
+		Mise: "template/mise.d/agent-antigravity.toml",
 	},
 	{
 		ID:       "agent:grok",
 		Prefixes: []string{"template/home/.config/grok"},
-		Brewfile: "template/brewfile.d/agent-grok.Brewfile",
+		Mise:     "template/mise.d/agent-grok.toml",
 		Unfold:   []string{".config/grok"},
 		Doc:      "home/.config/grok/AGENTS.md",
 	},
@@ -174,7 +183,7 @@ var manifest = []Component{
 	{
 		ID:       "feature:security-keys",
 		Prefixes: []string{"template/home/.ssh"},
-		Brewfile: "template/brewfile.d/feature-security-keys.Brewfile",
+		Mise:     "template/mise.d/feature-security-keys.toml",
 		Unfold:   []string{".ssh"},
 	},
 }

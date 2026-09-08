@@ -88,7 +88,7 @@ func TestDelete(t *testing.T) {
 		if _, err := Create(dir, "personal", ""); err != nil {
 			t.Fatal(err)
 		}
-		if _, _, err := activateForTest(t, dir, "personal"); err != nil {
+		if _, err := Activate(dir, "personal"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -145,7 +145,7 @@ func TestDeleteRefuses(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if _, _, err := activateForTest(t, dir, "work"); err != nil {
+		if _, err := Activate(dir, "work"); err != nil {
 			t.Fatal(err)
 		}
 		if err := Delete(dir, "work"); !errors.Is(err, ErrActiveProfile) {

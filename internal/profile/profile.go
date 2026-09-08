@@ -62,11 +62,6 @@ func Dir(configDir, name string) string {
 	return filepath.Join(configDir, name)
 }
 
-// BrewfilePath returns the Brewfile location inside a profile directory.
-func BrewfilePath(profileDir string) string {
-	return filepath.Join(profileDir, "Brewfile")
-}
-
 // MetadataPath returns the profile.json location inside a profile directory.
 // The file is shared with the init answers, so it usually carries more than
 // the keys Profile reads back.

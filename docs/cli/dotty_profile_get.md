@@ -6,8 +6,8 @@ Show a profile's metadata and where it lives.
 
 Print a profile's metadata — name, description, creation date — alongside the
 machine state around it: the profile directory, the dotfiles repository
-directory it links to, whether it is the active profile, and how many entries
-its Brewfile carries. Without a name dotty describes the active profile, or
+directory it links to, whether it is the active profile, and how many
+packages it declares (and how many of those come from component fragments). Without a name dotty describes the active profile, or
 the one the global --profile names.
 
 --format=json prints profile.json verbatim instead, which for a profile dotty

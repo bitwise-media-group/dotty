@@ -69,6 +69,15 @@ func LinkHome(ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict stri
 	if err := linkProfiles(repo, configDir, resolve, backupDir, &report); err != nil {
 		return report, backupDir, err
 	}
+	// mise's global config directory is the active profile's mise/
+	// directory, so activating another profile swaps the machine's package
+	// declarations and lockfile with it. A real directory in the way is
+	// the machine's pre-dotty config; the render already seeded the
+	// profile from it, so backing it up loses nothing.
+	if err := ApplyFile(MiseConfigDir(configDir), filepath.Join(configDir, "active-profile", "mise"),
+		resolve, backupDir, &report); err != nil {
+		return report, backupDir, err
+	}
 
 	// Per-profile files link through the active-profile symlink, so
 	// activating a different profile swaps them without relinking.
@@ -88,6 +97,12 @@ func LinkHome(ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict stri
 		}
 	}
 	return report, backupDir, err
+}
+
+// MiseConfigDir returns mise's global config directory — the sibling of
+// dotty's own config dir under $XDG_CONFIG_HOME, which mise honours too.
+func MiseConfigDir(configDir string) string {
+	return filepath.Join(filepath.Dir(configDir), "mise")
 }
 
 // linkProfiles links every profile the repository carries to its live
@@ -169,10 +184,17 @@ func newResolver(ios cli.IOStreams, onConflict string) (Resolver, error) {
 }
 
 // PruneSites removes the live symlinks a render prune orphaned: for each
-// home-relative pruned path, the site is removed only when it is a symlink
-// that no longer resolves — real files and working links are never touched.
+// pruned profile-relative path under the home/ tree, the site is removed
+// only when it is a symlink that no longer resolves — real files and
+// working links are never touched. Pruned paths outside the home tree (the
+// mise fragments) have no site of their own; mise reads them through the
+// directory link.
 func PruneSites(ios cli.IOStreams, home string, pruned []string) {
-	for _, rel := range pruned {
+	for _, path := range pruned {
+		rel, ok := strings.CutPrefix(path, "home/")
+		if !ok {
+			continue
+		}
 		site := filepath.Join(home, rel)
 		info, err := os.Lstat(site)
 		if err != nil || info.Mode()&os.ModeSymlink == 0 {

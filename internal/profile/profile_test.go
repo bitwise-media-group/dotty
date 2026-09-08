@@ -109,7 +109,7 @@ func TestList(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, _, err := activateForTest(t, dir, "alpha"); err != nil {
+	if _, err := Activate(dir, "alpha"); err != nil {
 		t.Fatal(err)
 	}
 

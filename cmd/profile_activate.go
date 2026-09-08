@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -34,8 +33,10 @@ var profileActivateCmd = &cobra.Command{
 presents a fuzzy-finding picklist of existing profiles. If the named profile
 does not exist, dotty offers to create it first, which runs the init
 interview for it the way dotty profile new does — and ends with the new
-profile active. A freshly activated profile with no Brewfile gets one dumped
-from the currently installed brews.`,
+profile active. Everything reached through the active-profile link swaps
+with it, the profile's packages included: ~/.config/mise now names the new
+profile's mise directory, and dotty packages sync converges the machine on
+it.`,
 	Example: `  dotty profile activate
   dotty profile activate --name=work`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,21 +83,14 @@ func init() {
 	profileCmd.AddCommand(profileActivateCmd)
 }
 
-// activateProfile swaps the active-profile symlink; profile.Activate dumps a
-// Brewfile when the profile has none yet, so the notice is printed up front.
+// activateProfile swaps the active-profile symlink and reminds that the
+// machine's packages follow the profile only once synced.
 func activateProfile(ctx context.Context, ios cli.IOStreams, configDir, name string) error {
-	fresh := false
-	if _, err := os.Stat(profile.BrewfilePath(profile.Dir(configDir, name))); errors.Is(err, fs.ErrNotExist) {
-		fresh = true
-		tui.Infof(ios, "Profile %s has no Brewfile yet — dumping the installed brews", name)
-	}
-	if _, err := profile.Activate(ctx, newRunner(ios), configDir, name); err != nil {
+	if _, err := profile.Activate(configDir, name); err != nil {
 		return err
 	}
 	tui.Successf(ios, "Activated profile %s", name)
-	if fresh {
-		tui.Successf(ios, "Wrote %s", profile.BrewfilePath(profile.Dir(configDir, name)))
-	}
+	tui.Infof(ios, "Converge the machine's packages with: dotty packages sync")
 	activatePrivate(ctx, ios, configDir, name)
 	return nil
 }

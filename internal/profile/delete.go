@@ -24,7 +24,7 @@ var (
 // when that entry is a symlink, the directory it resolves to. dotty links
 // every profile the dotfiles repository carries into the config dir, so for a
 // repository-backed profile the two differ and the second is the one holding
-// the Brewfile, the renders, and the answers. backing is empty for a profile
+// the packages, the renders, and the answers. backing is empty for a profile
 // that is a real directory — one made by hand, or by an older dotty on a
 // machine with no repository yet.
 func Locate(configDir, name string) (site, backing string, err error) {

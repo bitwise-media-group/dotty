@@ -6,17 +6,19 @@ Scaffold a new dotfiles repository and set up this machine.
 
 Create a dotfiles repository from the template embedded in dotty, driven by
 a short wizard: where repositories live, which optional tools and coding
-agents to include, and how to seed the Brewfile. ghostty, oh-my-posh, vivid,
-zsh, and git config are always included.
+agents to include, and whether to seed the packages from what is installed.
+ghostty, oh-my-posh, vivid, zsh, and git config are always included.
 
 Nothing is written until a summary is confirmed. init then renders the
-repository — including the profile (answers, Brewfile, and the per-profile
-renders of anything machine-class-specific) under profiles/<name>, so
+repository — including the profile (answers, the mise package directory,
+and the per-profile renders of anything machine-class-specific) under
+profiles/<name>, so
 profiles travel with the repo and are shared across machines of the same
 class — stages it with git (the first commit is left for you to sign), links
-the home/ tree into your home directory, activates the profile (the
-active-profile symlink is the only machine-local state), and installs the
-lobe-icons glyph font. Files already in the way of a link are resolved per
+the home/ tree into your home directory and ~/.config/mise to the profile's
+packages, activates the profile (the active-profile symlink is the only
+machine-local state), installs mise into ~/.local/bin when the machine has
+none, and installs the lobe-icons glyph font. Files already in the way of a link are resolved per
 --on-conflict, and legacy files that shadow the rendered configuration from
 outside any link site (~/.gitconfig, ~/.zshrc and the other bare zsh startup
 files) are retired; backups land under $XDG_DATA_HOME/dotty/backups and are
@@ -50,11 +52,11 @@ dotty init [flags]
       --agents strings            coding agents: claude-code,codex,opencode,antigravity,grok
       --allowed-serials strings   restrict the profile to these security-key serials
       --description string        short description of the profile
-      --dump-brews                seed the Brewfile from the installed packages
       --git-email string          git identity email for the private git config
       --git-name string           git identity name for the private git config
       --harden                    confine the coding agents: sandbox, credential-read denies, ask-first permissions
   -h, --help                      help for init
+      --import-packages           seed the profile's packages from the installed Homebrew formulae
       --macos-defaults strings    macOS defaults groups to apply (see the wizard picklist; empty for none)
       --marketplace               add the bitwise skills marketplace to the selected agents
       --on-conflict string        existing-file resolution: backup, adopt, skip, or fail (default "backup")

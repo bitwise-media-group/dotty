@@ -1,0 +1,13 @@
+# Rendered by dotty init for the component named in the file name; the next
+# init re-renders it and deselecting the component removes it. Add your own
+# packages to ../config.toml instead.
+[tools]
+"aqua:FiloSottile/age" = "latest"
+"github:str4d/age-plugin-yubikey" = "latest"
+"pipx:yubikey-manager" = "latest"
+
+# OpenSSH with FIDO2 support and the pinentry the ask-pass bridge drives.
+[bootstrap.packages]
+"brew:openssh" = "latest"
+"brew:pinentry-mac" = { version = "latest", os = "macos" }
+"brew-cask:yubico-authenticator" = { version = "latest", os = "macos" }

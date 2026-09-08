@@ -1,0 +1,108 @@
+tap "bitwise-media-group/tap", trusted: true
+
+brew "bat"
+brew "curl"
+brew "fd"
+brew "fzf"
+brew "gh"
+brew "git"
+brew "git-delta"
+brew "git-lfs"
+brew "jq"
+brew "ripgrep"
+brew "vivid"
+brew "wget"
+brew "yq"
+brew "zinit"
+brew "zoxide"
+brew "zsh"
+
+brew "jandedobbeleer/oh-my-posh/oh-my-posh", args: ["formula"], trusted: true
+
+cask "bitwise-media-group/tap/dotty", trusted: true
+cask "font-iosevka-nerd-font"
+cask "font-symbols-only-nerd-font"
+cask "ghostty"
+cask "git-credential-manager"
+
+brew "lazygit"
+brew "neovim"
+
+brew "btop"
+
+brew "derailed/k9s/k9s", trusted: true
+
+
+brew "lsd"
+
+brew "tmux"
+
+brew "chafa"
+brew "ffmpeg"
+brew "poppler"
+brew "resvg"
+brew "yazi"
+
+cask "claude-code@latest"
+
+cask "codex"
+
+cask "grok-build"
+
+brew "age"
+brew "age-plugin-yubikey"
+brew "pinentry-mac"
+brew "ykman"
+brew "openssh"
+
+cask "yubico-authenticator"
+# Triage and remediate security findings from the terminal, over your own kubeconfig
+cask "bitwise-media-group/tap/patchy", trusted: true
+# Evaluate coding-agent plugins — static checks, trigger-accuracy evals, behavioral cases, and reports
+cask "bitwise-media-group/tap/evolve", trusted: true
+# Convert your caps lock key or any of your modifier keys to the hyper key
+cask "hyperkey"
+# Move and resize windows using keyboard shortcuts or snap areas
+cask "rectangle"
+# Set of tools to manage resources and applications hosted on Google Cloud
+cask "gcloud-cli"
+# OpenAI's official ChatGPT desktop app
+cask "chatgpt"
+# Anthropic's official Claude AI desktop app
+cask "claude"
+# Menu bar usage monitor for Codex and Claude
+cask "codexbar"
+# Client for the Google Drive storage service
+cask "google-drive"
+# Mesh VPN based on WireGuard
+cask "tailscale-app"
+# Container runtimes on MacOS (and Linux) with minimal setup
+brew "colima"
+# Official Amazon AWS command-line interface
+brew "awscli"
+# Pack, ship and run any application as a lightweight container
+brew "docker"
+# Docker CLI plugin for extended build capabilities with BuildKit
+brew "docker-buildx"
+# Isolated development environments using Docker
+brew "docker-compose"
+# Open source programming language to build simple/reliable/efficient software
+brew "go"
+# .NET Core
+brew "dotnet"
+# Terraform
+brew "hashicorp/tap/terraform", trusted: true
+# Polyglot runtime manager (asdf rust clone)
+brew "mise"
+# Control your tools with a few keystrokes
+cask "raycast"
+# Tool to update GitHub Actions to latest versions with SHA pinning
+brew "actions-up"
+# Kubernetes command-line interface
+brew "kubectl"
+# Flux CLI
+brew "fluxcd/tap/flux", trusted: true
+# Extremely fast Python package installer and resolver, written in Rust
+brew "uv"
+# Feature-rich command-line audio/video downloader
+brew "yt-dlp"
