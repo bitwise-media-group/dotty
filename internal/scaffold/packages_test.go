@@ -291,7 +291,11 @@ func TestImportPackagesMerges(t *testing.T) {
 		got, _ := composeForTest(t, "", "", &importRunner{content: imported}, answers)
 		home := t.TempDir()
 		r := &importRunner{content: imported}
-		// Second pass over the same config: nothing new, file unchanged.
+		// Second pass over the same config with no mise on this home or
+		// PATH: the import is skipped and the file is unchanged. PATH is
+		// pinned because a host mise outside the Homebrew prefixes (the
+		// linux CI runner) would otherwise satisfy the lookup.
+		t.Setenv("PATH", t.TempDir())
 		profileDir := t.TempDir()
 		if err := os.MkdirAll(mise.Dir(profileDir), 0o755); err != nil {
 			t.Fatal(err)
