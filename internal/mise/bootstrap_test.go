@@ -122,25 +122,7 @@ func TestEnsureInstalled(t *testing.T) {
 			if len(r.calls) != 1 {
 				t.Fatalf("calls = %v, want one installer run", r.calls)
 			}
-			call := r.calls[0]
-			if call.kind != "interactive" || len(call.argv) != 2 || call.argv[0] != "sh" ||
-				!strings.HasSuffix(call.argv[1], ".sh") {
-				t.Errorf("installer call = %+v, want sh <script>", call)
-			}
-			if !slices.Contains(call.env, "MISE_INSTALL_PATH="+local) {
-				t.Errorf("installer env = %v, want MISE_INSTALL_PATH=%s", call.env, local)
-			}
-			for _, e := range call.env {
-				if strings.HasPrefix(e, "MISE_CONFIG_DIR=") {
-					t.Errorf("installer env carries a config dir: %v", call.env)
-				}
-			}
-			if _, err := os.Stat(call.argv[1]); !errors.Is(err, os.ErrNotExist) {
-				t.Errorf("scratch installer %s left behind: %v", call.argv[1], err)
-			}
-			if _, err := os.Stat(filepath.Dir(local)); err != nil {
-				t.Errorf("~/.local/bin not created: %v", err)
-			}
+			assertInstallerRun(t, r.calls[0], local)
 		})
 	}
 
@@ -157,6 +139,31 @@ func TestEnsureInstalled(t *testing.T) {
 			t.Errorf("calls = %v, want none for an unverified installer", r.calls)
 		}
 	})
+}
+
+// assertInstallerRun checks one verified-installer invocation: sh on a
+// scratch script that is removed afterwards, targeting local without a
+// profile's config dir, with ~/.local/bin created for it.
+func assertInstallerRun(t *testing.T, call call, local string) {
+	t.Helper()
+	if call.kind != "interactive" || len(call.argv) != 2 || call.argv[0] != "sh" ||
+		!strings.HasSuffix(call.argv[1], ".sh") {
+		t.Errorf("installer call = %+v, want sh <script>", call)
+	}
+	if !slices.Contains(call.env, "MISE_INSTALL_PATH="+local) {
+		t.Errorf("installer env = %v, want MISE_INSTALL_PATH=%s", call.env, local)
+	}
+	for _, e := range call.env {
+		if strings.HasPrefix(e, "MISE_CONFIG_DIR=") {
+			t.Errorf("installer env carries a config dir: %v", call.env)
+		}
+	}
+	if _, err := os.Stat(call.argv[1]); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("scratch installer %s left behind: %v", call.argv[1], err)
+	}
+	if _, err := os.Stat(filepath.Dir(local)); err != nil {
+		t.Errorf("~/.local/bin not created: %v", err)
+	}
 }
 
 func TestLookupNotInstalled(t *testing.T) {

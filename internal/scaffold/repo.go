@@ -187,9 +187,9 @@ func withMetadata(a Answers, profileDir string) Answers {
 // the machine already runs on: when ~/.config/mise is still a real
 // directory with a config.toml (from before dotty owned it), its
 // config.toml and mise.lock are copied into the profile, with the settings
-// dotty relies on — the lockfile, cask adoption — added if missing. The linker backs the real directory up afterwards, so
-// nothing is lost either way. A profile that already has a config.toml is
-// left alone.
+// dotty relies on — the lockfile, cask adoption — added if missing. The
+// linker backs the real directory up afterwards, so nothing is lost either
+// way. A profile that already has a config.toml is left alone.
 func seedMiseConfig(ios cli.IOStreams, miseDir string) error {
 	if _, err := os.Stat(mise.ConfigPath(miseDir)); err == nil {
 		return nil
@@ -212,7 +212,8 @@ func seedMiseConfig(ios cli.IOStreams, miseDir string) error {
 		return fmt.Errorf("read %s: %w", mise.ConfigPath(live), err)
 	}
 	data, _ = mise.MergeEntries(data, "settings", []string{"lockfile = true"}, "dotty: lock every tool")
-	data, _ = mise.MergeEntries(data, "bootstrap.brew", []string{"adopt = true"}, "dotty: keep the casks already installed")
+	data, _ = mise.MergeEntries(data, "bootstrap.brew", []string{"adopt = true"},
+		"dotty: keep the casks already installed")
 	if err := cli.EnsureDir(miseDir, 0o755); err != nil {
 		return err
 	}

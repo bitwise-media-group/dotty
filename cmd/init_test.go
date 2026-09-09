@@ -94,8 +94,17 @@ func assertRepoAndProfile(t *testing.T, home, repo string) {
 		}
 	}
 
-	// The profile exists, is active, and its mise directory carries the
-	// selections as fragments beside the user-owned config.
+	assertProfileMise(t, profileDir)
+	active, err := os.Readlink(filepath.Join(home, ".config", "dotty", "active-profile"))
+	if err != nil || filepath.Base(active) != "testbox" {
+		t.Errorf("active-profile = %q, %v", active, err)
+	}
+}
+
+// assertProfileMise checks that the profile's mise directory carries the
+// selections as fragments beside the user-owned config.
+func assertProfileMise(t *testing.T, profileDir string) {
+	t.Helper()
 	fragment, err := os.ReadFile(filepath.Join(profileDir, "mise", "conf.d", "addon-tmux.toml"))
 	if err != nil {
 		t.Fatalf("profile tmux fragment: %v", err)
@@ -110,10 +119,6 @@ func assertRepoAndProfile(t *testing.T, home, repo string) {
 		t.Errorf("profile mise config: %v", err)
 	} else if !containsLine(string(got), "lockfile = true") {
 		t.Errorf("profile mise config is not the template:\n%s", got)
-	}
-	active, err := os.Readlink(filepath.Join(home, ".config", "dotty", "active-profile"))
-	if err != nil || filepath.Base(active) != "testbox" {
-		t.Errorf("active-profile = %q, %v", active, err)
 	}
 }
 
@@ -817,19 +822,7 @@ func TestInitMigratesLegacyLayout(t *testing.T) {
 	if !answers.Harden || !slices.Equal(answers.Agents, []string{"claude-code"}) {
 		t.Errorf("merged answers lost selections: %+v", answers)
 	}
-	// The legacy profile's Brewfile entries are converted into the mise
-	// config — tmux is not a selected component here, so it lands in the
-	// user-owned config as its tool — and the Brewfile itself stays for
-	// the user to delete.
-	if config, err := os.ReadFile(filepath.Join(profileDir, "mise", "config.toml")); err != nil {
-		t.Errorf("migrated profile has no mise config: %v", err)
-	} else if !containsLine(string(config), `"aqua:tmux/tmux-builds" = "latest"`) ||
-		!containsLine(string(config), "# imported from Brewfile") {
-		t.Errorf("migrated config lost the legacy tmux entry:\n%s", config)
-	}
-	if _, err := os.Stat(filepath.Join(profileDir, "Brewfile")); err != nil {
-		t.Errorf("legacy Brewfile removed by the migration: %v", err)
-	}
+	assertLegacyBrewfileConverted(t, profileDir)
 	if answers.Description != "legacy box" || answers.CreatedAt.IsZero() {
 		t.Errorf("metadata lost in merge: description=%q created=%v", answers.Description, answers.CreatedAt)
 	}
@@ -846,5 +839,22 @@ func TestInitMigratesLegacyLayout(t *testing.T) {
 	live, err := os.ReadFile(filepath.Join(home, ".config", "claude", "settings.json"))
 	if err != nil || strings.Contains(string(live), "stale") {
 		t.Errorf("live settings.json still stale through active-profile: %v", err)
+	}
+}
+
+// assertLegacyBrewfileConverted checks that a legacy profile's Brewfile
+// entries were converted into the mise config — tmux is not a selected
+// component in the migration test, so it lands in the user-owned config as
+// its tool — and that the Brewfile itself stays for the user to delete.
+func assertLegacyBrewfileConverted(t *testing.T, profileDir string) {
+	t.Helper()
+	if config, err := os.ReadFile(filepath.Join(profileDir, "mise", "config.toml")); err != nil {
+		t.Errorf("migrated profile has no mise config: %v", err)
+	} else if !containsLine(string(config), `"aqua:tmux/tmux-builds" = "latest"`) ||
+		!containsLine(string(config), "# imported from Brewfile") {
+		t.Errorf("migrated config lost the legacy tmux entry:\n%s", config)
+	}
+	if _, err := os.Stat(filepath.Join(profileDir, "Brewfile")); err != nil {
+		t.Errorf("legacy Brewfile removed by the migration: %v", err)
 	}
 }

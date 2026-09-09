@@ -103,8 +103,8 @@ func pickRemovals(ios cli.IOStreams, dir string) ([]string, error) {
 			for _, e := range declared {
 				fragments[filepath.Base(e.File)] = true
 			}
-			tui.Infof(ios, "The profile's packages all come from component fragments (%v); deselect components with `dotty init`",
-				slices.Sorted(maps.Keys(fragments)))
+			tui.Infof(ios, "The profile's packages all come from component fragments (%v); "+
+				"deselect components with `dotty init`", slices.Sorted(maps.Keys(fragments)))
 		}
 		return nil, nil
 	}

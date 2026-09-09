@@ -1,9 +1,9 @@
 # dotty
 
 Utilities for a terminal-driven workflow and dotfiles: system profiles that
-travel across machines, reproducible packages locked through mise, named aliases for
-hardware security keys, and SSH signing keys that live on YubiKeys — including
-git commit signing.
+travel across machines, reproducible packages locked through mise, named aliases
+for hardware security keys, and SSH signing keys that live on YubiKeys —
+including git commit signing.
 
 Every command follows `dotty <noun> <verb>`:
 

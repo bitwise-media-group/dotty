@@ -52,7 +52,7 @@ func (f *fakeRunner) RunInteractiveEnv(_ context.Context, env []string, name str
 // binary and carried the profile's MISE_CONFIG_DIR.
 func (f *fakeRunner) argvs(t *testing.T, bin, dir string) []string {
 	t.Helper()
-	var out []string
+	out := make([]string, 0, len(f.calls))
 	for _, c := range f.calls {
 		if c.argv[0] != bin {
 			t.Errorf("call %v ran %q, want %q", c.argv, c.argv[0], bin)
@@ -355,11 +355,13 @@ func TestImportToScratch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ImportToScratch: %v", err)
 	}
-	var got []string
+	got := make([]string, 0, len(entries))
 	for _, e := range entries {
 		got = append(got, e.Table+" "+e.ID)
 	}
-	want := []string{"bootstrap.brew.taps acme/tap", "bootstrap.packages brew:acme/tap/widget", "bootstrap.packages brew:wget"}
+	want := []string{
+		"bootstrap.brew.taps acme/tap", "bootstrap.packages brew:acme/tap/widget", "bootstrap.packages brew:wget",
+	}
 	if !slices.Equal(got, want) {
 		t.Errorf("entries = %v, want %v", got, want)
 	}

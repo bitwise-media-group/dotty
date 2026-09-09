@@ -31,8 +31,9 @@ var profileGetCmd = &cobra.Command{
 	Long: `Print a profile's metadata — name, description, creation date — alongside the
 machine state around it: the profile directory, the dotfiles repository
 directory it links to, whether it is the active profile, and how many
-packages it declares (and how many of those come from component fragments). Without a name dotty describes the active profile, or
-the one the global --profile names.
+packages it declares (and how many of those come from component fragments).
+Without a name dotty describes the active profile, or the one the global
+--profile names.
 
 --format=json prints profile.json verbatim instead, which for a profile dotty
 init built also carries the wizard answers. That file knows nothing about this

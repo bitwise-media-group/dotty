@@ -55,7 +55,8 @@ func profileEnv(t *testing.T) (configDir, backing string) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(mise.ConfigPath(mise.Dir(backing)),
-		[]byte("[bootstrap.packages]\n\"brew:jq\" = \"latest\"\n\"brew-cask:ghostty\" = { version = \"latest\", os = \"macos\" }\n"),
+		[]byte("[bootstrap.packages]\n\"brew:jq\" = \"latest\"\n"+
+			"\"brew-cask:ghostty\" = { version = \"latest\", os = \"macos\" }\n"),
 		0o644); err != nil {
 		t.Fatal(err)
 	}

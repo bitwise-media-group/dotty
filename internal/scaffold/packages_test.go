@@ -337,7 +337,8 @@ func TestImportPackagesMerges(t *testing.T) {
 // stays in place, and a second pass is silent.
 func TestConvertProfileBrewfile(t *testing.T) {
 	answers := Answers{ProfileName: "box", AddOns: []string{"tmux"}}
-	brewfile := "tap \"acme/tap\", trusted: true\nbrew \"tmux\"\nbrew \"git\"\nbrew \"colima\"\nbrew \"acme/tap/widget\"\n" +
+	brewfile := "tap \"acme/tap\", trusted: true\nbrew \"tmux\"\nbrew \"git\"\nbrew \"colima\"\n" +
+		"brew \"acme/tap/widget\"\n" +
 		"cask \"raycast\"\ncask \"bitwise-media-group/tap/evolve\", trusted: true\nvscode \"golang.go\"\n"
 	got, errOut := composeForTest(t, "", brewfile, &importRunner{}, answers)
 	for _, want := range []string{

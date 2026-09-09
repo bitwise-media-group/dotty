@@ -147,7 +147,8 @@ func TestRemoveEntry(t *testing.T) {
 // header comment, dropping ids the table already declares, and leaving the
 // document untouched when nothing is new.
 func TestMergeEntries(t *testing.T) {
-	existing := []byte("[settings]\nlockfile = true\n\n[tools]\n\"aqua:sharkdp/fd\" = \"latest\"\n\n[bootstrap.packages]\n\"brew:git\" = \"latest\"\n")
+	existing := []byte("[settings]\nlockfile = true\n\n[tools]\n\"aqua:sharkdp/fd\" = \"latest\"\n\n" +
+		"[bootstrap.packages]\n\"brew:git\" = \"latest\"\n")
 
 	t.Run("existing table", func(t *testing.T) {
 		merged, n := MergeEntries(existing, TableTools,
@@ -156,7 +157,9 @@ func TestMergeEntries(t *testing.T) {
 		if n != 2 {
 			t.Errorf("added = %d, want 2", n)
 		}
-		want := "[settings]\nlockfile = true\n\n[tools]\n\"aqua:sharkdp/fd\" = \"latest\"\n# imported\n\"aqua:jqlang/jq\" = \"latest\"\ngo = \"latest\"\n\n[bootstrap.packages]\n\"brew:git\" = \"latest\"\n"
+		want := "[settings]\nlockfile = true\n\n[tools]\n\"aqua:sharkdp/fd\" = \"latest\"\n" +
+			"# imported\n\"aqua:jqlang/jq\" = \"latest\"\ngo = \"latest\"\n\n" +
+			"[bootstrap.packages]\n\"brew:git\" = \"latest\"\n"
 		if got != want {
 			t.Errorf("merged =\n%s\nwant\n%s", got, want)
 		}
@@ -165,7 +168,8 @@ func TestMergeEntries(t *testing.T) {
 	t.Run("last table", func(t *testing.T) {
 		merged, _ := MergeEntries(existing, TablePackages, []string{`"brew:wget" = "latest"`}, "installed packages")
 		got := string(merged)
-		if !strings.HasSuffix(got, "[bootstrap.packages]\n\"brew:git\" = \"latest\"\n# installed packages\n\"brew:wget\" = \"latest\"\n") {
+		want := "[bootstrap.packages]\n\"brew:git\" = \"latest\"\n# installed packages\n\"brew:wget\" = \"latest\"\n"
+		if !strings.HasSuffix(got, want) {
 			t.Errorf("merged =\n%s", got)
 		}
 	})
@@ -173,7 +177,8 @@ func TestMergeEntries(t *testing.T) {
 	t.Run("missing table", func(t *testing.T) {
 		merged, _ := MergeEntries(existing, TableTaps, []string{`"acme/tap" = "https://x"`}, "imported")
 		got := string(merged)
-		if !strings.HasSuffix(got, "\"brew:git\" = \"latest\"\n\n[bootstrap.brew.taps]\n# imported\n\"acme/tap\" = \"https://x\"\n") {
+		want := "\"brew:git\" = \"latest\"\n\n[bootstrap.brew.taps]\n# imported\n\"acme/tap\" = \"https://x\"\n"
+		if !strings.HasSuffix(got, want) {
 			t.Errorf("merged =\n%s", got)
 		}
 	})
@@ -232,7 +237,8 @@ func TestTableHeader(t *testing.T) {
 			t.Errorf("tableHeader(%q) accepted", bad)
 		}
 	}
-	if ids := FragmentToolIDs(); !slices.IsSorted(ids) || slices.Contains(ids, "go") || !slices.Contains(ids, "http:grok") {
+	ids := FragmentToolIDs()
+	if !slices.IsSorted(ids) || slices.Contains(ids, "go") || !slices.Contains(ids, "http:grok") {
 		t.Errorf("FragmentToolIDs = %v", ids)
 	}
 }

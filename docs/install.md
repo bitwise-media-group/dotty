@@ -6,12 +6,12 @@
 # Installation
 
 The recommended way to install dotty is [mise](#mise), which is also what dotty
-drives to manage every other package; the [Homebrew tap](#homebrew) still
-works. The alternative methods below all install the same signed binary: the
-macOS binaries
-are Developer ID-signed and notarized by Apple, the Linux binaries carry keyless
-[cosign](#signatures) signatures, and every release ships checksums and a SLSA
-build-provenance [attestation](#attestations) you can verify yourself.
+drives to manage every other package; the [Homebrew tap](#homebrew) still works.
+The alternative methods below all install the same signed binary: the macOS
+binaries are Developer ID-signed and notarized by Apple, the Linux binaries
+carry keyless [cosign](#signatures) signatures, and every release ships
+checksums and a SLSA build-provenance [attestation](#attestations) you can
+verify yourself.
 
 ## mise
 

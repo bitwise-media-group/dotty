@@ -58,9 +58,9 @@ init() {
 }
 ```
 
-The root command should have a `--profile=<name>` global flag, which selects
-the profile the `packages` and `profile` verbs operate on (the active profile
-when unset).
+The root command should have a `--profile=<name>` global flag, which selects the
+profile the `packages` and `profile` verbs operate on (the active profile when
+unset).
 
 # System Profiles
 
@@ -104,8 +104,8 @@ a new profile. Upon confirmation, invoke the cmd for
 To activate a profile, update the `${XDG_CONFIG_HOME}/dotty/active-profile`
 symlink to point to the profile path. Everything reached through the link —
 including `~/.config/mise`, which names the active profile's mise directory —
-swaps with it; converging the machine's packages is `dotty packages sync`'s
-job, so activation itself never installs or removes anything.
+swaps with it; converging the machine's packages is `dotty packages sync`'s job,
+so activation itself never installs or removes anything.
 
 ```text
 dotty profile activate [--name=<name>]
@@ -130,9 +130,9 @@ Command: get
 Print one profile's metadata alongside the state only the machine knows: the
 profile directory, the repository directory it links to, whether it is active,
 and how many packages it declares (and how many of those come from component
-fragments). Without a name, describe the active
-profile — or the one the global `--profile` names. `--format=json` prints
-`profile.json` verbatim instead, answers included.
+fragments). Without a name, describe the active profile — or the one the global
+`--profile` names. `--format=json` prints `profile.json` verbatim instead,
+answers included.
 
 ```text
 dotty profile get [<name>] [--format=<text|json>]
@@ -339,8 +339,8 @@ Create a system-level profile that can be copied across machines.
 Command: packages Aliases: pkg
 
 Manage the profile's packages through mise so a machine's installs stay
-reproducible on and across systems. A profile carries a whole mise
-global-config directory, which dotty links to `~/.config/mise`:
+reproducible on and across systems. A profile carries a whole mise global-config
+directory, which dotty links to `~/.config/mise`:
 
 ```text
 profiles/<name>/mise/
@@ -362,36 +362,36 @@ resolves to whichever registry entry claims the name.
 
 Ownership splits by file: the fragments under `conf.d/` are rendered by
 `dotty init` from the selected components and pruned when a component is
-deselected; `config.toml` is rendered once from the template and then belongs
-to the user — `dotty packages add`, `mise use -g`, and hand edits all write
-there, and a re-render never resets it. dotty never merges TOML documents: it
-only appends entry lines under a header comment or drops a single entry line.
+deselected; `config.toml` is rendered once from the template and then belongs to
+the user — `dotty packages add`, `mise use -g`, and hand edits all write there,
+and a re-render never resets it. dotty never merges TOML documents: it only
+appends entry lines under a header comment or drops a single entry line.
 
 Every mise invocation carries `MISE_CONFIG_DIR=<profile>/mise`, so the active
-profile and `--profile=<other>` share one code path. mise itself is installed
-by dotty into `~/.local/bin` from the signed installer (`install.sh.sig`,
-verified against the embedded release key before it runs) when the machine has
-none outside a Homebrew keg — the brew keg is not a declared package, so sync
-would prune it from under the running process.
+profile and `--profile=<other>` share one code path. mise itself is installed by
+dotty into `~/.local/bin` from the signed installer (`install.sh.sig`, verified
+against the embedded release key before it runs) when the machine has none
+outside a Homebrew keg — the brew keg is not a declared package, so sync would
+prune it from under the running process.
 
-| Verb | Invocations (with `MISE_CONFIG_DIR=<profile>/mise`) |
-| --- | --- |
-| `add <id>…` | ids already declared are skipped; tools: `mise use --global --yes <ids>` then `mise lock --global`; packages: `mise bootstrap packages use --global --yes <ids>`; all skipped: `mise lock --global`, `mise install --yes`, `mise bootstrap packages apply --yes` |
-| `remove [--sync] [<id>…]` | undeclared ids are reported, ids a fragment declares are refused (deselect the component); tools: `mise unuse --global <ids>`; packages: the entry line is dropped from config.toml (mise has no `bootstrap packages unuse`) |
-| `sync [--force]` | unless forced: `mise bootstrap packages prune --dry-run` and a confirmation of the listed removals (declining changes nothing); then `mise lock --global`, `mise install --yes`, `mise prune --yes`, `mise bootstrap packages apply --yes`, and `mise bootstrap packages prune --yes` when removals were confirmed or forced |
-| `upgrade` | `mise upgrade --yes`, `mise lock --global`, `mise bootstrap packages upgrade --yes` |
-| `status` (alias `ls`) | `mise ls --global`, `mise bootstrap packages status` |
-| `lock` | `mise lock --global` |
-| `import [--all]` | `mise bootstrap packages import --manager brew --path <scratch> [--all]`, then the new entries merge into config.toml under `# installed packages` |
-| `import --brewfile <path>` | converts a Brewfile (below) and merges the new entries under `# imported from Brewfile` |
-| `edit [--sync \| --upgrade]` | opens config.toml in `$VISUAL`/`$EDITOR`, then the named verb |
+| Verb                         | Invocations (with `MISE_CONFIG_DIR=<profile>/mise`)                                                                                                                                                                                                                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `add <id>…`                  | ids already declared are skipped; tools: `mise use --global --yes <ids>` then `mise lock --global`; packages: `mise bootstrap packages use --global --yes <ids>`; all skipped: `mise lock --global`, `mise install --yes`, `mise bootstrap packages apply --yes`                                                             |
+| `remove [--sync] [<id>…]`    | undeclared ids are reported, ids a fragment declares are refused (deselect the component); tools: `mise unuse --global <ids>`; packages: the entry line is dropped from config.toml (mise has no `bootstrap packages unuse`)                                                                                                 |
+| `sync [--force]`             | unless forced: `mise bootstrap packages prune --dry-run` and a confirmation of the listed removals (declining changes nothing); then `mise lock --global`, `mise install --yes`, `mise prune --yes`, `mise bootstrap packages apply --yes`, and `mise bootstrap packages prune --yes` when removals were confirmed or forced |
+| `upgrade`                    | `mise upgrade --yes`, `mise lock --global`, `mise bootstrap packages upgrade --yes`                                                                                                                                                                                                                                          |
+| `status` (alias `ls`)        | `mise ls --global`, `mise bootstrap packages status`                                                                                                                                                                                                                                                                         |
+| `lock`                       | `mise lock --global`                                                                                                                                                                                                                                                                                                         |
+| `import [--all]`             | `mise bootstrap packages import --manager brew --path <scratch> [--all]`, then the new entries merge into config.toml under `# installed packages`                                                                                                                                                                           |
+| `import --brewfile <path>`   | converts a Brewfile (below) and merges the new entries under `# imported from Brewfile`                                                                                                                                                                                                                                      |
+| `edit [--sync \| --upgrade]` | opens config.toml in `$VISUAL`/`$EDITOR`, then the named verb                                                                                                                                                                                                                                                                |
 
 Locking always precedes installing (`mise lock --global` resolves every
-platform's URL and checksum, then `mise install` uses them), and `locked`
-is left unset in `[settings]`: with a lockfile present it makes `mise use`
-refuse a new tool and `mise install` refuse backends that carry no download
-URL (pipx, npm, the core runtimes). `lockfile = true` alone makes mise resolve
-"latest" to the locked version, which is the reproducibility that matters.
+platform's URL and checksum, then `mise install` uses them), and `locked` is
+left unset in `[settings]`: with a lockfile present it makes `mise use` refuse a
+new tool and `mise install` refuse backends that carry no download URL (pipx,
+npm, the core runtimes). `lockfile = true` alone makes mise resolve "latest" to
+the locked version, which is the reproducibility that matters.
 
 dotty only ever calls `mise install/upgrade/prune/lock/use/unuse` and
 `mise bootstrap packages …`; `mise bootstrap` as a whole (dotfiles, macOS
@@ -407,9 +407,9 @@ converts it once, and `dotty packages import --brewfile` converts any other:
   (`brew "ripgrep"` → `aqua:BurntSushi/ripgrep`, `brew "derailed/k9s/k9s"` →
   `aqua:derailed/k9s`, `brew "go"` → `go`) when there is one, else the locked
   tool that stands in for a formula mise cannot pour (`kubectl` is a Homebrew
-  alias with no API entry; `hashicorp/tap/terraform` and `fluxcd/tap/flux`
-  come from taps that publish no API metadata) — kubectl, terraform, flux,
-  awscli, yt-dlp, actions-up — else the `brew:x` bootstrap package. Any other
+  alias with no API entry; `hashicorp/tap/terraform` and `fluxcd/tap/flux` come
+  from taps that publish no API metadata) — kubectl, terraform, flux, awscli,
+  yt-dlp, actions-up — else the `brew:x` bootstrap package. Any other
   tap-qualified formula records its tap under `[bootstrap.brew.taps]` with a
   warning that mise needs the tap to publish `api/formula/<name>.json`.
 - `cask "x"` becomes `"brew-cask:x" = { version = "latest", os = "macos" }`,
@@ -419,9 +419,9 @@ converts it once, and `dotty packages import --brewfile` converts any other:
   which become the tools their fragments declare.
 - `mas "…", id: N` → `mas:N`; `flatpak` → `flatpak:`; `go`/`cargo`/`npm` →
   `go:`/`cargo:`/`npm:` tools; `uv` → `pipx:`.
-- `brew "mise"` is dropped (dotty installs mise); `tap` lines survive only
-  while a `brew:` package still needs them; `vscode`, `krew`, and unknown
-  words are reported and dropped.
+- `brew "mise"` is dropped (dotty installs mise); `tap` lines survive only while
+  a `brew:` package still needs them; `vscode`, `krew`, and unknown words are
+  reported and dropped.
 
 Entries the profile already declares (in `config.toml` or a fragment) are
 skipped, so the conversion is idempotent. The Brewfile is left in place for the
@@ -566,12 +566,11 @@ repositories directory home-relative, the repository relative to it, and
 rendered shell files use `${HOME}` so no machine-specific prefix enters the
 repository. The wizard also asks for a profile name when creating one (machine
 name by default), whether to import the installed Homebrew formulae into the
-profile's packages,
-optional add-ons (nvim, btop, k9s, lazygit, lsd, tmux, yazi), and coding agents
-(claude-code, codex, opencode, antigravity, grok). Once at least one agent is
-selected, init offers the bitwise skills marketplace; choosing it wires the
-marketplace into every selected agent that supports one. ghostty, oh-my-posh,
-vivid, zsh, and git config are always included.
+profile's packages, optional add-ons (nvim, btop, k9s, lazygit, lsd, tmux,
+yazi), and coding agents (claude-code, codex, opencode, antigravity, grok). Once
+at least one agent is selected, init offers the bitwise skills marketplace;
+choosing it wires the marketplace into every selected agent that supports one.
+ghostty, oh-my-posh, vivid, zsh, and git config are always included.
 
 With agents selected, init also asks whether to harden them. Hardening mirrors
 Claude Code's confinement into every selected agent's native config: sandboxed
@@ -587,17 +586,17 @@ init then asks whether the machine class uses security keys. Answering yes
 renders the profile's signing config (gpg/ssh via dotty), the `~/.ssh/config`
 that signs and authenticates through `dotty signing-key link`, adds ykman and
 pinentry-mac to the profile's packages, creates the `dotty-ssh-askpass` applet
-symlink in
-the data directory (OpenSSH PIN prompts route through it to pinentry-mac, which
-caches the YubiKey PIN), and offers to import an existing resident-key stub or
-enroll a new key — the same flows as `dotty signing-key import` and `new`.
-Separately, when `~/.config/private/git/config` does not exist, init asks for
-the git identity and writes it there with `gpgSign` matching the security-key
-answer; the file is PII, lives outside both the repository and the profile, and
-is never overwritten. A profile that records an encrypted private repository
-(see Command: Private below) provides that file itself: init skips the question
-when the private repo carries the profile's git config, links the private tree
-right before the identity step, and re-checks before writing so the private copy
+symlink in the data directory (OpenSSH PIN prompts route through it to
+pinentry-mac, which caches the YubiKey PIN), and offers to import an existing
+resident-key stub or enroll a new key — the same flows as
+`dotty signing-key import` and `new`. Separately, when
+`~/.config/private/git/config` does not exist, init asks for the git identity
+and writes it there with `gpgSign` matching the security-key answer; the file is
+PII, lives outside both the repository and the profile, and is never
+overwritten. A profile that records an encrypted private repository (see
+Command: Private below) provides that file itself: init skips the question when
+the private repo carries the profile's git config, links the private tree right
+before the identity step, and re-checks before writing so the private copy
 always wins.
 
 On macOS, init finishes with the system questions: a picklist of curated
@@ -649,20 +648,20 @@ installed packages when asked, installs mise into `~/.local/bin` when the
 machine has none, runs `git init` and stages everything (the first commit is
 left to the user so it can be signed), links the repository's `home` tree into
 `$HOME` plus the profile-varying files and `~/.config/mise` through
-active-profile, activates the profile, and
-downloads the pinned lobe-icons glyph font into the user font directory (a
-warning, never a failure, when offline). Re-running init against an existing
-repository and profile asks the same questions with the stored answers as the
-defaults; keeping them re-renders and re-links idempotently — which is also how
-a second machine of the same class adopts a freshly cloned repo, either run from
-inside the clone or with `--repo` naming it. Against a legacy-layout repository,
-re-running init first migrates it in place: profiles are lifted to top-level
-`profiles/<name>` directories, each per-profile `render/` dissolves into its
-profile root, `dotty.json` and `profile.json` merge into a single
-`profile.json`, and the tree of `$HOME`-relative entries is renamed to `home/`.
-A live `~/.config/codex/config.toml` still symlinked through active-profile (the
-layout before the codex profile layer) is migrated the same way: its content is
-backed up and rewritten in place as a real machine-local file — restorable with
+active-profile, activates the profile, and downloads the pinned lobe-icons glyph
+font into the user font directory (a warning, never a failure, when offline).
+Re-running init against an existing repository and profile asks the same
+questions with the stored answers as the defaults; keeping them re-renders and
+re-links idempotently — which is also how a second machine of the same class
+adopts a freshly cloned repo, either run from inside the clone or with `--repo`
+naming it. Against a legacy-layout repository, re-running init first migrates it
+in place: profiles are lifted to top-level `profiles/<name>` directories, each
+per-profile `render/` dissolves into its profile root, `dotty.json` and
+`profile.json` merge into a single `profile.json`, and the tree of
+`$HOME`-relative entries is renamed to `home/`. A live
+`~/.config/codex/config.toml` still symlinked through active-profile (the layout
+before the codex profile layer) is migrated the same way: its content is backed
+up and rewritten in place as a real machine-local file — restorable with
 `dotty dotfiles restore` — so Codex's project trust survives the switch to
 `dotty.config.toml`.
 

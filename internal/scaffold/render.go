@@ -223,16 +223,16 @@ func PrunePerProfile(profileDir string, ops []FileOp) ([]string, error) {
 		if err != nil {
 			return pruned, fmt.Errorf("prune profile renders: %w", err)
 		}
-		for _, path := range orphans {
-			if err := os.Remove(path); err != nil {
-				return pruned, fmt.Errorf("prune %s: %w", path, err)
+		for _, orphan := range orphans {
+			if err := os.Remove(orphan); err != nil {
+				return pruned, fmt.Errorf("prune %s: %w", orphan, err)
 			}
-			rel, err := filepath.Rel(profileDir, path)
+			rel, err := filepath.Rel(profileDir, orphan)
 			if err != nil {
 				return pruned, err
 			}
 			pruned = append(pruned, rel)
-			for dir := filepath.Dir(path); dir != root; dir = filepath.Dir(dir) {
+			for dir := filepath.Dir(orphan); dir != root; dir = filepath.Dir(dir) {
 				if os.Remove(dir) != nil {
 					break // still holds planned renders; so do its parents
 				}

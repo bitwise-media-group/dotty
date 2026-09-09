@@ -289,7 +289,8 @@ func TestPackagesSync(t *testing.T) {
 func TestPackagesImport(t *testing.T) {
 	t.Run("installed formulae", func(t *testing.T) {
 		dir, logPath := packagesEnv(t, testPackagesConfig, testPackagesFragments)
-		t.Setenv("DOTTY_TEST_IMPORT", "[bootstrap.packages]\n\"brew:git\" = \"latest\"\n\"brew:curl\" = \"latest\"\n\"brew:wget\" = \"latest\"\n")
+		t.Setenv("DOTTY_TEST_IMPORT", "[bootstrap.packages]\n\"brew:git\" = \"latest\"\n"+
+			"\"brew:curl\" = \"latest\"\n\"brew:wget\" = \"latest\"\n")
 		if err := execDotty(t, "packages", "import", "--all"); err != nil {
 			t.Fatalf("import: %v", err)
 		}
