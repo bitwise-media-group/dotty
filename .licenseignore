@@ -3,3 +3,4 @@ docs/**
 dist/**
 site/**
 completions/**
+internal/scaffold/template/**
