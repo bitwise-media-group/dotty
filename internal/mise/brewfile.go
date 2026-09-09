@@ -125,9 +125,19 @@ var toolForCask = map[string]Converted{
 	"claude-code":        {ID: "aqua:anthropics/claude-code", Line: toolLine("aqua:anthropics/claude-code")},
 	"claude-code@latest": {ID: "aqua:anthropics/claude-code", Line: toolLine("aqua:anthropics/claude-code")},
 	"codex":              {ID: "aqua:openai/codex", Line: toolLine("aqua:openai/codex")},
-	"antigravity":        {ID: "aqua:google-antigravity/antigravity-cli", Line: toolLine("aqua:google-antigravity/antigravity-cli")},
-	"grok-build":         {ID: "http:grok", Line: toolLine("http:grok")},
+	"antigravity": {ID: "aqua:google-antigravity/antigravity-cli",
+		Line: toolLine("aqua:google-antigravity/antigravity-cli")},
+	"grok-build": {ID: "http:grok", Line: grokToolLine},
 }
+
+// grokToolLine is the http-backend declaration for the grok CLI, matching
+// the agent-grok fragment: a bare `http:grok` carries no URL, so the line
+// spells out the download template and version list the registry's `grok`
+// short name expands to.
+const grokToolLine = `"http:grok" = { version = "latest", bin = "grok", ` +
+	`url = 'https://storage.googleapis.com/grok-build-public-artifacts/cli/` +
+	`grok-{{ version }}-{{ os() }}-{{ arch(x64="x86_64", arm64="aarch64") }}', ` +
+	`version_list_url = "https://x.ai/cli/stable" }`
 
 // fragmentCaskTools are the toolForCask targets an agent fragment declares;
 // the bitwise casks are user-owned and not checked against the fragments.
@@ -222,7 +232,8 @@ func ConvertBrewfile(data []byte) Conversion {
 				conv.tap(tap)
 				conv.Warnings = append(conv.Warnings, fmt.Sprintf(
 					"brew %q: mise pours a tapped formula only when %s publishes api/formula/%s.json; "+
-						"replace it with a locked tool (`mise registry`) if apply fails", e.name, tap, name[strings.LastIndex(name, "/")+1:]))
+						"replace it with a locked tool (`mise registry`) if apply fails",
+					e.name, tap, name[strings.LastIndex(name, "/")+1:]))
 			}
 		case "cask":
 			token := e.name

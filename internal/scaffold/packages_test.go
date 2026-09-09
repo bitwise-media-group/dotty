@@ -386,6 +386,16 @@ func TestConverterMapMatchesFragments(t *testing.T) {
 			t.Errorf("converter maps onto %s, which no fragment declares", id)
 		}
 	}
+	// The http declaration carries options; the converter's line and the
+	// fragment's must agree so a converted Brewfile never duplicates grok.
+	grok, err := fs.ReadFile(templateFS, "template/mise.d/agent-grok.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	conv := mise.ConvertBrewfile([]byte("cask \"grok-build\"\n"))
+	if len(conv.Tools) != 1 || !strings.Contains(string(grok), conv.Tools[0].Line) {
+		t.Errorf("grok converter line not in the fragment:\n%v\n%s", conv.Tools, grok)
+	}
 }
 
 // TestConfigTemplateMatchesDefault pins that the template's config.toml and

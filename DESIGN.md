@@ -357,8 +357,10 @@ entries mise pours into the Homebrew prefix or the OS package manager at their
 latest version — for what has no static build (git, curl, zsh, native libraries)
 and for GUI apps and fonts. The coding-agent CLIs are tools, not casks: the
 registry carries `aqua:anthropics/claude-code`, `aqua:openai/codex`,
-`aqua:google-antigravity/antigravity-cli`, and `http:grok`. Registry shorthand (`git`, `flux`) is refused everywhere: it
-resolves to whichever registry entry claims the name.
+`aqua:google-antigravity/antigravity-cli`, and `http:grok` — the last spelled
+out with its URL template and version list, since a bare http id has no URL.
+Registry shorthand (`git`, `flux`) is refused everywhere: it resolves to
+whichever registry entry claims the name.
 
 Ownership splits by file: the fragments under `conf.d/` are rendered by
 `dotty init` from the selected components and pruned when a component is
