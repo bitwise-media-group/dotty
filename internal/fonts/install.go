@@ -15,13 +15,8 @@ import (
 // Install downloads the lobe-icons glyph font into the user font directory.
 // Never fatal: a font is not worth failing init over.
 func Install(ctx context.Context, ios cli.IOStreams, home string) {
-	dir, err := Dir(home)
-	if err != nil {
-		tui.Warnf(ios, "Skipping lobe-icons font: %v", err)
-		return
-	}
 	client := &http.Client{Timeout: 30 * time.Second}
-	installed, err := InstallLobeIcons(ctx, client, LobeIconsURL, dir)
+	installed, err := InstallLobeIcons(ctx, client, LobeIconsURL, Dir(home))
 	if err != nil {
 		tui.Warnf(ios, "Could not install lobe-icons font (rerun init to retry): %v", err)
 		return

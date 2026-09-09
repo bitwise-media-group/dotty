@@ -6,6 +6,6 @@ package fonts
 import "path/filepath"
 
 // Dir returns the per-user font directory fonts install into.
-func Dir(home string) (string, error) {
-	return filepath.Join(home, "Library", "Fonts"), nil
+func Dir(home string) string {
+	return filepath.Join(home, "Library", "Fonts")
 }
