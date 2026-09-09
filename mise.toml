@@ -12,8 +12,8 @@
 lockfile = true
 
 [tools]
-go = "1.26.6"
-"go:golang.org/x/vuln/cmd/govulncheck" = "1.7.0"
+go = "1.27.1"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
 
 [vars]
 app = "dotty"
