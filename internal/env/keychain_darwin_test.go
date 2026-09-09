@@ -17,15 +17,13 @@ import (
 // fakeRunner records the last invocation and returns canned results, standing
 // in for the security(1) CLI.
 type fakeRunner struct {
-	out      []byte
-	err      error
-	gotName  string
-	gotArgs  []string
-	callMade bool
+	out     []byte
+	err     error
+	gotName string
+	gotArgs []string
 }
 
 func (r *fakeRunner) Output(_ context.Context, name string, args ...string) ([]byte, error) {
-	r.callMade = true
 	r.gotName = name
 	r.gotArgs = args
 	return r.out, r.err
@@ -79,21 +77,6 @@ func TestSecurityKeychainRead(t *testing.T) {
 	})
 }
 
-func TestSecurityKeychainWrite(t *testing.T) {
-	r := &fakeRunner{}
-	if err := NewKeychain(r).Write(context.Background(), "aws", []byte(`{"K":"v"}`)); err != nil {
-		t.Fatalf("Write: %v", err)
-	}
-	want := []string{
-		"add-generic-password", "-U",
-		"-s", "dotty:aws", "-a", "aws",
-		"-D", "dotty env", "-w", `{"K":"v"}`,
-	}
-	if r.gotName != "security" || !reflect.DeepEqual(r.gotArgs, want) {
-		t.Errorf("ran %s %v, want security %v", r.gotName, r.gotArgs, want)
-	}
-}
-
 func TestSecurityKeychainDelete(t *testing.T) {
 	ctx := context.Background()
 
@@ -114,4 +97,51 @@ func TestSecurityKeychainDelete(t *testing.T) {
 			t.Errorf("Delete err = %v, want ErrNotFound", err)
 		}
 	})
+}
+
+// dumpExcerpt is the shape `security dump-keychain` prints without -d: item
+// attributes only, one record per item, the service under "svce". Two dotty
+// namespaces (one twice, as a duplicate record would appear across the
+// search list), a foreign service, and an item with no service at all.
+const dumpExcerpt = `keychain: "/Users/me/Library/Keychains/login.keychain-db"
+version: 512
+class: "genp"
+attributes:
+    "acct"<blob>="aws"
+    "cdat"<timedate>=0x32303236303930390000  "20260909\000"
+    "desc"<blob>="dotty env"
+    "svce"<blob>="dotty:aws"
+class: "genp"
+attributes:
+    "acct"<blob>="someone"
+    "svce"<blob>="com.example.other"
+class: "genp"
+attributes:
+    "acct"<blob>="ci"
+    "svce"<blob>="dotty:ci"
+class: "inet"
+attributes:
+    "acct"<blob>="x"
+    "svce"<blob>=<NULL>
+class: "genp"
+attributes:
+    "acct"<blob>="aws"
+    "svce"<blob>="dotty:aws"
+`
+
+func TestSecurityKeychainList(t *testing.T) {
+	r := &fakeRunner{out: []byte(dumpExcerpt)}
+	got, err := NewKeychain(r).List(context.Background())
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	want := []string{"aws", "ci"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("List = %v, want %v", got, want)
+	}
+	// Attributes only: never -d, which would read (and prompt for) the data.
+	wantArgs := []string{"dump-keychain"}
+	if r.gotName != "security" || !reflect.DeepEqual(r.gotArgs, wantArgs) {
+		t.Errorf("ran %s %v, want security %v", r.gotName, r.gotArgs, wantArgs)
+	}
 }

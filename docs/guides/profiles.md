@@ -64,10 +64,9 @@ dotty profile activate --name=work
 
 [`dotty profile activate`](../cli/dotty_profile_activate.md) retargets the
 `active-profile` symlink; `~/.config/mise` resolves through it, so the new
-profile's packages and lockfile are what mise sees from then on. After
-switching classes on a machine, follow with
-[`dotty packages sync`](packages.md) to make the installed packages match the
-new profile.
+profile's packages and lockfile are what mise sees from then on. After switching
+classes on a machine, follow with [`dotty packages sync`](packages.md) to make
+the installed packages match the new profile.
 
 ```mermaid
 flowchart LR
@@ -93,10 +92,9 @@ dotty profile get work --format=json
 description, creation date. [`dotty profile get`](../cli/dotty_profile_get.md)
 adds what only this machine knows: the profile directory, the repository
 directory behind it, whether it is active, and how many packages it declares.
-Named without
-an argument, both work on the active profile, and the global `--profile` picks
-another. `--format=json` prints `profile.json` verbatim, so the stored init
-answers come with it.
+Named without an argument, both work on the active profile, and the global
+`--profile` picks another. `--format=json` prints `profile.json` verbatim, so
+the stored init answers come with it.
 
 ## Deleting
 

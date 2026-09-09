@@ -1,0 +1,17 @@
+{{- define "keychain" -}}
+[providers.{{ .KeychainProvider }}]
+type = "keychain"
+service = "{{ .KeychainService }}"
+{{ end -}}
+{{- define "age" -}}
+[providers.{{ .AgeProvider }}]
+type = "age"
+recipients = [{{ range $i, $r := .Recipients }}{{ if $i }}, {{ end }}"{{ $r }}"{{ end }}]
+identity = { provider = "{{ .KeychainProvider }}", value = "{{ .IdentityKey }}" }
+{{ end -}}
+# Written by dotty. Secrets are only injected into `fnox exec` subprocesses.
+env = "exec"
+default_provider = "{{ .AgeProvider }}"
+
+{{ template "keychain" . }}
+{{ template "age" . -}}

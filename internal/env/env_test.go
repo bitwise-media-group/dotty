@@ -16,7 +16,13 @@ type fakeKeychain struct {
 	items map[string][]byte
 }
 
-func newFakeKeychain() *fakeKeychain { return &fakeKeychain{items: map[string][]byte{}} }
+func newFakeKeychain(items map[string]string) *fakeKeychain {
+	f := &fakeKeychain{items: map[string][]byte{}}
+	for ns, v := range items {
+		f.items[ns] = []byte(v)
+	}
+	return f
+}
 
 func (f *fakeKeychain) Read(_ context.Context, ns string) ([]byte, error) {
 	v, ok := f.items[ns]
@@ -24,11 +30,6 @@ func (f *fakeKeychain) Read(_ context.Context, ns string) ([]byte, error) {
 		return nil, ErrNotFound
 	}
 	return append([]byte(nil), v...), nil
-}
-
-func (f *fakeKeychain) Write(_ context.Context, ns string, value []byte) error {
-	f.items[ns] = append([]byte(nil), value...)
-	return nil
 }
 
 func (f *fakeKeychain) Delete(_ context.Context, ns string) error {
@@ -39,19 +40,28 @@ func (f *fakeKeychain) Delete(_ context.Context, ns string) error {
 	return nil
 }
 
-func TestStoreSetGet(t *testing.T) {
-	ctx := context.Background()
-	s := NewStore(newFakeKeychain())
-
-	if err := s.Set(ctx, "aws", "AWS_KEY", "secret"); err != nil {
-		t.Fatalf("Set: %v", err)
+func (f *fakeKeychain) List(context.Context) ([]string, error) {
+	names := make([]string, 0, len(f.items))
+	for ns := range f.items {
+		names = append(names, ns)
 	}
+	return names, nil
+}
+
+func TestStoreGet(t *testing.T) {
+	ctx := context.Background()
+	s := NewStore(newFakeKeychain(map[string]string{"aws": `{"AWS_KEY":"secret","MULTI":"line1\nline2 \"q\""}`}))
+
 	got, err := s.Get(ctx, "aws", "AWS_KEY")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
 	if got != "secret" {
 		t.Errorf("Get = %q, want %q", got, "secret")
+	}
+	// Values with newlines and quotes survive the JSON decode.
+	if got, err := s.Get(ctx, "aws", "MULTI"); err != nil || got != "line1\nline2 \"q\"" {
+		t.Errorf("Get MULTI = %q (err %v)", got, err)
 	}
 
 	if _, err := s.Get(ctx, "aws", "MISSING"); !errors.Is(err, ErrKeyNotFound) {
@@ -62,42 +72,16 @@ func TestStoreSetGet(t *testing.T) {
 	}
 }
 
-func TestStoreOverwriteAndValueShapes(t *testing.T) {
-	ctx := context.Background()
-	s := NewStore(newFakeKeychain())
-
-	if err := s.Set(ctx, "ns", "K", "first"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Set(ctx, "ns", "K", "second"); err != nil {
-		t.Fatal(err)
-	}
-	got, err := s.Get(ctx, "ns", "K")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "second" {
-		t.Errorf("overwrite Get = %q, want %q", got, "second")
-	}
-
-	// Values with newlines and quotes survive the JSON round-trip.
-	tricky := "line1\nline2 \"quoted\" \t end"
-	if err := s.Set(ctx, "ns", "MULTI", tricky); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := s.Get(ctx, "ns", "MULTI"); err != nil || got != tricky {
-		t.Errorf("tricky value round-trip = %q (err %v), want %q", got, err, tricky)
+func TestStoreGetMalformedItem(t *testing.T) {
+	s := NewStore(newFakeKeychain(map[string]string{"bad": "not json"}))
+	if _, err := s.Get(context.Background(), "bad", "K"); err == nil {
+		t.Fatal("Get on a malformed item = nil error")
 	}
 }
 
 func TestStoreKeysSorted(t *testing.T) {
 	ctx := context.Background()
-	s := NewStore(newFakeKeychain())
-	for _, k := range []string{"ZED", "ALPHA", "MIKE"} {
-		if err := s.Set(ctx, "ns", k, "v"); err != nil {
-			t.Fatal(err)
-		}
-	}
+	s := NewStore(newFakeKeychain(map[string]string{"ns": `{"ZED":"v","ALPHA":"v","MIKE":"v"}`}))
 	keys, err := s.Keys(ctx, "ns")
 	if err != nil {
 		t.Fatal(err)
@@ -116,50 +100,9 @@ func TestStoreKeysSorted(t *testing.T) {
 	}
 }
 
-func TestStoreDeleteLastRemovesNamespaceItem(t *testing.T) {
-	ctx := context.Background()
-	kc := newFakeKeychain()
-	s := NewStore(kc)
-
-	if err := s.Set(ctx, "ns", "ONLY", "v"); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := kc.items["ns"]; !ok {
-		t.Fatal("namespace item not created")
-	}
-
-	found, err := s.Delete(ctx, "ns", "ONLY")
-	if err != nil || !found {
-		t.Fatalf("Delete = (%v, %v), want (true, nil)", found, err)
-	}
-	if _, ok := kc.items["ns"]; ok {
-		t.Error("namespace item should be removed once its last key is deleted")
-	}
-}
-
-func TestStoreDeleteMissingKey(t *testing.T) {
-	ctx := context.Background()
-	s := NewStore(newFakeKeychain())
-	if err := s.Set(ctx, "ns", "A", "v"); err != nil {
-		t.Fatal(err)
-	}
-	found, err := s.Delete(ctx, "ns", "MISSING")
-	if err != nil {
-		t.Fatalf("Delete missing: %v", err)
-	}
-	if found {
-		t.Error("Delete missing key reported found = true")
-	}
-}
-
 func TestStoreDeleteNamespace(t *testing.T) {
 	ctx := context.Background()
-	s := NewStore(newFakeKeychain())
-	for _, k := range []string{"A", "B"} {
-		if err := s.Set(ctx, "ns", k, "v"); err != nil {
-			t.Fatal(err)
-		}
-	}
+	s := NewStore(newFakeKeychain(map[string]string{"ns": `{"A":"1","B":"2"}`}))
 	if err := s.DeleteNamespace(ctx, "ns"); err != nil {
 		t.Fatalf("DeleteNamespace: %v", err)
 	}
@@ -173,15 +116,8 @@ func TestStoreDeleteNamespace(t *testing.T) {
 }
 
 func TestStoreAll(t *testing.T) {
-	ctx := context.Background()
-	s := NewStore(newFakeKeychain())
-	if err := s.Set(ctx, "ns", "A", "1"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Set(ctx, "ns", "B", "2"); err != nil {
-		t.Fatal(err)
-	}
-	all, err := s.All(ctx, "ns")
+	s := NewStore(newFakeKeychain(map[string]string{"ns": `{"A":"1","B":"2"}`}))
+	all, err := s.All(context.Background(), "ns")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,74 +126,15 @@ func TestStoreAll(t *testing.T) {
 	}
 }
 
-func TestStoreSetAll(t *testing.T) {
-	ctx := context.Background()
-	kc := newFakeKeychain()
-	s := NewStore(kc)
-
-	if err := s.Set(ctx, "ns", "EXISTING", "old"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.SetAll(ctx, "ns", map[string]string{"EXISTING": "new", "A": "1", "B": "2"}); err != nil {
-		t.Fatalf("SetAll: %v", err)
-	}
-	all, err := s.All(ctx, "ns")
+func TestStoreNamespacesSorted(t *testing.T) {
+	s := NewStore(newFakeKeychain(map[string]string{"zeta": "{}", "aws": "{}", "ci": "{}"}))
+	got, err := s.Namespaces(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"EXISTING": "new", "A": "1", "B": "2"}
-	if !reflect.DeepEqual(all, want) {
-		t.Errorf("after SetAll, All = %v, want %v", all, want)
-	}
-
-	// A bad key fails the batch before any write lands.
-	writes := len(kc.items)
-	if err := s.SetAll(ctx, "fresh", map[string]string{"OK": "v", "1BAD": "v"}); !errors.Is(err, ErrInvalidKey) {
-		t.Errorf("SetAll invalid key err = %v, want ErrInvalidKey", err)
-	}
-	if _, ok := kc.items["fresh"]; ok || len(kc.items) != writes {
-		t.Error("SetAll wrote a namespace despite an invalid key in the batch")
-	}
-
-	// An empty batch is a no-op, not an error.
-	if err := s.SetAll(ctx, "ns", nil); err != nil {
-		t.Errorf("SetAll(nil) = %v, want nil", err)
-	}
-}
-
-func TestStoreResolver(t *testing.T) {
-	ctx := context.Background()
-	s := NewStore(newFakeKeychain())
-	if err := s.Set(ctx, "aws", "KEY", "aws-secret"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Set(ctx, "ci", "TOKEN", "ci-secret"); err != nil {
-		t.Fatal(err)
-	}
-	resolve := s.Resolver(ctx, "aws")
-
-	// Bare key (empty namespace) falls back to "aws".
-	if v, err := resolve("", "KEY"); err != nil || v != "aws-secret" {
-		t.Errorf("resolve fallback = %q (err %v), want aws-secret", v, err)
-	}
-	// Explicit namespace.
-	if v, err := resolve("ci", "TOKEN"); err != nil || v != "ci-secret" {
-		t.Errorf("resolve explicit = %q (err %v), want ci-secret", v, err)
-	}
-	// Unknown key errors.
-	if _, err := resolve("aws", "NOPE"); !errors.Is(err, ErrKeyNotFound) {
-		t.Errorf("resolve unknown err = %v, want ErrKeyNotFound", err)
-	}
-}
-
-func TestStoreSetValidates(t *testing.T) {
-	ctx := context.Background()
-	s := NewStore(newFakeKeychain())
-	if err := s.Set(ctx, "ns", "1BAD", "v"); !errors.Is(err, ErrInvalidKey) {
-		t.Errorf("Set invalid key err = %v, want ErrInvalidKey", err)
-	}
-	if err := s.Set(ctx, "bad:ns", "OK", "v"); !errors.Is(err, ErrInvalidNamespace) {
-		t.Errorf("Set invalid namespace err = %v, want ErrInvalidNamespace", err)
+	want := []string{"aws", "ci", "zeta"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Namespaces = %v, want %v", got, want)
 	}
 }
 

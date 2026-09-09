@@ -9,9 +9,9 @@ commit.sh
 # macos files
 .DS_Store
 
-# env files
+# env files and per-machine fnox overrides
 .env.*
-!.env.dotty
+fnox.local.toml
 
 **/.claude/.cc-writes/
 {{- if not .WorktreesAbs }}

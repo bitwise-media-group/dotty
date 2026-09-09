@@ -183,6 +183,7 @@
             "git commit *": "allow",
             "test *": "allow",
             "security *": "deny",
+            "fnox *": "deny",
             "* .env*": "deny",
             "* */.env*": "deny",
             "* ~/.aws*": "deny",

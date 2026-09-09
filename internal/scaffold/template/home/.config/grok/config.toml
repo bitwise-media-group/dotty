@@ -190,6 +190,7 @@ deny = [
   # Claude Code blocks the keychain at the sandbox layer (no
   # com.apple.SecurityServer mach lookup); Grok cannot, so deny the CLI here.
   "Bash(security *)",
+  "Bash(fnox *)",
 ]
 
 {{- end }}

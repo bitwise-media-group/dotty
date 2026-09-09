@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/fnox"
 	"github.com/bitwise-media-group/dotty/internal/fonts"
 	"github.com/bitwise-media-group/dotty/internal/git"
 	"github.com/bitwise-media-group/dotty/internal/linker"
@@ -198,6 +199,7 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	}
 	tui.Successf(ios, "Profile %s active", answers.ProfileName)
 	tui.Infof(ios, "Install everything with: dotty packages sync")
+	bootstrapFnoxBestEffort(ctx, ios, runner, answers, home)
 	if !iv.hadAllowlist && len(answers.AllowedSerials) > 0 {
 		tui.Successf(ios, "Profile %s allows only these security keys: %s",
 			answers.ProfileName, strings.Join(answers.AllowedSerials, ", "))
@@ -576,4 +578,29 @@ func useExistingKeys(ctx context.Context, ios cli.IOStreams, home string, refs [
 	}
 	tui.Successf(ios, "Using %d existing signing key(s); %s -> YubiKey %s", len(refs), linkPath, refs[0].Serial)
 	return nil
+}
+
+// bootstrapFnoxBestEffort sets up fnox's provider pair when fnox is already
+// on PATH; a fresh machine gets it from packages sync and finishes the job
+// with dotty env migrate. Like the key plan, a failure here must not strand
+// init.
+func bootstrapFnoxBestEffort(
+	ctx context.Context, ios cli.IOStreams, runner *cli.ExecRunner, answers scaffold.Answers, home string,
+) {
+	if _, err := exec.LookPath(fnox.Bin); err != nil {
+		tui.Infof(ios, "After packages sync, run dotty env migrate to set up fnox")
+		return
+	}
+	globalConfig, err := fnox.GlobalConfigPath()
+	if err != nil {
+		tui.Warnf(ios, "fnox setup did not finish: %v (retry with dotty env migrate)", err)
+		return
+	}
+	var recovery []string
+	if repo := privateRepoFromAnswers(answers, home); repo != "" {
+		recovery = recoveryRecipients(ios, repo, answers.ProfileName)
+	}
+	if err := fnox.Bootstrap(ctx, ios, fnox.New(runner, globalConfig), recovery); err != nil {
+		tui.Warnf(ios, "fnox setup did not finish: %v (retry with dotty env migrate)", err)
+	}
 }

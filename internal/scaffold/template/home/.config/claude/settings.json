@@ -105,7 +105,11 @@
       "Edit(~/.config/gcloud)",
       "Edit(~/.ssh)",
       "Edit(~/.gnupg)",
-      "Edit(**/.env*)"
+      "Edit(**/.env*)",
+
+      "Bash(fnox get *)",
+      "Bash(fnox exec *)",
+      "Bash(fnox export *)"
     ],
     "defaultMode": "auto"
   },

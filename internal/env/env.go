@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 )
 
 var (
@@ -20,9 +20,8 @@ var (
 	ErrInvalidNamespace = errors.New("invalid namespace")
 )
 
-// Store reads and writes credentials through a Keychain. Each namespace is one
-// keychain item holding a JSON object of key to value; every mutation is a
-// read-modify-write of that whole object.
+// Store reads the credentials the legacy verbs kept through a Keychain. Each
+// namespace is one keychain item holding a JSON object of key to value.
 type Store struct {
 	kc Keychain
 }
@@ -52,62 +51,6 @@ func (s *Store) load(ctx context.Context, namespace string) (map[string]string, 
 	return values, nil
 }
 
-// save writes values back, deleting the namespace item entirely when it is
-// empty so no stray keychain entry lingers.
-func (s *Store) save(ctx context.Context, namespace string, values map[string]string) error {
-	if len(values) == 0 {
-		return s.DeleteNamespace(ctx, namespace)
-	}
-	data, err := json.Marshal(values)
-	if err != nil {
-		return fmt.Errorf("encode namespace %q: %w", namespace, err)
-	}
-	return s.kc.Write(ctx, namespace, data)
-}
-
-// Set stores key=value in namespace, creating the namespace if needed.
-func (s *Store) Set(ctx context.Context, namespace, key, value string) error {
-	if err := ValidateNamespace(namespace); err != nil {
-		return err
-	}
-	if err := ValidateKey(key); err != nil {
-		return err
-	}
-	values, err := s.load(ctx, namespace)
-	if err != nil {
-		return err
-	}
-	values[key] = value
-	return s.save(ctx, namespace, values)
-}
-
-// SetAll stores every key=value in values into namespace as a single
-// read-modify-write, creating the namespace if needed and overwriting any keys
-// that already exist. Every key is validated before anything is written, so a
-// bad key fails the whole batch rather than leaving it half-applied. An empty
-// map is a no-op.
-func (s *Store) SetAll(ctx context.Context, namespace string, values map[string]string) error {
-	if err := ValidateNamespace(namespace); err != nil {
-		return err
-	}
-	for key := range values {
-		if err := ValidateKey(key); err != nil {
-			return err
-		}
-	}
-	if len(values) == 0 {
-		return nil
-	}
-	current, err := s.load(ctx, namespace)
-	if err != nil {
-		return err
-	}
-	for key, value := range values {
-		current[key] = value
-	}
-	return s.save(ctx, namespace, current)
-}
-
 // Get returns the value of key in namespace, or ErrKeyNotFound.
 func (s *Store) Get(ctx context.Context, namespace, key string) (string, error) {
 	values, err := s.load(ctx, namespace)
@@ -119,23 +62,6 @@ func (s *Store) Get(ctx context.Context, namespace, key string) (string, error) 
 		return "", fmt.Errorf("%q in namespace %q: %w", key, namespace, ErrKeyNotFound)
 	}
 	return value, nil
-}
-
-// Delete removes key from namespace, reporting whether it was present. The
-// namespace item is removed once its last key is gone.
-func (s *Store) Delete(ctx context.Context, namespace, key string) (bool, error) {
-	values, err := s.load(ctx, namespace)
-	if err != nil {
-		return false, err
-	}
-	if _, ok := values[key]; !ok {
-		return false, nil
-	}
-	delete(values, key)
-	if err := s.save(ctx, namespace, values); err != nil {
-		return false, err
-	}
-	return true, nil
 }
 
 // DeleteNamespace removes a namespace and all of its keys. A namespace that
@@ -158,7 +84,7 @@ func (s *Store) Keys(ctx context.Context, namespace string) ([]string, error) {
 	for k := range values {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys, nil
 }
 
@@ -167,30 +93,14 @@ func (s *Store) All(ctx context.Context, namespace string) (map[string]string, e
 	return s.load(ctx, namespace)
 }
 
-// Resolver returns a lookup function for single credentials that caches each
-// namespace's contents, so a template or process drawing many references reads
-// the keychain once per namespace. A reference with an empty namespace (the
-// bare {{ KEY }} form) falls back to fallback.
-func (s *Store) Resolver(ctx context.Context, fallback string) func(namespace, key string) (string, error) {
-	cache := map[string]map[string]string{}
-	return func(namespace, key string) (string, error) {
-		if namespace == "" {
-			namespace = fallback
-		}
-		values, ok := cache[namespace]
-		if !ok {
-			var err error
-			if values, err = s.load(ctx, namespace); err != nil {
-				return "", err
-			}
-			cache[namespace] = values
-		}
-		value, found := values[key]
-		if !found {
-			return "", fmt.Errorf("%q in namespace %q: %w", key, namespace, ErrKeyNotFound)
-		}
-		return value, nil
+// Namespaces returns every namespace with a keychain item, sorted.
+func (s *Store) Namespaces(ctx context.Context) ([]string, error) {
+	namespaces, err := s.kc.List(ctx)
+	if err != nil {
+		return nil, err
 	}
+	slices.Sort(namespaces)
+	return namespaces, nil
 }
 
 // ValidateKey reports whether key is a usable environment variable name: a

@@ -15,6 +15,8 @@
 "aqua:ajeetdsouza/zoxide" = "latest"
 "aqua:JanDeDobbeleer/oh-my-posh" = "latest"
 "aqua:astral-sh/uv" = "latest"
+"aqua:jdx/fnox" = "latest"
+"aqua:FiloSottile/age" = "latest"
 "github:bitwise-media-group/dotty" = "latest"
 
 [bootstrap.packages]
@@ -26,4 +28,3 @@
 "brew-cask:font-iosevka-nerd-font" = { version = "latest", os = "macos" }
 "brew-cask:font-symbols-only-nerd-font" = { version = "latest", os = "macos" }
 "brew-cask:ghostty" = { version = "latest", os = "macos" }
-"brew-cask:git-credential-manager" = { version = "latest", os = "macos" }

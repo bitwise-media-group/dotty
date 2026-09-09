@@ -430,114 +430,117 @@ user to delete once the result checks out. Seeding works the same way: when
 `mise.lock` are copied into the profile (with the lockfile, locked, and
 cask-adopt settings added) before the linker backs the directory up.
 
-# Generic Credentials
+# Secrets (fnox)
 
 Command: env
 
-Store generic credentials in the operating system keychain and inject them into
-templates and processes — the way the 1Password CLI does, but with no external
-service. Credentials are grouped into namespaces; each namespace is a single
-keychain item under the service name `dotty:<namespace>`, which isolates groups
-of secrets that belong together. Every verb takes a `--namespace` flag (default
-`default`).
+Secrets are managed by [fnox](https://fnox.jdx.dev), not by dotty. dotty's job
+is to install it (`aqua:jdx/fnox` in the core package set, with `age` beside
+it), activate its shell hook, set up the provider pair it relies on, and carry
+the old `dotty env` store into it. The former verbs map one to one:
 
-Keychain access is platform-specific and lives behind an interface in
-GOOS-tagged files; macOS shells out to `security`, with a stub on other
-platforms until a Linux backend (e.g. `secret-tool`) is added. References use
-the form `{{ dotty://<namespace>/<key> }}`, or a bare `{{ <key> }}` resolved
-against `--namespace`.
+| Removed verb       | fnox                                    |
+| ------------------ | --------------------------------------- |
+| `dotty env add`    | `fnox set [-P ns] KEY` (value on stdin) |
+| `dotty env get`    | `fnox get [-P ns] KEY`                  |
+| `dotty env list`   | `fnox list [-P ns]`                     |
+| `dotty env remove` | `fnox remove [-P ns] KEY`               |
+| `dotty env run`    | `fnox exec [-P ns] -- <command>`        |
+| `dotty env use`    | `fnox export --all -o .env`             |
 
-## Add a credential
+A legacy namespace is a fnox profile (`-P ns`); the `default` namespace is the
+top-level `[secrets]` table. A project's `.env.dotty` template is a `fnox.toml`
+beside it: literals as `default = "…"` entries, secrets as encrypted values.
 
-Command: add
+## Provider bootstrap
 
-Store a credential under KEY in the namespace. With a terminal attached the
-value is read from a hidden prompt; when input is piped, it is read from stdin.
-The value is never taken from a flag, so it stays out of shell history and the
-process list.
+The global config, `~/.config/fnox/config.toml`, is tracked in the public
+dotfiles repository through the `home/` link — it holds only ciphertext and
+recipient public keys. dotty writes it (`dotty env migrate` always, `dotty init`
+best-effort when fnox is already on PATH) and never touches it again once the
+`dotty-age` provider exists:
 
-With `--in-file`, KEY is omitted and a `.env` file is captured instead — the
-inverse of `use`: every `KEY=value` assignment is stored in the namespace and
-its value is replaced with a `{{ dotty://<namespace>/KEY }}` reference. The
-result is written to `--out-file`, which defaults to `--in-file`; replacing an
-existing file is confirmed first. Blank lines, comments, empty values, and
-values that are already references are left untouched.
+```toml
+env = "exec"
+default_provider = "dotty-age"
 
-```text
-dotty env [--namespace=<ns>] add <KEY>
-dotty env [--namespace=<ns>] add --in-file=<file> [--out-file=<file>]
+[providers.dotty-keychain]
+type = "keychain"
+service = "fnox"
+
+[providers.dotty-age]
+type = "age"
+recipients = ["age1…", "age1yubikey1…", "age1yubikey1…"]
+identity = { provider = "dotty-keychain", value = "dotty-age-key" }
 ```
 
-## Remove a credential
+- **A software age identity**, generated with `age-keygen` and parked in the
+  macOS Keychain through fnox's own keychain provider, so decrypting never
+  prompts for a touch. The first read triggers the Keychain allow dialog once;
+  choose Always Allow.
+- **Every security key enrolled for the private dotfiles** as an extra recipient
+  (read from the profile's `age/recipients.txt`), so any of them can decrypt the
+  values on a machine that lacks the software identity. More YubiKeys are just
+  more recipients; none is fine, and a later `dotty env migrate` after
+  `dotty private enroll` adds them.
+- **`env = "exec"`**: secrets only enter `fnox exec` subprocesses, never the
+  interactive shell where coding agents run — the same model the old
+  `dotty env run` had.
 
-Command: remove Aliases: rm
+A present config that predates dotty gets only the missing `[providers.*]`
+tables appended (appending tables is always valid TOML, so the file is never
+parsed); the two top-level settings are checked textually and reported for the
+user to add by hand.
 
-Remove one credential by KEY, the whole namespace with `--all`, or pick several
-from a filterable checklist when no KEY is given. Removing the last credential
-also removes the namespace's keychain item.
+## Migrate
 
-```text
-dotty env [--namespace=<ns>] remove [<KEY>] [--all]
-```
-
-## List credentials
-
-Command: list Aliases: ls
-
-Print the key names in the namespace, one per line, sorted. Values are never
-printed.
-
-```text
-dotty env [--namespace=<ns>] list
-```
-
-## Get a credential
-
-Command: get
-
-Print a single credential value to stdout, like `op read`. The argument is
-either a KEY in `--namespace` or a full `dotty://<namespace>/<key>` reference. A
-trailing newline is printed unless `--no-newline`.
+Command: migrate
 
 ```text
-dotty env [--namespace=<ns>] get <KEY | dotty://<namespace>/<key>> [--no-newline]
+dotty env migrate [--namespace <ns>]... [--skip-keychain] [--purge] [--force] [--dry-run] [PATH...]
 ```
 
-## Inject into a template
+Bootstraps the providers, then migrates every keychain namespace (or the
+`--namespace` set) into the global config and every PATH — a `.env.dotty`
+template, defaulting to the working directory's — into the `fnox.toml` beside
+it. Values travel on fnox's stdin, never argv; fnox trims surrounding
+whitespace, which is warned about per value. Keys fnox already has are skipped
+unless `--force`, failures are warned about per entry and counted rather than
+aborting, and nothing old is deleted unless `--purge` (confirmed, and only for a
+namespace whose every credential migrated). Templates stay for the user to
+delete once `fnox exec` works; a mixed value (`postgres://{{ … }}/db`) is
+reported for hand conversion to fnox's `default = "…${KEY}…"` interpolation.
 
-Command: use
+The legacy store (`internal/env`) survives read-only for this verb: the keychain
+backend reads, enumerates (`security dump-keychain` without `-d`, so attributes
+only) and deletes namespaces, and the dotenv scanner classifies each template
+line as literal, single reference, or error.
 
-Replace every reference in a template with its value, like `op inject`. The
-template is read from `--in-file` or stdin and written to `--out-file` (created
-with 0600) or stdout. An unknown or malformed reference is an error. With
-neither `--namespace` nor `--in-file` and nothing piped in, the template
-defaults to a `.env.dotty` in the working directory; a missing file is an error
-with usage.
+## Recovery on a new machine
 
-```text
-dotty env [--namespace=<ns>] use [--in-file=<file>] [--out-file=<file>]
+The software identity does not travel. With a backup YubiKey:
+
+```sh
+FNOX_AGE_KEY_FILE=<private-repo>/profiles/<p>/age/identity-<serial>.txt dotty env migrate
+fnox reencrypt
 ```
 
-## Run with credentials in the environment
+The first command bootstraps a fresh software identity (fnox reads the plugin
+stub to decrypt, which touches the key); `reencrypt` adds it to every value. An
+identity file may hold several `AGE-PLUGIN-YUBIKEY-` stubs — fnox parses it as
+an age identity file — and privdot keeps one stub per key regardless.
 
-Command: run
+## Private dotfiles stay on age
 
-Launch a command with every credential in the namespace exported as an
-environment variable, like `op run`. dotty parses its own `--namespace` and
-`--in-file` (and `--help`); everything after `--` is the command and its
-arguments, passed through untouched. The command inherits the terminal, and
-dotty exits with its exit code.
-
-With `--in-file`, the environment is built from a `.env` template instead of the
-whole namespace: every reference is resolved from the keychain and every plain
-`KEY=value` assignment is passed through — like `use`, but the secrets go
-straight to the process and are never written to disk. With neither
-`--namespace` nor `--in-file`, the template defaults to a `.env.dotty` in the
-working directory; a missing file is an error with usage.
-
-```text
-dotty env [--namespace=<ns>] run [--in-file=<file>] -- <command> [args...]
-```
+fnox stores ciphertext inline in TOML and hands values out as environment
+variables or ephemeral `as_file` paths. It cannot encrypt a file in place at a
+stable path inside a git checkout, has no per-file mode bits, and keeps no
+manifest of which live file is stale — the three things `dotty private` needs
+(`internal/privdot/apply.go`, `manifest.go`, `status.go`). `~/.ssh/config.d`,
+the private git config and the rest therefore stay on the `age` CLI. Future
+integration, out of scope for now: `dotty private enroll` appending the new
+recipient to the fnox provider and running `fnox reencrypt`, and privdot
+accepting the keychain-held software identity as a no-touch decrypt path.
 
 # Command: Init
 

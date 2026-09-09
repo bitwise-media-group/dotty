@@ -44,10 +44,10 @@ work), not individual machines. See [Profiles](../guides/profiles.md).
 
 ## Public config — `$XDG_CONFIG_HOME/dotty`
 
-| Path                             | Purpose                                                                           |
-| -------------------------------- | --------------------------------------------------------------------------------- |
-| `~/.config/dotty/<profile>/`     | Symlinks into the repo's `profiles/<name>` directories                            |
-| `~/.config/dotty/active-profile` | Symlink to the active profile — the **only** machine-local piece of profile state |
+| Path                             | Purpose                                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `~/.config/dotty/<profile>/`     | Symlinks into the repo's `profiles/<name>` directories                                           |
+| `~/.config/dotty/active-profile` | Symlink to the active profile — the **only** machine-local piece of profile state                |
 | `~/.config/mise`                 | Symlink to `active-profile/mise`: mise's global config is the active profile's package directory |
 
 Nothing here is secret: it is symlinks into your dotfiles repo plus one more.
@@ -86,7 +86,9 @@ profile records one (`privateRepo` in its answers), `dotty private link`
 provides `~/.config/private/git/config` per profile and init skips its own
 write.
 
-## Keychain
+## Secrets
 
-Secrets managed by [`dotty env`](../guides/credentials.md) don't live on disk at
-all — they are items in the macOS login Keychain.
+[fnox](../guides/credentials.md) keeps secrets age-encrypted in
+`~/.config/fnox/config.toml` (tracked with the dotfiles) and per-project
+`fnox.toml` files; the decryption key is an item in the macOS login Keychain, so
+nothing on disk is plaintext.

@@ -29,10 +29,11 @@ deny() {
 }
 
 # Credential paths (~/.ssh, ~/.aws, ~/.azure, ~/.config/gcloud, ~/.gnupg, any
-# .env*) and the macOS `security` keychain tool. Matched case-insensitively
-# against the whole command so it catches the path wherever it appears in the line.
-if printf '%s' "${command}" | grep -qiE '(^|[^[:alnum:]_])\.env|\.ssh([/[:space:]]|$)|\.aws([/[:space:]]|$)|\.azure([/[:space:]]|$)|\.config/gcloud|\.gnupg([/[:space:]]|$)|(^|[;&|/[:space:]])security([[:space:]]|$)'; then
-	deny "blocked by codex policy: command references a credential path (~/.ssh, ~/.aws, ~/.azure, ~/.config/gcloud, ~/.gnupg, .env) or the macOS keychain"
+# .env*), the macOS `security` keychain tool, and `fnox`, which brokers every
+# secret. Matched case-insensitively against the whole command so it catches
+# the path wherever it appears in the line.
+if printf '%s' "${command}" | grep -qiE '(^|[^[:alnum:]_])\.env|\.ssh([/[:space:]]|$)|\.aws([/[:space:]]|$)|\.azure([/[:space:]]|$)|\.config/gcloud|\.gnupg([/[:space:]]|$)|(^|[;&|/[:space:]])security([[:space:]]|$)|(^|[;&|/[:space:]])fnox([[:space:]]|$)'; then
+	deny "blocked by codex policy: command references a credential path (~/.ssh, ~/.aws, ~/.azure, ~/.config/gcloud, ~/.gnupg, .env), the macOS keychain, or fnox"
 fi
 
 exit 0

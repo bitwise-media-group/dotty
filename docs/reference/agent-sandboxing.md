@@ -37,14 +37,18 @@ can't express a rule. Without `--harden`, agents get only the non-security parts
 | Network policy   | per-domain allowlist            | on/off only (on)                | unrestricted                         | webfetch: ask                 |
 | Credential reads | sandbox `denyRead`              | PreToolUse hook                 | kernel `deny` + hook                 | permission denies             |
 | Keychain block   | no `SecurityServer` mach lookup | hook denies `security` CLI      | `Bash(security *)` deny + hook       | `security *` bash deny        |
+| fnox block       | `Bash(fnox get/exec/export *)`  | hook + rule deny `fnox`         | `Bash(fnox *)` deny + hook           | `fnox *` bash deny            |
 | Approval default | ask unless allow-listed         | `approval_policy = "untrusted"` | prompt + explicit allows             | `"*": "ask"`                  |
 | tmux status      | hooks in `settings.json`        | `[[hooks.*]]` in `config.toml`  | `hooks/tmux-status.json`             | `plugin/agent-tmux-status.js` |
 
 All four share the same Bash allowlist (read-only inspection commands, read-only
 `mise` (`ls`, `registry`, `outdated`, `config ls`, `bootstrap packages status`)
-and `git`, plus `git add`/`restore`/`checkout`/`switch`/ `commit`) and
-deny the same credential set: `~/.aws`, `~/.azure`, `~/.config/gcloud`,
-`~/.ssh`, `~/.gnupg`, and `**/.env*`.
+and `git`, plus `git add`/`restore`/`checkout`/`switch`/ `commit`) and deny the
+same credential set: `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.ssh`,
+`~/.gnupg`, and `**/.env*` — and [fnox](../guides/credentials.md), which brokers
+every secret (Claude Code denies the verbs that reveal values, `get`, `exec`,
+and `export`, since its sandbox already blocks the Keychain the key lives in;
+the others deny the tool wholesale).
 
 ## Claude Code
 
@@ -113,15 +117,15 @@ auto-discovers from `$CODEX_HOME/rules/`).
 - **Approvals**: `approval_policy = "untrusted"` — prompt for anything the
   execution policy hasn't explicitly trusted. `rules/default.rules` is a
   `prefix_rule` allowlist mirroring the shared Bash set, with the macOS
-  `security` tool marked `forbidden`.
+  `security` tool and `fnox` marked `forbidden`.
 - **Network**: Codex can only toggle network access wholesale, so
   `network_access = true` keeps installs working. This is broader than Claude
   Code's per-domain allowlist — the credential guard below still applies
   regardless.
 - **Credential guard**: because a write-only sandbox cannot block _reads_, a
   `PreToolUse` hook (`hooks/pre-tool-use-policy`, matcher `^Bash$`) inspects
-  every shell command and denies any that reference a credential path or the
-  `security` keychain CLI, returning a reason the model can act on.
+  every shell command and denies any that reference a credential path, the
+  `security` keychain CLI, or `fnox`, returning a reason the model can act on.
 
 ## Grok
 
@@ -135,7 +139,7 @@ permission lists:
   does not expand `~`.
 - **Permissions**: the shared allow set, with denies written as `**/…` globs
   (Grok treats a leading `~/` as literal text in Read/Edit rules) plus
-  `Bash(security *)` for the keychain.
+  `Bash(security *)` for the keychain and `Bash(fnox *)` for secrets.
 - **Credential guard**: the same `pre-tool-use-policy` script as Codex, wired
   via `hooks/pre-tool-use-policy.json`, catches home-anchored paths the glob
   rules can't.
@@ -159,8 +163,8 @@ permission matrix with `"*": "ask"` as the default:
   read scope (`~/Repos`, `~/.config`, `~/.cache`, `~/.local/{runtime,share}`,
   `~/.npm`, `/opt/homebrew`, `/tmp`).
 - **bash**: the shared allowlist, plus explicit argument-position denies
-  (`security *`, `* ~/.ssh*`, `* $HOME/.aws*`, `* */.env*`, …) since there is no
-  OS layer underneath to catch what slips through.
+  (`security *`, `fnox *`, `* ~/.ssh*`, `* $HOME/.aws*`, `* */.env*`, …) since
+  there is no OS layer underneath to catch what slips through.
 - **web**: `websearch: allow`, `webfetch: ask`, and `doom_loop: deny`.
 
 ## Shared guardrails

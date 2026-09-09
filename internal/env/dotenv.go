@@ -13,63 +13,70 @@ import (
 // preserved verbatim (group 1: indentation, an optional "export", the key, and
 // the "=" with its surrounding spaces), the key on its own (group 2), and the
 // raw value region that follows (group 3). A line that does not match — a blank
-// line, a comment, or anything malformed — is left untouched.
+// line, a comment, or anything malformed — carries no assignment.
 var assignRe = regexp.MustCompile(`^(\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*)(.*)$`)
 
-// Capture is the inverse of Inject: it scans a .env document and, for every
-// KEY=<literal value> assignment, replaces the value with a
-// "{{ dotty://<namespace>/KEY }}" reference and records the value in the
-// returned secrets map. Blank lines, comments, empty values, and values that
-// are already references are copied through untouched, so the transform is
-// idempotent. All formatting outside the rewritten values — indentation, an
-// "export" prefix, quoting style, inline comments, and line endings — is
-// preserved.
-func Capture(src, namespace string) (string, map[string]string, error) {
-	if err := ValidateNamespace(namespace); err != nil {
-		return "", nil, err
-	}
-	secrets := map[string]string{}
-	lines := strings.Split(src, "\n")
-	for i, raw := range lines {
-		// Carry a CRLF terminator through unchanged: parse the bare line, then
-		// re-append the "\r" the split left on it.
-		line, cr := raw, ""
-		if strings.HasSuffix(line, "\r") {
-			line, cr = line[:len(line)-1], "\r"
-		}
-		newLine, key, value, captured := captureLine(line, namespace)
-		if captured {
-			secrets[key] = value
-		}
-		lines[i] = newLine + cr
-	}
-	return strings.Join(lines, "\n"), secrets, nil
+// Line is one KEY=value assignment scanned from a .env.dotty template. Value
+// is the decoded literal when Ref is nil; otherwise the whole value was a
+// single "{{ ... }}" reference and Ref names the credential. Err is set for a
+// line that cannot be carried over as either — an unterminated quote, a
+// malformed reference, or a reference mixed with literal text — and the
+// other fields hold whatever was parsed before the problem.
+type Line struct {
+	// N is the 1-based line number in the source.
+	N     int
+	Key   string
+	Value string
+	Ref   *Reference
+	Err   error
 }
 
-// captureLine rewrites a single .env line. It reports the (possibly rewritten)
-// line, and when an assignment was externalized, the key, its value, and
-// captured=true. A line that is not an assignment, has an empty value, or whose
-// value is already a reference is returned verbatim with captured=false.
-func captureLine(line, namespace string) (newLine, key, value string, captured bool) {
-	m := assignRe.FindStringSubmatch(line)
-	if m == nil {
-		return line, "", "", false
+// Lines scans a .env document and returns its assignments in file order, so a
+// later duplicate of a key wins the way a shell sourcing the file would
+// behave. Each value is decoded with .env quoting rules — double quotes
+// unescape, single quotes are literal, and an unquoted value runs to a
+// whitespace-introduced "#" comment. Blank lines, comments, and lines that
+// are not assignments are skipped; an empty value is kept, since "KEY="
+// deliberately sets KEY to the empty string.
+func Lines(src string) []Line {
+	var result []Line
+	n := 0
+	for raw := range strings.Lines(src) {
+		n++
+		line := strings.TrimRight(raw, "\r\n")
+		m := assignRe.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		l := Line{N: n, Key: m[2]}
+		value, _, ok := splitValue(m[3])
+		if !ok {
+			l.Err = fmt.Errorf("unterminated quote in %q", m[3])
+			result = append(result, l)
+			continue
+		}
+		l.Value = value
+		refs, whole, err := Refs(value)
+		switch {
+		case err != nil:
+			l.Err = err
+		case whole:
+			l.Ref = &refs[0]
+		case len(refs) > 0:
+			l.Err = fmt.Errorf("value mixes a reference with literal text; " +
+				"store the secret on its own and use fnox's default = \"...${KEY}...\" interpolation")
+		}
+		result = append(result, l)
 	}
-	prefix, key, region := m[1], m[2], m[3]
-	value, suffix, ok := splitValue(region)
-	if !ok || value == "" || looksLikeRef(value) {
-		return line, "", "", false
-	}
-	ref := fmt.Sprintf("{{ %s%s/%s }}", refScheme, namespace, key)
-	return prefix + ref + suffix, key, value, true
+	return result
 }
 
 // splitValue parses a .env value region into the decoded value and a verbatim
 // suffix (a trailing inline comment and any whitespace around it). A
 // double-quoted value is unescaped, a single-quoted value is literal, and an
 // unquoted value runs to a whitespace-preceded "#" comment or the line's end.
-// ok is false only when a quote is left open, in which case the caller leaves
-// the line untouched rather than risk mangling it.
+// ok is false only when a quote is left open or trailing junk follows a
+// closing quote, in which case the line cannot be read unambiguously.
 func splitValue(region string) (value, suffix string, ok bool) {
 	if region == "" {
 		return "", "", true
@@ -78,8 +85,7 @@ func splitValue(region string) (value, suffix string, ok bool) {
 	case '"', '\'':
 		value, suffix, ok := scanQuoted(region, region[0] == '"')
 		// A closing quote may be followed only by whitespace and an optional
-		// comment; trailing junk (A="x"y) means the line is malformed, so the
-		// caller leaves it untouched rather than emit an ambiguous rewrite.
+		// comment; trailing junk (A="x"y) means the line is malformed.
 		if !ok || !validSuffix(suffix) {
 			return "", "", false
 		}
@@ -90,11 +96,7 @@ func splitValue(region string) (value, suffix string, ok bool) {
 }
 
 // validSuffix reports whether s is what may legitimately follow a quoted value:
-// nothing, only whitespace, or a "#" comment introduced by whitespace. The
-// leading whitespace before a comment is what keeps the rewrite idempotent —
-// re-emitted after the "}}", it is exactly the gap scanBare needs to read the
-// value back as a reference. Trailing junk (A="x" y) is rejected so the line is
-// left untouched instead of producing an ambiguous rewrite.
+// nothing, only whitespace, or a "#" comment introduced by whitespace.
 func validSuffix(s string) bool {
 	t := strings.TrimLeft(s, " \t")
 	if t == "" {
@@ -150,58 +152,4 @@ func scanQuoted(region string, double bool) (value, suffix string, ok bool) {
 		b.WriteByte(c)
 	}
 	return "", "", false
-}
-
-// looksLikeRef reports whether v is already a "{{ ... }}" reference, so Capture
-// leaves an already-externalized value in place instead of nesting references.
-func looksLikeRef(v string) bool {
-	v = strings.TrimSpace(v)
-	return strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}")
-}
-
-// Entry is one KEY=value assignment read from a .env document, with its value
-// fully resolved. Entries are returned in the order they appeared so a later
-// duplicate of a key wins, the way a shell sourcing the file would behave.
-type Entry struct {
-	Key   string
-	Value string
-}
-
-// Parse reads a .env document into the assignments a process should inherit,
-// the load-side counterpart to Capture. Each value is decoded with .env quoting
-// rules — double quotes unescape, single quotes are literal, and an unquoted
-// value runs to a whitespace-introduced "#" comment — and any {{ ... }}
-// reference it then contains is resolved through resolve, exactly as Inject
-// does for env use (a reference with an empty namespace falls back to the
-// resolver's default). Non-secret literals pass through untouched, while a
-// reference becomes its credential's exact value, special characters and all,
-// because resolution happens after the line is parsed rather than by re-reading
-// an injected document. Blank lines, comments, and lines that are not
-// assignments carry no variable and are skipped; an empty value is kept, since
-// "KEY=" deliberately sets KEY to the empty string. A malformed value (an
-// unterminated quote) and a reference that fails to resolve are hard errors, so
-// a needed variable is never silently dropped.
-func Parse(src string, resolve func(namespace, key string) (string, error)) ([]Entry, error) {
-	var entries []Entry
-	for _, raw := range strings.Split(src, "\n") {
-		line := strings.TrimSuffix(raw, "\r")
-		m := assignRe.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-		key, region := m[2], m[3]
-		value, _, ok := splitValue(region)
-		if !ok {
-			return nil, fmt.Errorf("malformed value for %s: unterminated quote in %q", key, region)
-		}
-		if strings.Contains(value, "{{") {
-			resolved, err := Inject(value, resolve)
-			if err != nil {
-				return nil, err
-			}
-			value = resolved
-		}
-		entries = append(entries, Entry{Key: key, Value: value})
-	}
-	return entries, nil
 }

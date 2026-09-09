@@ -29,7 +29,7 @@ signing keys that live on those keys (including git commit signing).
 
 * [dotty completion](dotty_completion.md)	 - Generate the autocompletion script for the specified shell
 * [dotty dotfiles](dotty_dotfiles.md)	 - Operate on the dotfiles repository dotty init generated.
-* [dotty env](dotty_env.md)	 - Store and inject credentials from the macOS Keychain.
+* [dotty env](dotty_env.md)	 - Migrate legacy keychain credentials to fnox.
 * [dotty git](dotty_git.md)	 - Git helpers built on dotty's commit signing.
 * [dotty init](dotty_init.md)	 - Scaffold a new dotfiles repository and set up this machine.
 * [dotty packages](dotty_packages.md)	 - Manage the profile's packages (mise tools and bootstrap packages).

@@ -15,8 +15,8 @@ dotty packages add aqua:jqlang/jq   # install + record + lock in the profile
 git -C ~/Repos/dotfiles commit -am "feat: add jq" && git push
 ```
 
-On your other machines: pull, then `dotty packages sync` to converge — mind
-that [sync removes undeclared packages](../guides/packages.md).
+On your other machines: pull, then `dotty packages sync` to converge — mind that
+[sync removes undeclared packages](../guides/packages.md).
 
 ## Dotfiles
 
@@ -31,12 +31,13 @@ dotty dotfiles status
 ## Secrets
 
 ```sh
-dotty env add GITHUB_TOKEN
-dotty env run -- gh api user
+fnox set GITHUB_TOKEN
+fnox exec -- gh api user
 ```
 
-Secrets live in the macOS Keychain, never in files; `env run` injects them for
-exactly one command. See [Credentials & the Keychain](../guides/credentials.md).
+Secrets are age-encrypted by [fnox](https://fnox.jdx.dev) with the key parked in
+the macOS Keychain; `fnox exec` injects them for exactly one command and never
+into the shell. See [Secrets with fnox](../guides/credentials.md).
 
 ## Sessions
 

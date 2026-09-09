@@ -2,7 +2,6 @@
 # init re-renders it and deselecting the component removes it. Add your own
 # packages to ../config.toml instead.
 [tools]
-"aqua:FiloSottile/age" = "latest"
 "github:str4d/age-plugin-yubikey" = "latest"
 "pipx:yubikey-manager" = "latest"
 

@@ -19,8 +19,8 @@ Hardening mirrors one policy into every agent's native config:
 - **An OS-level sandbox** (macOS Seatbelt) restricting writes to your
   repos, worktrees, and tool caches.
 - **Credential-read denies** — `~/.ssh`, `~/.aws`, `~/.azure`,
-  `~/.config/gcloud`, `~/.gnupg`, and any `.env` file are unreadable, and
-  the macOS Keychain is unreachable.
+  `~/.config/gcloud`, `~/.gnupg`, and any `.env` file are unreadable, the
+  macOS Keychain is unreachable, and `fnox` cannot be asked for a secret.
 - **A network allowlist** (Claude Code) limited to code hosts and package
   registries.
 - **Ask-first approvals** — only read-only inspection commands and safe

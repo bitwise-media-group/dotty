@@ -108,6 +108,9 @@ fi
 if command -v 'mise' 1>/dev/null 2>&1; then
 	eval "$(mise activate zsh)"
 fi
+if command -v 'fnox' 1>/dev/null 2>&1; then
+	eval "$(fnox activate zsh)"
+fi
 
 # detect gcloud path
 if command -v 'gcloud' 1>/dev/null 2>&1; then

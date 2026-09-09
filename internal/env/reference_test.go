@@ -4,8 +4,7 @@
 package env
 
 import (
-	"fmt"
-	"strings"
+	"reflect"
 	"testing"
 )
 
@@ -49,53 +48,41 @@ func TestParseRef(t *testing.T) {
 	}
 }
 
-// constResolve resolves any reference to "<ns>:<key>" so injection output is
-// easy to assert; an empty namespace stands in for the bare form.
-func constResolve(ns, key string) (string, error) {
-	return ns + ":" + key, nil
-}
-
-func TestInject(t *testing.T) {
+func TestRefs(t *testing.T) {
 	tests := []struct {
-		name    string
-		src     string
-		want    string
-		wantErr bool
+		name      string
+		value     string
+		wantRefs  []Reference
+		wantWhole bool
+		wantErr   bool
 	}{
-		{name: "no refs", src: "plain text", want: "plain text"},
-		{name: "empty", src: "", want: ""},
-		{name: "single full ref", src: "a={{ dotty://aws/KEY }}", want: "a=aws:KEY"},
-		{name: "bare ref", src: "a={{ KEY }}", want: "a=:KEY"},
-		{name: "two refs", src: "{{ KEY }}-{{ dotty://ci/T }}", want: ":KEY-ci:T"},
-		{name: "no inner spaces", src: "{{dotty://aws/KEY}}", want: "aws:KEY"},
-		{name: "surrounding text", src: "before {{ KEY }} after", want: "before :KEY after"},
-		{name: "unterminated", src: "x={{ KEY", wantErr: true},
-		{name: "malformed ref", src: "x={{ 1BAD }}", wantErr: true},
+		{name: "no refs", value: "plain text"},
+		{name: "empty", value: ""},
+		{name: "single full ref", value: "{{ dotty://aws/KEY }}", wantRefs: []Reference{{"aws", "KEY"}}, wantWhole: true},
+		{name: "bare ref", value: "{{ KEY }}", wantRefs: []Reference{{"", "KEY"}}, wantWhole: true},
+		{name: "no inner spaces", value: "{{dotty://aws/KEY}}", wantRefs: []Reference{{"aws", "KEY"}}, wantWhole: true},
+		{name: "padded whole ref", value: "  {{ KEY }} ", wantRefs: []Reference{{"", "KEY"}}, wantWhole: true},
+		{name: "two refs", value: "{{ KEY }}-{{ dotty://ci/T }}", wantRefs: []Reference{{"", "KEY"}, {"ci", "T"}}},
+		{name: "surrounding text", value: "before {{ KEY }} after", wantRefs: []Reference{{"", "KEY"}}},
+		{name: "unterminated", value: "x={{ KEY", wantErr: true},
+		{name: "malformed ref", value: "x={{ 1BAD }}", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Inject(tt.src, constResolve)
+			refs, whole, err := Refs(tt.value)
 			if tt.wantErr {
 				if err == nil {
-					t.Fatalf("Inject(%q) = %q, want error", tt.src, got)
+					t.Fatalf("Refs(%q) = %v, %v, want error", tt.value, refs, whole)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("Inject(%q): %v", tt.src, err)
+				t.Fatalf("Refs(%q): %v", tt.value, err)
 			}
-			if got != tt.want {
-				t.Errorf("Inject(%q) = %q, want %q", tt.src, got, tt.want)
+			if !reflect.DeepEqual(refs, tt.wantRefs) || whole != tt.wantWhole {
+				t.Errorf("Refs(%q) = %v, %v; want %v, %v", tt.value, refs, whole, tt.wantRefs, tt.wantWhole)
 			}
 		})
-	}
-}
-
-func TestInjectResolverError(t *testing.T) {
-	boom := fmt.Errorf("kaboom")
-	_, err := Inject("a={{ MISSING }}", func(string, string) (string, error) { return "", boom })
-	if err == nil {
-		t.Fatal("Inject with failing resolver returned nil error")
 	}
 }
 
@@ -117,20 +104,6 @@ func FuzzParseRef(f *testing.F) {
 					t.Errorf("ParseRef(%q) accepted invalid namespace %q", body, ref.Namespace)
 				}
 			}
-		}
-	})
-}
-
-func FuzzInject(f *testing.F) {
-	for _, seed := range []string{"", "plain", "{{ KEY }}", "{{dotty://a/B}}", "x={{ KEY", "{{}}", "{{ {{ KEY }} }}"} {
-		f.Add(seed)
-	}
-	f.Fuzz(func(t *testing.T, src string) {
-		// A resolver that always succeeds: a successful Inject must leave no
-		// reference opener behind, and must never panic.
-		out, err := Inject(src, func(ns, key string) (string, error) { return "v", nil })
-		if err == nil && strings.Contains(out, "{{") {
-			t.Errorf("Inject(%q) = %q still contains %q", src, out, "{{")
 		}
 	})
 }

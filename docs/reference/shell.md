@@ -20,11 +20,11 @@ dotty relocates zsh under XDG: a one-line `~/.zshenv` sets
 env file defines the XDG base dirs, builds the PATH every shell needs (the
 Homebrew prefix mise pours bootstrap packages into, mise's shims, then
 `~/.local/bin` where dotty installs mise), trusts the profile tree for mise
-(`MISE_TRUSTED_CONFIG_PATHS`, since `~/.config/mise` is a symlink into it), moves
-Go's caches under XDG, wires `SSH_ASKPASS` to the dotty askpass applet (see
-[Signing keys](../getting-started/signing.md)), and sources the active profile's
-`env.zsh` — which is how per-profile values like `$DOTTY_WORKTREES` and agent
-home relocations reach the shell.
+(`MISE_TRUSTED_CONFIG_PATHS`, since `~/.config/mise` is a symlink into it),
+moves Go's caches under XDG, wires `SSH_ASKPASS` to the dotty askpass applet
+(see [Signing keys](../getting-started/signing.md)), and sources the active
+profile's `env.zsh` — which is how per-profile values like `$DOTTY_WORKTREES`
+and agent home relocations reach the shell.
 
 Plugins load through [zinit](https://github.com/zdharma-continuum/zinit):
 
@@ -35,10 +35,10 @@ Plugins load through [zinit](https://github.com/zdharma-continuum/zinit):
   **command-not-found** snippets
 
 Integrations initialised at startup: [oh-my-posh](https://ohmyposh.dev/)
-(prompt, `prompt.yaml`), fzf keybindings, **zoxide as `cd`**, direnv, and mise
-(each guarded, so machines without a tool skip it). History keeps 5000
-deduplicated, shared-across-sessions entries; `vivid` generates `LS_COLORS` from
-the cyberdream theme.
+(prompt, `prompt.yaml`), fzf keybindings, **zoxide as `cd`**, direnv, mise, and
+[fnox](../guides/credentials.md) (each guarded, so machines without a tool skip
+it). History keeps 5000 deduplicated, shared-across-sessions entries; `vivid`
+generates `LS_COLORS` from the cyberdream theme.
 
 Aliases:
 
@@ -92,7 +92,7 @@ includes so the repo itself never contains PII:
   inside agent worktrees — see
   [Agent worktrees & re-signing](../guides/worktrees.md).
 - **Global ignore**: `commit.sh`, local Claude settings and plans, `.DS_Store`,
-  `.env.*` (with `.env.dotty` kept), and the worktrees directory.
+  `.env.*`, `fnox.local.toml`, and the worktrees directory.
 
 ## SSH
 

@@ -10,22 +10,27 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"regexp"
+	"slices"
 )
 
 // errSecItemNotFound is the status security(1) exits with when a queried item
 // is absent (the errSecItemNotFound OSStatus, surfaced as 44 by the CLI).
 const errSecItemNotFound = 44
 
-// securityKeychain stores credentials in the macOS login keychain by shelling
-// out to /usr/bin/security, one generic-password item per namespace. This
-// mirrors how the rest of dotty drives external tools (ykman, ssh-keygen)
-// rather than linking a CGO keychain library, so cross-compiled builds stay
-// CGO-free.
-//
-// Write passes the JSON value via the -w argument, which is briefly visible to
-// other processes of the same user via ps(1) — an accepted limitation of the
-// security CLI. A future hardening could feed the value over the interactive
-// prompt instead.
+// servicePrefix is the keychain service prefix that isolated the legacy
+// namespaces from everything else in the keychain.
+const servicePrefix = "dotty:"
+
+// serviceAttrRe matches the service attribute line of a dump-keychain
+// record, capturing the namespace behind the dotty prefix.
+var serviceAttrRe = regexp.MustCompile(`"svce"<blob>="` + regexp.QuoteMeta(servicePrefix) + `([^"]+)"`)
+
+// securityKeychain reads the credentials the legacy verbs stored in the macOS
+// login keychain by shelling out to /usr/bin/security, one generic-password
+// item per namespace. This mirrors how the rest of dotty drives external
+// tools (ykman, ssh-keygen) rather than linking a CGO keychain library, so
+// cross-compiled builds stay CGO-free.
 type securityKeychain struct {
 	runner CommandRunner
 }
@@ -49,14 +54,6 @@ func (k *securityKeychain) Read(ctx context.Context, namespace string) ([]byte, 
 	return bytes.TrimSuffix(out, []byte("\n")), nil
 }
 
-func (k *securityKeychain) Write(ctx context.Context, namespace string, value []byte) error {
-	_, err := k.runner.Output(ctx, "security",
-		"add-generic-password", "-U",
-		"-s", serviceName(namespace), "-a", namespace,
-		"-D", "dotty env", "-w", string(value))
-	return err
-}
-
 func (k *securityKeychain) Delete(ctx context.Context, namespace string) error {
 	_, err := k.runner.Output(ctx, "security",
 		"delete-generic-password", "-s", serviceName(namespace), "-a", namespace)
@@ -69,6 +66,23 @@ func (k *securityKeychain) Delete(ctx context.Context, namespace string) error {
 	return nil
 }
 
+// List enumerates the namespaces by dumping the keychain's item attributes —
+// without -d, so no secret data is read or prompted for — and collecting the
+// services carrying the dotty prefix.
+func (k *securityKeychain) List(ctx context.Context) ([]string, error) {
+	out, err := k.runner.Output(ctx, "security", "dump-keychain")
+	if err != nil {
+		return nil, err
+	}
+	var namespaces []string
+	for _, m := range serviceAttrRe.FindAllStringSubmatch(string(out), -1) {
+		if ns := m[1]; !slices.Contains(namespaces, ns) {
+			namespaces = append(namespaces, ns)
+		}
+	}
+	return namespaces, nil
+}
+
 // isNotFound reports whether err is security(1) signalling a missing item.
 func isNotFound(err error) bool {
 	var ee *exec.ExitError
@@ -76,8 +90,6 @@ func isNotFound(err error) bool {
 }
 
 // serviceName is the keychain service that isolates a namespace's credentials.
-// The "dotty:" prefix keeps these items from colliding with anything else in
-// the keychain.
 func serviceName(namespace string) string {
-	return "dotty:" + namespace
+	return servicePrefix + namespace
 }

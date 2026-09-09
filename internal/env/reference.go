@@ -12,16 +12,16 @@ import (
 const refScheme = "dotty://"
 
 // Reference is a parsed credential reference. Namespace is empty for the bare
-// "KEY" form, which the caller resolves against the active namespace.
+// "KEY" form, which the caller resolves against the default namespace.
 type Reference struct {
 	Namespace string
 	Key       string
 }
 
-// ParseRef parses a reference body — the text inside a "{{ ... }}" or a bare
-// argument to env get. It accepts "dotty://<namespace>/<key>" and a plain
-// "<key>"; surrounding whitespace is ignored and the key must be a valid
-// environment variable name.
+// ParseRef parses a reference body — the text inside a "{{ ... }}". It
+// accepts "dotty://<namespace>/<key>" and a plain "<key>"; surrounding
+// whitespace is ignored and the key must be a valid environment variable
+// name.
 func ParseRef(body string) (Reference, error) {
 	body = strings.TrimSpace(body)
 	if rest, ok := strings.CutPrefix(body, refScheme); ok {
@@ -43,35 +43,36 @@ func ParseRef(body string) (Reference, error) {
 	return Reference{Key: body}, nil
 }
 
-// Inject replaces every "{{ ... }}" reference in src with the value returned by
-// resolve, which receives the reference's namespace (empty for the bare form,
-// for the resolver to default) and key. Text outside references is copied
-// verbatim. A reference that fails to parse or resolve is a hard error — a
-// reference is never silently blanked, matching `op inject`.
-func Inject(src string, resolve func(namespace, key string) (string, error)) (string, error) {
-	var b strings.Builder
-	rest := src
+// Refs parses every "{{ ... }}" reference in value, in order. whole reports
+// that value is exactly one reference with nothing but whitespace around it —
+// the only shape that maps onto a single fnox secret; anything else with a
+// reference in it needs fnox's own interpolation. A reference that fails to
+// parse, or an unterminated one, is an error: a reference is never silently
+// treated as text.
+func Refs(value string) (refs []Reference, whole bool, err error) {
+	rest := value
 	for {
 		open := strings.Index(rest, "{{")
 		if open < 0 {
-			b.WriteString(rest)
-			return b.String(), nil
+			break
 		}
-		b.WriteString(rest[:open])
 		after := rest[open+2:]
 		end := strings.Index(after, "}}")
 		if end < 0 {
-			return "", fmt.Errorf("unterminated reference %q", rest[open:])
+			return nil, false, fmt.Errorf("unterminated reference %q", rest[open:])
 		}
 		ref, err := ParseRef(after[:end])
 		if err != nil {
-			return "", err
+			return nil, false, err
 		}
-		value, err := resolve(ref.Namespace, ref.Key)
-		if err != nil {
-			return "", err
-		}
-		b.WriteString(value)
+		refs = append(refs, ref)
 		rest = after[end+2:]
 	}
+	if len(refs) != 1 {
+		return refs, false, nil
+	}
+	trimmed := strings.TrimSpace(value)
+	whole = strings.HasPrefix(trimmed, "{{") && strings.HasSuffix(trimmed, "}}") &&
+		strings.Count(trimmed, "{{") == 1
+	return refs, whole, nil
 }
