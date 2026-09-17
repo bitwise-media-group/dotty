@@ -98,7 +98,7 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 	cmd.Flags().StringSliceVar(&flags.AddOns, "addons", nil,
 		"optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi")
 	cmd.Flags().StringSliceVar(&flags.Agents, "agents", nil,
-		"coding agents: claude-code,codex,opencode,antigravity,grok")
+		"coding agents: claude-code,codex,opencode,antigravity,grok,openclaude")
 	cmd.Flags().BoolVar(&flags.ImportPackages, "import-packages", false,
 		"seed the profile's packages from the installed Homebrew formulae")
 	cmd.Flags().BoolVar(&flags.Marketplace, "marketplace", false,

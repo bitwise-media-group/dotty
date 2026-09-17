@@ -68,9 +68,9 @@ documents what each config contains.
 
 ### Coding agents
 
-`claude-code`, `codex`, `opencode`, `grok`, `antigravity` — plus whether to
-**harden** them and whether to add the bitwise skills marketplace. Covered on
-the [next page but one](agents.md).
+`claude-code`, `codex`, `opencode`, `grok`, `antigravity`, `openclaude` — plus
+whether to **harden** them and whether to add the bitwise skills marketplace.
+Covered on the [next page but one](agents.md).
 
 ### Git identity
 

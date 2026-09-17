@@ -1,0 +1,10 @@
+# Rendered by dotty init for the component named in the file name; the next
+# init re-renders it and deselecting the component removes it. Add your own
+# packages to ../config.toml instead.
+# OpenClaude ships only as an npm package (no aqua registry entry, no release
+# binaries), so the npm backend installs it. mise treats node as that backend's
+# install dependency but does not install it implicitly, hence the runtime
+# declared alongside; OpenClaude needs Node 22 or newer.
+[tools]
+node = "lts"
+"npm:@gitlawb/openclaude" = "latest"

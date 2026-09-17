@@ -49,7 +49,7 @@ dotty init [flags]
 
 ```
       --addons strings            optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi
-      --agents strings            coding agents: claude-code,codex,opencode,antigravity,grok
+      --agents strings            coding agents: claude-code,codex,opencode,antigravity,grok,openclaude
       --allowed-serials strings   restrict the profile to these security-key serials
       --description string        short description of the profile
       --git-email string          git identity email for the private git config

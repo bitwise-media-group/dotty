@@ -357,10 +357,10 @@ entries mise pours into the Homebrew prefix or the OS package manager at their
 latest version — for what has no static build (git, curl, zsh, native libraries)
 and for GUI apps and fonts. The coding-agent CLIs are tools, not casks: the
 registry carries `aqua:anthropics/claude-code`, `aqua:openai/codex`,
-`aqua:google-antigravity/antigravity-cli`, and `http:grok` — the last spelled
-out with its URL template and version list, since a bare http id has no URL.
-Registry shorthand (`git`, `flux`) is refused everywhere: it resolves to
-whichever registry entry claims the name.
+`aqua:google-antigravity/antigravity-cli`, `npm:@gitlawb/openclaude`, and
+`http:grok` — the last spelled out with its URL template and version list, since
+a bare http id has no URL. Registry shorthand (`git`, `flux`) is refused
+everywhere: it resolves to whichever registry entry claims the name.
 
 Ownership splits by file: the fragments under `conf.d/` are rendered by
 `dotty init` from the selected components and pruned when a component is
@@ -572,10 +572,11 @@ rendered shell files use `${HOME}` so no machine-specific prefix enters the
 repository. The wizard also asks for a profile name when creating one (machine
 name by default), whether to import the installed Homebrew formulae into the
 profile's packages, optional add-ons (nvim, btop, k9s, lazygit, lsd, tmux,
-yazi), and coding agents (claude-code, codex, opencode, antigravity, grok). Once
-at least one agent is selected, init offers the bitwise skills marketplace;
-choosing it wires the marketplace into every selected agent that supports one.
-ghostty, oh-my-posh, vivid, zsh, and git config are always included.
+yazi), and coding agents (claude-code, codex, opencode, antigravity, grok,
+openclaude). Once at least one agent is selected, init offers the bitwise skills
+marketplace; choosing it wires the marketplace into every selected agent that
+supports one. ghostty, oh-my-posh, vivid, zsh, and git config are always
+included.
 
 With agents selected, init also asks whether to harden them. Hardening mirrors
 Claude Code's confinement into every selected agent's native config: sandboxed

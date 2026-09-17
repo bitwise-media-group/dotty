@@ -550,6 +550,7 @@ var agentOptions = []tui.Option{
 	{Label: "opencode", Value: "opencode"},
 	{Label: "antigravity", Value: "antigravity"},
 	{Label: "grok", Value: "grok"},
+	{Label: "openclaude", Value: "openclaude"},
 }
 
 // mergeAnswers overlays explicitly-passed flags onto a previous run's

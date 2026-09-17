@@ -20,7 +20,7 @@ func everything() Answers {
 		ProfileName:  "test",
 		ReposDir:     "/repos",
 		AddOns:       []string{"nvim", "btop", "k9s", "lazygit", "lsd", "tmux", "yazi"},
-		Agents:       []string{"claude-code", "codex", "opencode", "antigravity", "grok"},
+		Agents:       []string{"claude-code", "codex", "opencode", "antigravity", "grok", "openclaude"},
 		SecurityKeys: true,
 	}
 }

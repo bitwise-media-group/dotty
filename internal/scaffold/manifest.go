@@ -173,6 +173,11 @@ var manifest = []Component{
 		Mise: "template/mise.d/agent-antigravity.toml",
 	},
 	{
+		// No dotfiles exist for openclaude upstream; only its CLI is installed.
+		ID:   "agent:openclaude",
+		Mise: "template/mise.d/agent-openclaude.toml",
+	},
+	{
 		ID:       "agent:grok",
 		Prefixes: []string{"template/home/.config/grok"},
 		Mise:     "template/mise.d/agent-grok.toml",
