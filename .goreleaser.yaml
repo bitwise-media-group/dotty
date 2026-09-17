@@ -45,13 +45,19 @@ builds:
       goarch:
           - amd64
           - arm64
-    # darwin is a separate build id purely so binary_signs (cosign) can exclude
-    # it by id: goreleaser runs binary_signs BEFORE notarize, and notarization
-    # rewrites the Mach-O in place, so a cosign bundle over the pre-notarized
-    # bytes would never verify against the shipped binary. The OSS binary_signs
-    # has no per-artifact `if`, so the build id is the only handle. Archive
-    # names are unchanged (the template keys on ProjectName/Os/Arch, not the id).
-    - id: dotty-darwin
+    # darwin is split out by build id, and then once more per arch, for two
+    # reasons. First, so binary_signs (cosign) can exclude darwin by id:
+    # goreleaser runs binary_signs BEFORE notarize, and notarization rewrites
+    # the Mach-O in place, so a cosign bundle over the pre-notarized bytes would
+    # never verify against the shipped binary; the OSS binary_signs has no
+    # per-artifact `if`, so the build id is the only handle. Second, so each
+    # arch gets its own notarize.macos entry below: goreleaser notarizes the
+    # entries concurrently but the binaries within one entry serially, and the
+    # per-submission wait is capped at 20m, so one entry per arch is what keeps
+    # the whole step inside a single 20m window instead of one per binary.
+    # Archive names are unchanged (the template keys on ProjectName/Os/Arch,
+    # not the id).
+    - id: dotty-darwin-amd64
       main: ./cmd
       binary: dotty
       flags:
@@ -61,6 +67,15 @@ builds:
           - darwin
       goarch:
           - amd64
+    - id: dotty-darwin-arm64
+      main: ./cmd
+      binary: dotty
+      flags:
+          - -trimpath
+      ldflags: *dotty_ldflags
+      goos:
+          - darwin
+      goarch:
           - arm64
 
 archives:
@@ -108,19 +123,33 @@ binary_signs:
 # skip the quarantine workaround); a snapshot only does when MACOS_SIGN_P12 is
 # exported, so `make snapshot` stays offline and a local end-to-end test is
 # one env export away.
+# One entry per darwin build id (see the builds comment): goreleaser runs the
+# entries concurrently, so both arches are submitted to Apple at once and the
+# step takes one notarization wait, not two back to back. The sign and notarize
+# blocks are anchored on the first entry and aliased by the second.
 notarize:
     macos:
         - enabled: '{{ or (not .IsSnapshot) (isEnvSet "MACOS_SIGN_P12") }}'
-          ids: [dotty-darwin]
-          sign:
+          ids: [dotty-darwin-amd64]
+          sign: &darwin_sign
               certificate: "{{ .Env.MACOS_SIGN_P12 }}"
               password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
-          notarize:
+          notarize: &darwin_notarize
               issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
               key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
               key: "{{ .Env.MACOS_NOTARY_KEY }}"
               wait: true
-              timeout: 15m
+              # Apple can take longer than 15m: the v0.3.4 submission
+              # (2026-09-08) was Accepted, but only after goreleaser had already
+              # given up at 15m. 20m is the hard ceiling (`goreleaser check`
+              # rejects more: the App Store Connect JWT is capped at 20 minutes
+              # and quill does not refresh it), so waiting past that would mean
+              # wait: false and a release that can ship before Apple answers.
+              timeout: 20m
+        - enabled: '{{ or (not .IsSnapshot) (isEnvSet "MACOS_SIGN_P12") }}'
+          ids: [dotty-darwin-arm64]
+          sign: *darwin_sign
+          notarize: *darwin_notarize
 
 sboms:
     - artifacts: archive
