@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.4.0](https://github.com/bitwise-media-group/dotty/compare/v0.3.4...v0.4.0) (2026-10-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **env:** the dotty env add, get, list, remove, run, and use verbs are removed; use fnox set, get, list, remove, exec, and export --all -o .env (namespaces are fnox profiles, -P <ns>). Run dotty env migrate once to move existing keychain credentials and .env.dotty templates into fnox. The global gitignore no longer whitelists .env.dotty and now ignores fnox.local.toml; age moves from the security-keys package set into core.
+* **packages:** dotty brewfile and its verbs are gone in favour of dotty packages; init's --dump-brews is now --import-packages (stored answers under the old key still load); the profile Brewfile is no longer read and is converted into profiles/<name>/mise/config.toml on the next init.
+* **toolchain:** rename make submodule to toolchain and pin to v3 pre-release
+
+### Features
+
+* **env:** replace dotty env with fnox ([bb77111](https://github.com/bitwise-media-group/dotty/commit/bb771114b9d0018e7d6d56e2b2282b03f3815115))
+* **fonts:** install lobe-icons into the XDG font dir on linux ([b29d60b](https://github.com/bitwise-media-group/dotty/commit/b29d60b3d8baf5d5e497583b50f7dc0d2357e17f))
+* **init:** add openclaude as an optional coding agent ([9ab1732](https://github.com/bitwise-media-group/dotty/commit/9ab1732c85df4ea3f21b7dfd643c6433497ebc64))
+* **packages:** replace Homebrew Brewfiles with mise-managed packages ([c0c50a1](https://github.com/bitwise-media-group/dotty/commit/c0c50a1713b599ecb8c927178d2311a457b3ec49))
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.10 ([#191](https://github.com/bitwise-media-group/dotty/issues/191)) ([78148d9](https://github.com/bitwise-media-group/dotty/commit/78148d9d1ac3a66328e56330e0f02b7c4f9c889d))
+* **deps:** update module github.com/protonmail/go-crypto to v1.5.0 ([#188](https://github.com/bitwise-media-group/dotty/issues/188)) ([c3eccbb](https://github.com/bitwise-media-group/dotty/commit/c3eccbb3e804b8a1851ad25fef979ac515f0b87a))
+* **deps:** update module github.com/protonmail/go-crypto to v1.5.1 ([#190](https://github.com/bitwise-media-group/dotty/issues/190)) ([b45fa9f](https://github.com/bitwise-media-group/dotty/commit/b45fa9f4dfcbdd75f755a7dfb847fff1ac2e0f47))
+* **deps:** update module github.com/protonmail/go-crypto to v1.5.2 ([#196](https://github.com/bitwise-media-group/dotty/issues/196)) ([751ed20](https://github.com/bitwise-media-group/dotty/commit/751ed206a742e56b51d9a18e600a631504579036))
+* **deps:** update module golang.org/x/term to v0.46.0 ([#159](https://github.com/bitwise-media-group/dotty/issues/159)) ([c7e7bed](https://github.com/bitwise-media-group/dotty/commit/c7e7bed440bced9242a2bcbc5c4fb52f3d92259c))
+* **mise:** spell out the grok http tool declaration ([2cc61f7](https://github.com/bitwise-media-group/dotty/commit/2cc61f7514301b37c611d8ad81cb4ed6dfc31688))
+* **release:** notarize darwin arches concurrently and wait the full 20m ([3d485ba](https://github.com/bitwise-media-group/dotty/commit/3d485badfdecb70c2273edd0a747b5fd5d58fc6e))
+
+
+### Build System
+
+* **toolchain:** rename make submodule to toolchain and pin to v3 pre-release ([86d4942](https://github.com/bitwise-media-group/dotty/commit/86d4942751d4e04375d8b142fb4679a186aecb5b))
+
 ## [0.3.4](https://github.com/bitwise-media-group/dotty/compare/v0.3.3...v0.3.4) (2026-09-07)
 
 
