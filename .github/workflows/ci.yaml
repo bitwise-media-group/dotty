@@ -3,12 +3,13 @@
 
 # Continuous integration — thin caller for the org's reusable ci workflow (v5+:
 # mise-task aware). It discovers the canonical tasks this repo defines and runs
-# `make lint` / `build` / `test` as one parallel job each, then Codecov uploads
-# from coverage/ — emitted by `make test`. `make lint` carries all check-mode
-# static analysis — golangci-lint, govulncheck, addlicense, markdownlint,
-# prettier --check — with the pinned tools coming from the toolchain submodule
-# at .mise/ (no package.json or .node-version: mise provisions its own Node for
-# the prose linters). The Go version for the product build comes from go.mod.
+# `mise run lint` / `build` / `test` as one parallel job each, then Codecov
+# uploads from coverage/ — emitted by `mise run test`. `lint` carries all
+# check-mode static analysis — golangci-lint, govulncheck, addlicense,
+# markdownlint, prettier --check — with the pinned tools coming from the
+# toolchain submodule at .mise/ (no package.json or .node-version: mise
+# provisions its own Node for the prose linters). Go itself comes from the root
+# mise.toml pin, not go.mod.
 #
 # The reusable workflow is pinned to a full commit SHA (tag in the comment) so a
 # moved tag can never change what runs; Renovate keeps the pin fresh.
@@ -25,8 +26,4 @@ permissions:
 
 jobs:
     ci:
-        # The default cache-dependency-path (go.sum) is the only lockfile that
-        # affects the build: the dev CLIs (golangci-lint, govulncheck, addlicense,
-        # gotestsum, ...) are pinned by the toolchain submodule's
-        # config.toml/mise.lock, not a tools/go.sum.
-        uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@a0d0170124ad80a06082078b60669d7c99d33ee6 # v6.3.0
+        uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@fea4c5284a9d3679c64f0e2cac5810124e0294d2 # v7.0.0
