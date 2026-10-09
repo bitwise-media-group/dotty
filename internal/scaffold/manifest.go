@@ -44,6 +44,8 @@ var templated = map[string]bool{
 	"template/home/.config/opencode/opencode.jsonc": true,
 	"template/home/.config/grok/config.toml":        true,
 	"template/home/.config/grok/sandbox.toml":       true,
+	"template/mise.d/core.toml":                     true,
+	"template/mise.d/macos-dock.toml":               true,
 }
 
 // machine lists the embedded files whose rendered output varies per machine
@@ -62,6 +64,9 @@ var perProfile = map[string]bool{
 	"template/home/.config/opencode/opencode.jsonc": true,
 	"template/home/.config/grok/config.toml":        true,
 	"template/home/.config/grok/sandbox.toml":       true,
+	// Per profile because it is a per-machine-class choice: a profile that
+	// declines it must not inherit another profile's file from the shared tree.
+	"template/home/.hushlogin": true,
 }
 
 // keepExisting lists the embedded files rendered once and then owned by the
@@ -81,7 +86,7 @@ var executable = map[string]bool{
 
 // manifest maps wizard selections onto the template. IDs are what selected()
 // derives from Answers: core, addon:<name>, agent:<name>,
-// feature:security-keys.
+// feature:security-keys, feature:hush-login, macos:<group>.
 var manifest = []Component{
 	{
 		ID: "core",
@@ -114,9 +119,11 @@ var manifest = []Component{
 		Mise:     "template/mise.d/addon-btop.toml",
 	},
 	{
-		ID:       "addon:k9s",
+		// k9s plus the cluster and container CLIs it drives; the add-on was
+		// "k9s" before it grew them (see renamedAddOns).
+		ID:       "addon:kubernetes",
 		Prefixes: []string{"template/home/.config/k9s"},
-		Mise:     "template/mise.d/addon-k9s.toml",
+		Mise:     "template/mise.d/addon-kubernetes.toml",
 	},
 	{
 		ID:       "addon:lazygit",
@@ -173,9 +180,16 @@ var manifest = []Component{
 		Mise: "template/mise.d/agent-antigravity.toml",
 	},
 	{
-		// No dotfiles exist for openclaude upstream; only its CLI is installed.
-		ID:   "agent:openclaude",
-		Mise: "template/mise.d/agent-openclaude.toml",
+		// Reuse Claude's defaults and theme without sharing runtime state.
+		ID: "agent:openclaude",
+		Renames: map[string]string{
+			"template/home/.config/claude/settings.json":          "home/.config/openclaude/settings.json",
+			"template/home/.config/claude/themes/cyberdream.json": "home/.config/openclaude/themes/cyberdream.json",
+			"template/home/.config/oh-my-posh/claude.yaml":        "home/.config/oh-my-posh/claude.yaml",
+		},
+		Mise:   "template/mise.d/agent-openclaude.toml",
+		Unfold: []string{".config/openclaude"},
+		Doc:    "home/.config/openclaude/CLAUDE.md",
 	},
 	{
 		ID:       "agent:grok",
@@ -191,4 +205,25 @@ var manifest = []Component{
 		Mise:     "template/mise.d/feature-security-keys.toml",
 		Unfold:   []string{".ssh"},
 	},
+	{
+		ID:       "feature:hush-login",
+		Prefixes: []string{"template/home/.hushlogin"},
+	},
+
+	// One fragment per macOS defaults group (macos.Groups); mise applies
+	// them, and they render on every OS so the profile stays identical
+	// across machines — mise's macOS sections are inert elsewhere.
+	{ID: "macos:keyboard", Mise: "template/mise.d/macos-keyboard.toml"},
+	{ID: "macos:input-sources", Mise: "template/mise.d/macos-input-sources.toml"},
+	{ID: "macos:menu-bar", Mise: "template/mise.d/macos-menu-bar.toml"},
+	{ID: "macos:trackpad", Mise: "template/mise.d/macos-trackpad.toml"},
+	{ID: "macos:mouse", Mise: "template/mise.d/macos-mouse.toml"},
+	{ID: "macos:finder", Mise: "template/mise.d/macos-finder.toml"},
+	{ID: "macos:screenshots", Mise: "template/mise.d/macos-screenshots.toml"},
+	{ID: "macos:software-update", Mise: "template/mise.d/macos-software-update.toml"},
+	{ID: "macos:spaces", Mise: "template/mise.d/macos-spaces.toml"},
+	{ID: "macos:dock", Mise: "template/mise.d/macos-dock.toml"},
+	{ID: "macos:animations", Mise: "template/mise.d/macos-animations.toml"},
+	{ID: "macos:gpg-keychain", Mise: "template/mise.d/macos-gpg-keychain.toml"},
+	{ID: "macos:default-terminal", Mise: "template/mise.d/macos-default-terminal.toml"},
 }

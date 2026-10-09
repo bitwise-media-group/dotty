@@ -1,0 +1,18 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# Ghostty opens shell scripts and executables. macOS keeps these handlers in
+# Launch Services rather than a defaults key mise could set entry by entry,
+# so duti points the UTIs Ghostty's Info.plist declares at it. Ghostty
+# declares no URL schemes: ssh:// and x-man-page:// stay with Terminal.
+[bootstrap.packages]
+"brew:duti" = { version = "latest", os = "macos" }
+
+[bootstrap.hooks.post-defaults]
+run = """
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+duti -s com.mitchellh.ghostty public.unix-executable shell
+duti -s com.mitchellh.ghostty com.apple.terminal.shell-script all
+duti -s com.mitchellh.ghostty public.shell-script all
+duti -s com.mitchellh.ghostty public.zsh-script all
+"""

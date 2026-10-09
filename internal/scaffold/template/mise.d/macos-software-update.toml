@@ -1,0 +1,6 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# Check for updates daily.
+[bootstrap.macos.defaults."com.apple.SoftwareUpdate"]
+ScheduleFrequency = 1

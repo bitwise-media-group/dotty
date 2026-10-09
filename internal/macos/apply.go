@@ -5,35 +5,24 @@ package macos
 
 import (
 	"context"
-	"path/filepath"
 	"runtime"
+	"slices"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
 	"github.com/bitwise-media-group/dotty/internal/tui"
 )
 
-// ApplySelections runs the chosen system tweaks best-effort: init has
-// already succeeded by the time they run, and a failed Dock restart or
-// declined sudo is not worth unwinding it over. A no-op off darwin.
-func ApplySelections(ctx context.Context, ios cli.IOStreams, r Runner,
-	groups []string, wallpaper string, piv bool, home string) {
+// FinishSelections runs what is left of the macOS selections once mise has
+// applied the defaults groups: a note when a group only takes effect after
+// logging out, and PIV enforcement. Best-effort — init has already succeeded
+// by the time it runs, and a declined sudo is not worth unwinding it over.
+// A no-op off darwin.
+func FinishSelections(ctx context.Context, ios cli.IOStreams, r Runner, groups []string, piv bool) {
 	if runtime.GOOS != "darwin" {
 		return
 	}
-	if len(groups) > 0 {
-		if err := Apply(ctx, r, groups); err != nil {
-			tui.Warnf(ios, "Could not apply macOS defaults: %v", err)
-		} else {
-			tui.Successf(ios, "Applied %d macOS defaults groups", len(groups))
-		}
-	}
-	if wallpaper != "" {
-		path := filepath.Join(home, ".local", "share", "wallpapers", wallpaper)
-		if err := SetWallpaper(ctx, r, path); err != nil {
-			tui.Warnf(ios, "Could not set the wallpaper: %v", err)
-		} else {
-			tui.Successf(ios, "Wallpaper set to %s", wallpaper)
-		}
+	if NeedsLogout(groups) {
+		tui.Infof(ios, "Keyboard, input-source, trackpad and mouse defaults take effect after you log out")
 	}
 	if piv {
 		tui.Infof(ios, "Enforcing smart-card login needs sudo")
@@ -43,4 +32,12 @@ func ApplySelections(ctx context.Context, ios cli.IOStreams, r Runner,
 			tui.Successf(ios, "Smart-card (PIV) login required system-wide")
 		}
 	}
+}
+
+// NeedsLogout reports whether any of the selected groups is one macOS only
+// reads at login.
+func NeedsLogout(groups []string) bool {
+	return slices.ContainsFunc(Groups, func(g Group) bool {
+		return g.NeedsLogout && slices.Contains(groups, g.ID)
+	})
 }

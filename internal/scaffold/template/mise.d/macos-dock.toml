@@ -1,0 +1,43 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# The Dock's size, magnification, and pinned apps. Downloads is the macOS
+# default stack and is left alone: managing it would commit a per-user path.
+[bootstrap.macos.dock]
+autohide = false
+magnification = true
+apps = [
+  "/System/Applications/Apps.app",
+  "/System/Applications/Siri AI.app",
+  "/Applications/Safari.app",
+  "/System/Applications/Messages.app",
+  "/System/Applications/Mail.app",
+  "/System/Applications/Photos.app",
+  "/System/Applications/FaceTime.app",
+  "/System/Applications/Phone.app",
+  "/System/Applications/Calendar.app",
+  "/System/Applications/Reminders.app",
+  "/System/Applications/Notes.app",
+  "/System/Applications/Music.app",
+{{- if .DockGhostty}}
+  "/Applications/Ghostty.app",
+{{- end}}
+{{- if .DockClaude}}
+  "/Applications/Claude.app",
+{{- end}}
+{{- if .DockChatGPT}}
+  "/Applications/ChatGPT.app",
+{{- end}}
+  "/System/Applications/System Settings.app",
+]
+
+# The sizes are floats in the Dock's plist; mise's friendly tilesize and
+# largesize are integers, which its strict type check would report as drift.
+[bootstrap.macos.defaults."com.apple.dock"]
+tilesize = 43.0
+largesize = 77.0
+minimize-to-application = true
+
+# hooks run under errexit; killall fails when the process is not running.
+[bootstrap.hooks.post-defaults]
+run = "killall Dock || true"

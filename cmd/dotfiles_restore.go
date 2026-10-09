@@ -24,17 +24,36 @@ type DotfilesRestoreFlags struct {
 var dotfilesRestoreFlags = DotfilesRestoreFlags{}
 
 var dotfilesRestoreCmd = &cobra.Command{
-	Use:   "restore",
-	Short: "Copy a backup set back over the links that displaced it.",
-	Long: `Restore the files a link run backed up: every file in the chosen backup set
+	Use:   "restore [path ...]",
+	Short: "Restore mise history or an existing dotty backup set.",
+	Long: `With paths or mise flags, proxy mise dot rollback to restore tracked files
+from their checkpoints. Repository sources are tracked by link; restoring a
+copied source requires dotty dotfiles apply to refresh its live copy.
+
+With --timestamp, or with no arguments, restore the files a link run backed up:
+every file in the chosen backup set
 is copied back to the absolute path it came from, replacing the symlink that
 displaced it. Without --timestamp, an interactive picklist offers the
 available sets, newest first. The set is copied, not consumed — a restore can
 be repeated.`,
 	Example: `  dotty dotfiles restore
+  dotty dotfiles restore ~/.zshrc --dry-run
   dotty dotfiles restore --timestamp=2026-07-15T10-30-00`,
-	Args: cobra.NoArgs,
+	DisableFlagParsing: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		own, rest, help := cli.ExtractFlags(args, map[string]bool{"timestamp": true, "repo": true})
+		if repo, ok := own["repo"]; ok {
+			dotfilesFlags.Repo = repo
+		}
+		if help {
+			return cmd.Help()
+		}
+		if _, legacy := own["timestamp"]; !legacy && len(rest) > 0 {
+			return proxyDotfiles(cmd, append([]string{"rollback"}, rest...))
+		}
+		if len(rest) > 0 {
+			return fmt.Errorf("--timestamp cannot be combined with mise rollback arguments")
+		}
 		ios := cli.System()
 		dataDir, err := cli.DataDir()
 		if err != nil {
@@ -42,7 +61,7 @@ be repeated.`,
 		}
 		root := filepath.Join(dataDir, "backups")
 
-		ts := dotfilesRestoreFlags.Timestamp
+		ts := own["timestamp"]
 		if ts == "" {
 			ts, err = pickBackupSet(ios, root)
 			if errors.Is(err, tui.ErrAborted) || ts == "" && err == nil {

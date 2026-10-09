@@ -26,7 +26,7 @@ switched to with dotty profile activate.
 
 .SH OPTIONS
 \fB--addons\fP=[]
-	optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi
+	optional add-ons: nvim,btop,kubernetes,lazygit,lsd,tmux,yazi
 
 .PP
 \fB--agents\fP=[]
@@ -39,6 +39,10 @@ switched to with dotty profile activate.
 .PP
 \fB--description\fP=""
 	short description of the profile
+
+.PP
+\fB--dock-apps\fP=[]
+	optional apps the dock defaults group pins: ghostty,claude-code,codex (empty for none)
 
 .PP
 \fB--git-email\fP=""
@@ -55,6 +59,10 @@ switched to with dotty profile activate.
 .PP
 \fB-h\fP, \fB--help\fP[=false]
 	help for new
+
+.PP
+\fB--hush-login\fP[=true]
+	render ~/.hushlogin to silence the login banner (--hush-login=false to keep it)
 
 .PP
 \fB--import-packages\fP[=false]
@@ -95,10 +103,6 @@ switched to with dotty profile activate.
 .PP
 \fB--security-keys\fP[=false]
 	this machine class signs with hardware security keys
-
-.PP
-\fB--wallpaper\fP=""
-	wallpaper image from ~/.local/share/wallpapers
 
 .PP
 \fB--worktrees\fP=""

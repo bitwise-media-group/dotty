@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/macos"
 	"github.com/bitwise-media-group/dotty/internal/mise"
 )
 
@@ -23,7 +24,7 @@ import (
 // keep-existing user config.
 func TestPlanRendersMiseFragments(t *testing.T) {
 	a := Answers{ProfileName: "t", ReposDir: "/r", AddOns: []string{"tmux", "nvim"}, Agents: []string{"codex"},
-		SecurityKeys: true}
+		SecurityKeys: true, MacOSDefaults: []string{"spaces", "dock"}}
 	ops, err := Plan(a)
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
@@ -38,10 +39,15 @@ func TestPlanRendersMiseFragments(t *testing.T) {
 			if !op.PerProfile {
 				t.Errorf("%s is not per-profile", op.Dst)
 			}
+			// Only the core and dock fragments carry template actions.
+			if op.Templated != (rest == "core.toml" || rest == "macos-dock.toml") {
+				t.Errorf("%s templated = %v", op.Dst, op.Templated)
+			}
 			fragments = append(fragments, rest)
 		}
 	}
-	want := []string{"addon-nvim.toml", "addon-tmux.toml", "agent-codex.toml", "core.toml", "feature-security-keys.toml"}
+	want := []string{"addon-nvim.toml", "addon-tmux.toml", "agent-codex.toml", "core.toml", "feature-security-keys.toml",
+		"macos-dock.toml", "macos-spaces.toml"}
 	if !slices.Equal(fragments, want) {
 		t.Errorf("fragments = %v, want %v", fragments, want)
 	}
@@ -341,13 +347,13 @@ func TestImportPackagesMerges(t *testing.T) {
 // stays in place, and a second pass is silent.
 func TestConvertProfileBrewfile(t *testing.T) {
 	answers := Answers{ProfileName: "box", AddOns: []string{"tmux"}}
-	brewfile := "tap \"acme/tap\", trusted: true\nbrew \"tmux\"\nbrew \"git\"\nbrew \"colima\"\n" +
+	brewfile := "tap \"acme/tap\", trusted: true\nbrew \"tmux\"\nbrew \"git\"\nbrew \"watch\"\n" +
 		"brew \"acme/tap/widget\"\n" +
 		"cask \"raycast\"\ncask \"bitwise-media-group/tap/evolve\", trusted: true\nvscode \"golang.go\"\n"
 	got, errOut := composeForTest(t, "", brewfile, &importRunner{}, answers)
 	for _, want := range []string{
 		"[tools]\n# imported from Brewfile\n\"github:bitwise-media-group/evolve\" = \"latest\"\n",
-		"# imported from Brewfile\n\"brew:colima\" = \"latest\"\n\"brew:acme/tap/widget\" = \"latest\"\n" +
+		"# imported from Brewfile\n\"brew:watch\" = \"latest\"\n\"brew:acme/tap/widget\" = \"latest\"\n" +
 			"\"brew-cask:raycast\" = { version = \"latest\", os = \"macos\" }\n",
 		"[bootstrap.brew.taps]\n# imported from Brewfile\n\"acme/tap\" = \"https://github.com/acme/homebrew-tap.git\"\n",
 	} {
@@ -428,5 +434,178 @@ func TestAnswersLegacyImportKey(t *testing.T) {
 	}
 	if !keys.ImportPackages || !got.ImportPackages {
 		t.Errorf("legacy dumpBrews not honoured: keys=%v answers=%+v", keys.ImportPackages, got)
+	}
+}
+
+// TestAnswersRenamedAddOns pins that a profile stored before an add-on was
+// renamed still selects it: k9s reads as kubernetes, and a profile that
+// already names both keeps one.
+func TestAnswersRenamedAddOns(t *testing.T) {
+	dir := t.TempDir()
+	doc := `{"profile":"test","reposDir":"~/Repos","addons":["nvim","k9s","kubernetes"]}`
+	if err := os.WriteFile(filepath.Join(dir, AnswersFile), []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadAnswers(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"nvim", "kubernetes"}; !slices.Equal(got.AddOns, want) {
+		t.Errorf("AddOns = %v, want %v", got.AddOns, want)
+	}
+	if CanonicalAddOns(nil) != nil {
+		t.Error("CanonicalAddOns(nil) must stay nil: nil is a never-asked question")
+	}
+}
+
+// TestMacOSFragmentsMatchGroups keeps the wizard's defaults picklist and the
+// fragments from drifting: every group has a macos:<id> component, and every
+// macos:<id> component is a group.
+func TestMacOSFragmentsMatchGroups(t *testing.T) {
+	var components []string
+	for _, c := range manifest {
+		if id, ok := strings.CutPrefix(c.ID, "macos:"); ok {
+			components = append(components, id)
+			if want := "template/mise.d/macos-" + id + ".toml"; c.Mise != want {
+				t.Errorf("component %s: fragment %s, want %s", c.ID, c.Mise, want)
+			}
+		}
+	}
+	groups := make([]string, 0, len(macos.Groups))
+	for _, g := range macos.Groups {
+		groups = append(groups, g.ID)
+	}
+	slices.Sort(components)
+	slices.Sort(groups)
+	if !slices.Equal(components, groups) {
+		t.Errorf("macos components = %v, groups = %v", components, groups)
+	}
+}
+
+// TestPlanRejectsUnknownMacOSDefaults pins that a typoed --macos-defaults
+// fails when the plan is built rather than silently applying less.
+func TestPlanRejectsUnknownMacOSDefaults(t *testing.T) {
+	_, err := Plan(Answers{ProfileName: "t", ReposDir: "/r", MacOSDefaults: []string{"dock", "dok"}})
+	if err == nil || !strings.Contains(err.Error(), "macos:dok") {
+		t.Fatalf("Plan error = %v, want it to name macos:dok", err)
+	}
+}
+
+// TestDockFragmentApps pins which optional apps the dock fragment pins: a
+// never-asked pick pins every eligible app, an agent's app needs the agent,
+// and an explicit pick narrows the set.
+func TestDockFragmentApps(t *testing.T) {
+	const (
+		ghostty = "/Applications/Ghostty.app"
+		claude  = "/Applications/Claude.app"
+		chatgpt = "/Applications/ChatGPT.app"
+	)
+	all := []string{ghostty, claude, chatgpt}
+	for _, tc := range []struct {
+		name     string
+		agents   []string
+		dockApps []string
+		want     []string
+	}{
+		{"unasked, both agents", []string{"claude-code", "codex"}, nil, all},
+		{"unasked, no agents", nil, nil, []string{ghostty}},
+		{"unasked, claude only", []string{"claude-code"}, nil, []string{ghostty, claude}},
+		{"answered none", []string{"claude-code", "codex"}, []string{}, nil},
+		{"picked chatgpt", []string{"claude-code", "codex"}, []string{"codex"}, []string{chatgpt}},
+		{"stale pick", []string{"codex"}, []string{"ghostty", "claude-code"}, []string{ghostty}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := Answers{ProfileName: "t", ReposDir: "/r", Agents: tc.agents, MacOSDefaults: []string{"dock"},
+				DockApps: tc.dockApps}
+			ops, err := Plan(a)
+			if err != nil {
+				t.Fatalf("Plan: %v", err)
+			}
+			repo, profileDir := t.TempDir(), t.TempDir()
+			if err := Render(ops, repo, profileDir, NewVars(a, "/home/x", repo)); err != nil {
+				t.Fatalf("Render: %v", err)
+			}
+			data, err := os.ReadFile(filepath.Join(profileDir, MiseFragmentsDir, "macos-dock.toml"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := string(data)
+			for _, app := range all {
+				if want := slices.Contains(tc.want, app); strings.Contains(got, `"`+app+`"`) != want {
+					t.Errorf("%s pinned = %v, want %v:\n%s", app, !want, want, got)
+				}
+			}
+			for _, fixed := range []string{"/Applications/Safari.app", "/System/Applications/System Settings.app"} {
+				if !strings.Contains(got, `"`+fixed+`"`) {
+					t.Errorf("fixed app %s missing:\n%s", fixed, got)
+				}
+			}
+			if strings.Contains(got, "{{") {
+				t.Errorf("template actions left in the render:\n%s", got)
+			}
+		})
+	}
+}
+
+// TestPruneDeselectedMacOSGroup pins that deselecting a defaults group
+// removes its fragment on the next render.
+func TestPruneDeselectedMacOSGroup(t *testing.T) {
+	a := Answers{ProfileName: "t", ReposDir: "/r", MacOSDefaults: []string{"dock", "finder"}}
+	ops, err := Plan(a)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	repo, profileDir := t.TempDir(), t.TempDir()
+	if err := Render(ops, repo, profileDir, NewVars(a, "/home/x", repo)); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	a.MacOSDefaults = []string{"finder"}
+	if ops, err = Plan(a); err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	pruned, err := PrunePerProfile(profileDir, ops)
+	if err != nil {
+		t.Fatalf("PrunePerProfile: %v", err)
+	}
+	if want := filepath.Join(MiseFragmentsDir, "macos-dock.toml"); !slices.Equal(pruned, []string{want}) {
+		t.Errorf("pruned = %v, want [%s]", pruned, want)
+	}
+	if _, err := os.Stat(filepath.Join(profileDir, MiseFragmentsDir, "macos-finder.toml")); err != nil {
+		t.Errorf("selected group's fragment pruned: %v", err)
+	}
+}
+
+func TestBrewPrefix(t *testing.T) {
+	for _, tc := range []struct{ goos, goarch, want string }{
+		{"darwin", "arm64", "/opt/homebrew"},
+		{"darwin", "amd64", "/usr/local"},
+		{"linux", "amd64", "/home/linuxbrew/.linuxbrew"},
+		{"linux", "arm64", "/home/linuxbrew/.linuxbrew"},
+	} {
+		if got := BrewPrefix(tc.goos, tc.goarch); got != tc.want {
+			t.Errorf("BrewPrefix(%s, %s) = %q, want %q", tc.goos, tc.goarch, got, tc.want)
+		}
+	}
+}
+
+// TestCoreFragmentSetsLoginShell pins that the core fragment points the
+// login shell at the brewed zsh under the rendering machine's prefix.
+func TestCoreFragmentSetsLoginShell(t *testing.T) {
+	a := Answers{ProfileName: "t", ReposDir: "/r"}
+	ops, err := Plan(a)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	repo, profileDir := t.TempDir(), t.TempDir()
+	v := NewVars(a, "/home/x", repo)
+	if err := Render(ops, repo, profileDir, v); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(profileDir, MiseFragmentsDir, "core.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `login_shell = "` + v.BrewPrefix + `/bin/zsh"`; !strings.Contains(string(data), want) {
+		t.Errorf("core fragment misses %s:\n%s", want, data)
 	}
 }

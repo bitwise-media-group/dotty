@@ -3,3 +3,6 @@
 # packages to ../config.toml instead.
 [tools]
 "aqua:anthropics/claude-code" = "latest"
+
+[bootstrap.packages]
+"brew-cask:claude" = { version = "latest", os = "macos" }

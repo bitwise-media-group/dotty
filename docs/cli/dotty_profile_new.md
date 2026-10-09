@@ -31,14 +31,16 @@ dotty profile new [flags]
 ### Options
 
 ```
-      --addons strings            optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi
+      --addons strings            optional add-ons: nvim,btop,kubernetes,lazygit,lsd,tmux,yazi
       --agents strings            coding agents: claude-code,codex,opencode,antigravity,grok,openclaude
       --allowed-serials strings   restrict the profile to these security-key serials
       --description string        short description of the profile
+      --dock-apps strings         optional apps the dock defaults group pins: ghostty,claude-code,codex (empty for none)
       --git-email string          git identity email for the private git config
       --git-name string           git identity name for the private git config
       --harden                    confine the coding agents: sandbox, credential-read denies, ask-first permissions
   -h, --help                      help for new
+      --hush-login                render ~/.hushlogin to silence the login banner (--hush-login=false to keep it) (default true)
       --import-packages           seed the profile's packages from the installed Homebrew formulae
       --macos-defaults strings    macOS defaults groups to apply (see the wizard picklist; empty for none)
       --marketplace               add the bitwise skills marketplace to the selected agents
@@ -49,7 +51,6 @@ dotty profile new [flags]
       --repo string               dotfiles repository path (default <repos-dir>/dotfiles)
       --repos-dir string          directory your repositories live in (default ~/Repos)
       --security-keys             this machine class signs with hardware security keys
-      --wallpaper string          wallpaper image from ~/.local/share/wallpapers
       --worktrees string          agent worktree location: a directory name inside each repo (default .worktrees) or an absolute path
       --yes                       skip the confirmation summary and reuse stored answers; only unanswered questions are asked
 ```

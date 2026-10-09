@@ -1,0 +1,14 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# Spaces per display, never rearranged by recent use.
+[bootstrap.macos.defaults."com.apple.spaces"]
+spans-displays = false
+
+[bootstrap.macos.defaults."com.apple.dock"]
+mru-spaces = false
+
+# mru-spaces lives in the Dock's domain. hooks run under errexit; killall
+# fails when the process is not running.
+[bootstrap.hooks.post-defaults]
+run = "killall Dock || true"

@@ -72,7 +72,7 @@ func Plan(a Answers) ([]FileOp, error) {
 				return nil, fmt.Errorf("component %s: %w", c.ID, err)
 			}
 			ops = append(ops, FileOp{Src: c.Mise, Dst: path.Join(MiseFragmentsDir, path.Base(c.Mise)),
-				Mode: 0o644, PerProfile: true})
+				Mode: 0o644, Templated: templated[c.Mise], PerProfile: true})
 		}
 	}
 	ops = append(ops, sharedDocOps(components)...)
@@ -169,7 +169,9 @@ func Render(ops []FileOp, repoDir, profileDir string, v Vars) error {
 			return fmt.Errorf("read template %s: %w", op.Src, err)
 		}
 		if op.Templated {
-			if data, err = render(op.Src, data, v); err != nil {
+			fileVars := v
+			fileVars.OpenClaudeSettings = op.Dst == "home/.config/openclaude/settings.json"
+			if data, err = render(op.Src, data, fileVars); err != nil {
 				return err
 			}
 		}
@@ -272,8 +274,8 @@ func Unfold(a Answers) ([]string, error) {
 }
 
 // selected resolves the answers to manifest components, rejecting unknown
-// names so a typoed --addons flag fails instead of silently thinning the
-// repo.
+// names so a typoed --addons or --macos-defaults flag fails instead of
+// silently thinning the repo.
 func selected(a Answers) ([]Component, error) {
 	ids := []string{"core"}
 	for _, n := range a.AddOns {
@@ -284,6 +286,12 @@ func selected(a Answers) ([]Component, error) {
 	}
 	if a.SecurityKeys {
 		ids = append(ids, "feature:security-keys")
+	}
+	if a.HushLogin {
+		ids = append(ids, "feature:hush-login")
+	}
+	for _, n := range a.MacOSDefaults {
+		ids = append(ids, "macos:"+n)
 	}
 
 	var components []Component

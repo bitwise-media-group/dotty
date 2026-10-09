@@ -2,4 +2,7 @@
 # init re-renders it and deselecting the component removes it. Add your own
 # packages to ../config.toml instead.
 [tools]
-"aqua:aristocratos/btop" = "latest"
+"aqua:aristocratos/btop" = { version = "latest", os = "linux" }
+
+[bootstrap.packages]
+"brew:btop" = { version = "latest", os = "macos" }

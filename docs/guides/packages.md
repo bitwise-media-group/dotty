@@ -95,7 +95,7 @@ comment, so the import is idempotent.
 
 `--brewfile <path>` converts a Brewfile instead: formulae the components now
 provide as locked tools are dropped, formulae mise cannot pour get their locked
-stand-ins (`kubectl`, `terraform`, `flux`, `awscli`, `yt-dlp`, `actions-up`),
+stand-ins (`terraform`, `yt-dlp`, `actions-up`),
 other formulae become `brew:` packages (with the taps they need — mise pours a
 tapped formula only when the tap publishes API metadata, so those come with a
 warning), casks become `brew-cask:` packages restricted to macOS (the agent CLIs

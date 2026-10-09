@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -50,7 +51,9 @@ class — stages it with git (the first commit is left for you to sign), links
 the home/ tree into your home directory and ~/.config/mise to the profile's
 packages, activates the profile (the active-profile symlink is the only
 machine-local state), installs mise into ~/.local/bin when the machine has
-none, and installs the lobe-icons glyph font. Files already in the way of a link are resolved per
+none, installs the profile's tools and packages through mise, makes the
+brewed zsh the login shell, applies the chosen macOS defaults groups (on
+macOS), and installs the lobe-icons glyph font. Files already in the way of a link are resolved per
 --on-conflict, and legacy files that shadow the rendered configuration from
 outside any link site (~/.gitconfig, ~/.zshrc and the other bare zsh startup
 files) are retired; backups land under $XDG_DATA_HOME/dotty/backups and are
@@ -96,7 +99,7 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 		"directory your repositories live in (default ~/Repos)")
 	cmd.Flags().StringVar(&flags.Description, "description", "", "short description of the profile")
 	cmd.Flags().StringSliceVar(&flags.AddOns, "addons", nil,
-		"optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi")
+		"optional add-ons: nvim,btop,kubernetes,lazygit,lsd,tmux,yazi")
 	cmd.Flags().StringSliceVar(&flags.Agents, "agents", nil,
 		"coding agents: claude-code,codex,opencode,antigravity,grok,openclaude")
 	cmd.Flags().BoolVar(&flags.ImportPackages, "import-packages", false,
@@ -107,6 +110,8 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 		"confine the coding agents: sandbox, credential-read denies, ask-first permissions")
 	cmd.Flags().BoolVar(&flags.SecurityKeys, "security-keys", false,
 		"this machine class signs with hardware security keys")
+	cmd.Flags().BoolVar(&flags.HushLogin, "hush-login", true,
+		"render ~/.hushlogin to silence the login banner (--hush-login=false to keep it)")
 	cmd.Flags().StringVar(&flags.GitName, "git-name", "", "git identity name for the private git config")
 	cmd.Flags().StringVar(&flags.GitEmail, "git-email", "", "git identity email for the private git config")
 	cmd.Flags().StringSliceVar(&flags.AllowedSerials, "allowed-serials", nil,
@@ -117,7 +122,8 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 		"encrypted private dotfiles repository path (empty for none)")
 	cmd.Flags().StringSliceVar(&flags.MacOSDefaults, "macos-defaults", nil,
 		"macOS defaults groups to apply (see the wizard picklist; empty for none)")
-	cmd.Flags().StringVar(&flags.Wallpaper, "wallpaper", "", "wallpaper image from ~/.local/share/wallpapers")
+	cmd.Flags().StringSliceVar(&flags.DockApps, "dock-apps", nil,
+		"optional apps the dock defaults group pins: ghostty,claude-code,codex (empty for none)")
 	cmd.Flags().BoolVar(&flags.PIV, "piv", false, "require smart-card (PIV) login system-wide")
 	cmd.Flags().BoolVar(&flags.SkipKeys, "skip-keys", false, "skip hardware key enrollment")
 	cmd.Flags().StringVar(&flags.OnConflict, "on-conflict", "backup",
@@ -126,25 +132,30 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 		"skip the confirmation summary and reuse stored answers; only unanswered questions are asked")
 	cmd.Flags().BoolVar(&flags.SkipFont, "skip-font", false, "skip the lobe-icons font download")
 	cmd.Flags().BoolVar(&flags.SkipGit, "skip-git", false, "skip git init")
-	for _, hidden := range []string{"skip-keys", "skip-font", "skip-git"} {
+	cmd.Flags().BoolVar(&flags.SkipInstall, "skip-install", false,
+		"skip installing the profile's tools and packages, the login shell, and the macOS defaults")
+	for _, hidden := range []string{"skip-keys", "skip-font", "skip-git", "skip-install"} {
 		_ = cmd.Flags().MarkHidden(hidden)
 	}
 }
 
 // interviewFlags copies the command's flags for one run: --on-conflict keeps
 // its documented default only when it was actually passed, so an interactive
-// run that leaves it alone is asked about each conflicting file instead. The
-// copy keeps a run's adjustments out of the package-level flag values.
+// run that leaves it alone is asked about each conflicting file instead, and
+// --hush-login (on by default) records whether it was passed so an unset
+// flag leaves the question to the interview. The copy keeps a run's
+// adjustments out of the package-level flag values.
 func interviewFlags(cmd *cobra.Command, flags wizard.Flags) wizard.Flags {
 	if !cmd.Flags().Changed("on-conflict") {
 		flags.OnConflict = ""
 	}
+	flags.HushLoginSet = cmd.Flags().Changed("hush-login")
 	return flags
 }
 
 // runInit is the whole init flow: the interview (every question, ending in
 // the confirmation), then the actions — render, git, link, activate,
-// identity, keys, font, macOS. Nothing is written before the confirmation,
+// install, identity, keys, font, PIV. Nothing is written before the confirmation,
 // so backing out of any question leaves the machine untouched.
 func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	home, err := os.UserHomeDir()
@@ -171,7 +182,8 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 	runner := newRunner(ios)
 	// mise first: the render imports packages through it, and a fresh
 	// machine has no mise until dotty installs one.
-	if _, err := mise.EnsureInstalled(ctx, runner, exec.LookPath, mise.Fetch, home); err != nil {
+	miseBin, err := mise.EnsureInstalled(ctx, runner, exec.LookPath, mise.Fetch, home)
+	if err != nil {
 		return err
 	}
 	pruned, err := scaffold.RenderRepository(ctx, ios, runner, answers, repo, home)
@@ -187,7 +199,8 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 
 	// Link before activating: the live profile path is a symlink into the
 	// repository, and Activate needs to see it.
-	report, backupDir, err := linker.LinkHome(ios, answers, repo, home, flags.OnConflict)
+	dotfilesClient := mise.New(runner, miseBin, mise.Dir(filepath.Join(scaffold.ProfilesDir(repo), answers.ProfileName)))
+	report, backupDir, err := linker.LinkHomeMise(ctx, ios, answers, repo, home, flags.OnConflict, dotfilesClient)
 	if err != nil {
 		return err
 	}
@@ -198,7 +211,11 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 		return err
 	}
 	tui.Successf(ios, "Profile %s active", answers.ProfileName)
-	tui.Infof(ios, "Install everything with: dotty packages sync")
+	if !flags.SkipInstall {
+		// Before the fnox setup, so fnox — a core tool — is installed by then.
+		client := mise.New(runner, miseBin, mise.Dir(profile.Dir(configDir, answers.ProfileName)))
+		installProfileBestEffort(ctx, ios, client, answers, home)
+	}
 	bootstrapFnoxBestEffort(ctx, ios, runner, answers, home)
 	if !iv.hadAllowlist && len(answers.AllowedSerials) > 0 {
 		tui.Successf(ios, "Profile %s allows only these security keys: %s",
@@ -225,7 +242,7 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 		fonts.Install(ctx, ios, home)
 	}
 
-	macos.ApplySelections(ctx, ios, runner, answers.MacOSDefaults, answers.Wallpaper, answers.PIV, home)
+	macos.FinishSelections(ctx, ios, runner, answers.MacOSDefaults, answers.PIV)
 
 	tui.Infof(ios, "Next: cd %s && git commit -m %q, then restart your terminal.", repo, "chore: initial dotfiles")
 	return nil
@@ -580,6 +597,43 @@ func useExistingKeys(ctx context.Context, ios cli.IOStreams, home string, refs [
 	return nil
 }
 
+// installProfileBestEffort installs what the freshly activated profile
+// declares — the tools, then the bootstrap packages — makes the brewed zsh
+// the login shell, and on macOS applies the selected defaults groups, whose
+// fragment hooks restart the affected apps. Packages go first because the
+// login shell is one and mise refuses to pin Dock apps that are not
+// installed, so a failed install skips the rest. Like the key plan, a
+// failure here must not strand init: the machine is already rendered,
+// linked, and active, and dotty packages sync finishes the job later.
+func installProfileBestEffort(ctx context.Context, ios cli.IOStreams, client *mise.Client,
+	answers scaffold.Answers, home string) {
+	if err := client.Install(ctx); err != nil {
+		tui.Warnf(ios, "Install did not finish: %v (retry with dotty packages sync)", err)
+		return
+	}
+	tui.Successf(ios, "Installed the profile's tools and packages")
+	// This process started before mise installed anything; put the shims on
+	// PATH so the steps that follow find the tools (fnox, age-keygen).
+	shims := mise.ShimsDir(home)
+	if info, err := os.Stat(shims); err == nil && info.IsDir() &&
+		!slices.Contains(filepath.SplitList(os.Getenv("PATH")), shims) {
+		_ = os.Setenv("PATH", shims+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+
+	if err := client.ApplyUser(ctx); err != nil {
+		tui.Warnf(ios, "Could not set the login shell: %v (retry with mise bootstrap --only user)", err)
+	}
+
+	if runtime.GOOS != "darwin" || len(answers.MacOSDefaults) == 0 {
+		return
+	}
+	if err := client.ApplyMacOSDefaults(ctx); err != nil {
+		tui.Warnf(ios, "Could not apply the macOS defaults: %v (retry with mise bootstrap --only macos-defaults)", err)
+		return
+	}
+	tui.Successf(ios, "Applied %d macOS defaults groups", len(answers.MacOSDefaults))
+}
+
 // bootstrapFnoxBestEffort sets up fnox's provider pair when fnox is already
 // on PATH; a fresh machine gets it from packages sync and finishes the job
 // with dotty env migrate. Like the key plan, a failure here must not strand
@@ -588,7 +642,7 @@ func bootstrapFnoxBestEffort(
 	ctx context.Context, ios cli.IOStreams, runner *cli.ExecRunner, answers scaffold.Answers, home string,
 ) {
 	if _, err := exec.LookPath(fnox.Bin); err != nil {
-		tui.Infof(ios, "After packages sync, run dotty env migrate to set up fnox")
+		tui.Infof(ios, "After dotty packages sync, run dotty env migrate to set up fnox")
 		return
 	}
 	globalConfig, err := fnox.GlobalConfigPath()

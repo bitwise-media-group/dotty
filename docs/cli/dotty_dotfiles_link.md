@@ -1,6 +1,6 @@
 ## dotty dotfiles link
 
-Symlink the repository's home tree into your home directory.
+Register, track, and apply the repository's home tree with mise.
 
 ### Synopsis
 
@@ -11,6 +11,13 @@ link defaults to fail so an unexpected file stops a re-link instead of being
 moved. Legacy files that shadow the rendered configuration from outside any
 link site (~/.gitconfig, ~/.zshrc and the other bare zsh startup files) are
 backed up and removed; restore them with dotty dotfiles restore.
+
+Deployment is handled by mise. Grok's configuration is copied as regular
+files; other entries remain symlinks. link registers all repository entries
+in the profile's mise config and tracks the shared and per-profile home
+sources for history. Use dotty dotfiles add --changed to save live copy edits
+back to their repository sources before re-linking. New files added with
+dotty dotfiles add are captured into this repository's home/ tree.
 
 ```
 dotty dotfiles link [flags]

@@ -51,6 +51,9 @@ signing keys that live on those keys (including git commit signing).`,
 		Version:       version.Version,
 		SilenceUsage:  true, // errors are failures, not usage mistakes
 		SilenceErrors: true, // main prints the error once
+		// Parse flags on each parent before descending to a proxy command,
+		// whose own argv must reach the child tool untouched.
+		TraverseChildren: true,
 	}
 )
 

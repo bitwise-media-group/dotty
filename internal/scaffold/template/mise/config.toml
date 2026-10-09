@@ -2,6 +2,12 @@
 # Component packages live in conf.d/ and are managed by `dotty init`.
 [settings]
 lockfile = true
+locked = false
+minimum_release_age = "1d"
+auto_update = true
+
+[settings.github]
+credential_command = "gh auth token"
 
 [bootstrap.brew]
 adopt = true

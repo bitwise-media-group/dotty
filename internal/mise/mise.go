@@ -281,6 +281,37 @@ func (c *Client) Install(ctx context.Context) error {
 	return c.interactive(ctx, "bootstrap", "packages", "apply", "--yes")
 }
 
+// ApplyMacOSDefaults writes the profile's `[bootstrap.macos.*]` defaults
+// and then runs its post-defaults hooks — the app restarts and the
+// default-terminal handlers the fragments declare. It is `mise bootstrap
+// --only macos-defaults` rather than `mise bootstrap macos defaults apply`,
+// which writes the same defaults but skips the hooks. mise refuses to pin
+// Dock apps that are not installed, so Install runs first.
+func (c *Client) ApplyMacOSDefaults(ctx context.Context) error {
+	return c.interactive(ctx, "bootstrap", "--only", "macos-defaults", "--yes")
+}
+
+// ApplyUser applies the profile's `[bootstrap.user]` settings — the login
+// shell, which mise adds to /etc/shells (through sudo) before running chsh —
+// plus the pre/post-user hooks. The shell is a bootstrap package, so Install
+// runs first.
+func (c *Client) ApplyUser(ctx context.Context) error {
+	return c.interactive(ctx, "bootstrap", "--only", "user", "--yes")
+}
+
+// ShimsDir is where mise keeps the shims for the tools it installs:
+// $MISE_DATA_DIR/shims, defaulting to $XDG_DATA_HOME/mise/shims (or
+// ~/.local/share/mise/shims).
+func ShimsDir(home string) string {
+	if dir := os.Getenv("MISE_DATA_DIR"); dir != "" {
+		return filepath.Join(dir, "shims")
+	}
+	if dir := os.Getenv("XDG_DATA_HOME"); dir != "" {
+		return filepath.Join(dir, "mise", "shims")
+	}
+	return filepath.Join(home, ".local", "share", "mise", "shims")
+}
+
 // Status prints the tools (`mise ls --global`) and the bootstrap packages
 // (`mise bootstrap packages status`) with their installed state.
 func (c *Client) Status(ctx context.Context) error {
@@ -288,6 +319,12 @@ func (c *Client) Status(ctx context.Context) error {
 		return err
 	}
 	return c.run(ctx, "bootstrap", "packages", "status")
+}
+
+// Dotfiles forwards a dotfiles command verbatim to mise, retaining its
+// prompts, terminal output, and exit status against the selected profile.
+func (c *Client) Dotfiles(ctx context.Context, args ...string) error {
+	return c.interactive(ctx, append([]string{"dot", "--cd", c.Dir}, args...)...)
 }
 
 // Lock refreshes mise.lock for every platform the profile's tools publish —

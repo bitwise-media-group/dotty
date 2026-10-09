@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 )
@@ -25,19 +27,79 @@ var dotfilesFlags = DotfilesFlags{}
 var dotfilesCmd = &cobra.Command{
 	Use:   "dotfiles",
 	Short: "Operate on the dotfiles repository dotty init generated.",
-	Long: `Link, inspect, and recover the dotfiles repository created by dotty init —
-or any repository with the same layout: a home/ tree of $HOME-relative
-entries plus profiles/ directories whose profile.json records the choices
-that built them.`,
+	Long: `Manage dotfiles through mise against the selected profile's mise config.
+link registers the repository's home tree, applies symlinks by default and
+regular copies for Grok, and tracks repository sources in mise history.
+All mise dot commands and flags are available here. Use add --changed to
+capture live copy edits back into the repository before applying it again.
+restore with paths proxies rollback; --timestamp restores legacy dotty backups.`,
 	Example: `  dotty dotfiles status
   dotty dotfiles link --on-conflict=backup
-  dotty dotfiles restore`,
+  dotty dotfiles add --changed
+  dotty dotfiles track ~/.zshrc
+  dotty dotfiles rollback ~/.zshrc`,
+	Args: cobra.ArbitraryArgs,
+	RunE: proxyDotfiles,
 }
 
 func init() {
 	dotfilesCmd.PersistentFlags().StringVar(&dotfilesFlags.Repo, "repo", "",
 		"dotfiles repository (default: found via $REPOS_DIR)")
 	rootCmd.AddCommand(dotfilesCmd)
+	for _, verb := range []string{"add", "apply", "capture", "conflicts", "diff", "edit", "exclude", "history", "include", "origin", "paths", "pull", "recover", "rollback", "save", "sync", "track", "unapply", "undo", "untrack", "watch", "help"} {
+		proxy := &cobra.Command{
+			Use:                verb + " [mise arguments]",
+			Short:              "Proxy mise dot " + verb + " against the selected profile.",
+			Long:               "Forward arguments and flags to mise dot " + verb + ". Run with --help for mise's command help.",
+			Example:            "  dotty dotfiles " + verb + " --help",
+			DisableFlagParsing: true,
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return proxyDotfiles(cmd, append([]string{cmd.Name()}, args...))
+			},
+		}
+		if verb == "unapply" {
+			proxy.Aliases = []string{"remove"}
+		}
+		dotfilesCmd.AddCommand(proxy)
+	}
+}
+
+func proxyDotfiles(cmd *cobra.Command, args []string) error {
+	// Help belongs to mise for proxied verbs; keep it in the raw argv.
+	own, rest, help := cli.ExtractFlags(args, map[string]bool{"repo": true})
+	if help {
+		if len(rest) == 0 {
+			return cmd.Help()
+		}
+		rest = append(rest, "--help")
+	}
+	if repo, ok := own["repo"]; ok {
+		dotfilesFlags.Repo = repo
+	}
+	client, err := newDotfilesClient(cmd.Context(), cli.System())
+	if err != nil {
+		return err
+	}
+	return client.Dotfiles(cmd.Context(), rest...)
+}
+
+func newDotfilesClient(ctx context.Context, ios cli.IOStreams) (*mise.Client, error) {
+	if dotfilesFlags.Repo == "" {
+		return newMiseClient(ctx, ios)
+	}
+	repo, answers, err := resolveDotfilesRepo()
+	if err != nil {
+		return nil, err
+	}
+	client, err := newMiseClient(ctx, ios)
+	if err != nil {
+		return nil, err
+	}
+	client.Dir = mise.Dir(filepath.Join(scaffold.ProfilesDir(repo), answers.ProfileName))
+	if err := mise.EnsureConfig(client.Dir); err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 // resolveDotfilesRepo locates the repository the verbs operate on — --repo,
@@ -49,7 +111,12 @@ func resolveDotfilesRepo() (string, scaffold.Answers, error) {
 	if err != nil {
 		return "", scaffold.Answers{}, err
 	}
-	activeDir, err := profile.ActiveDir(configDir)
+	activeDir := profile.Dir(configDir, rootFlags.Profile)
+	if rootFlags.Profile == "" {
+		activeDir, err = profile.ActiveDir(configDir)
+	} else if !profile.Exists(configDir, rootFlags.Profile) {
+		err = profile.ErrNotFound
+	}
 	if err != nil {
 		return "", scaffold.Answers{}, fmt.Errorf("no active profile; run dotty init first: %w", err)
 	}

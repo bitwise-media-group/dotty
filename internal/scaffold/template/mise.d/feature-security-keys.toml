@@ -3,10 +3,11 @@
 # packages to ../config.toml instead.
 [tools]
 "github:str4d/age-plugin-yubikey" = "latest"
-"pipx:yubikey-manager" = "latest"
 
-# OpenSSH with FIDO2 support and the pinentry the ask-pass bridge drives.
+# OpenSSH with FIDO2 support, the pinentry the ask-pass bridge drives, and
+# ykman (Homebrew, not pipx: its pyscard dependency lags new Python releases).
 [bootstrap.packages]
 "brew:openssh" = "latest"
+"brew:ykman" = "latest"
 "brew:pinentry-mac" = { version = "latest", os = "macos" }
 "brew-cask:yubico-authenticator" = { version = "latest", os = "macos" }

@@ -1,0 +1,5 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+[bootstrap.macos.defaults."com.apple.screencapture"]
+type = "png"

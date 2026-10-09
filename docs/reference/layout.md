@@ -22,7 +22,7 @@ dotfiles/
 ├── profiles/                 # one directory per profile
 │   ├── personal/
 │   │   ├── profile.json      # metadata + the profile's stored init answers
-│   │   ├── mise/             # the profile's packages: config.toml (yours),
+│   │   ├── mise/             # packages + dotfiles: config.toml (yours),
 │   │   │                     #   conf.d/<component>.toml (rendered), mise.lock
 │   │   ├── env.zsh           # profile-varying files (also git.gitconfig,
 │   │   │                     #   worktrees.gitconfig)
@@ -35,9 +35,16 @@ dotfiles/
 ```
 
 [`dotty dotfiles link`](../cli/dotty_dotfiles_link.md) symlinks the `home` tree
-into `$HOME` using symlink-farm folded links;
-[`dotty dotfiles status`](../cli/dotty_dotfiles_status.md) shows what is linked,
-missing, or conflicting.
+into `$HOME` through mise using folded links. Grok configuration is deployed
+as regular copies;
+[`dotty dotfiles status`](../cli/dotty_dotfiles_status.md) shows mise deployment and history status. `link` also tracks the repository
+source trees in mise history. New captures with `dotty dotfiles add` land in
+this repository's `home/` tree. Save live copy edits back with
+`dotty dotfiles add --changed` before running `link` or `apply` again.
+`untrack` stops checkpoint tracking; `unapply` (also `remove`) removes deployed
+targets while retaining their sources and configuration. See
+[mise dotfiles](https://mise.jdx.dev/dotfiles.html) for watcher and synchronization
+configuration.
 
 Profiles travel **with the repo** — they describe machine classes (personal,
 work), not individual machines. See [Profiles](../guides/profiles.md).
@@ -53,8 +60,8 @@ work), not individual machines. See [Profiles](../guides/profiles.md).
 Nothing here is secret: it is symlinks into your dotfiles repo plus one more.
 Retargeting `active-profile`
 ([`dotty profile activate`](../cli/dotty_profile_activate.md)) atomically swaps
-every per-profile rendered file — and the machine's package declarations — at
-once.
+symlinked per-profile configuration and the machine's package declarations.
+Activation also reapplies copied Grok settings from the new profile.
 
 ## Private data — `$XDG_DATA_HOME/dotty`
 

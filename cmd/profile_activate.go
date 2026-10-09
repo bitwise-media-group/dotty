@@ -8,10 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/privdot"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
@@ -89,10 +93,46 @@ func activateProfile(ctx context.Context, ios cli.IOStreams, configDir, name str
 	if _, err := profile.Activate(configDir, name); err != nil {
 		return err
 	}
+	if err := applyProfileCopies(ctx, ios, configDir, name); err != nil {
+		return err
+	}
 	tui.Successf(ios, "Activated profile %s", name)
 	tui.Infof(ios, "Converge the machine's packages with: dotty packages sync")
 	activatePrivate(ctx, ios, configDir, name)
 	return nil
+}
+
+// Regular copies need a fresh apply when the active profile changes;
+// symlinked configuration follows active-profile immediately.
+func applyProfileCopies(ctx context.Context, ios cli.IOStreams, configDir, name string) error {
+	answers, err := scaffold.LoadAnswers(profile.Dir(configDir, name))
+	if err != nil {
+		return nil
+	}
+	ops, err := scaffold.Plan(answers)
+	if err != nil {
+		return err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve home directory: %w", err)
+	}
+	var targets []string
+	for _, op := range ops {
+		if rel, ok := strings.CutPrefix(op.Dst, "home/.config/grok/"); ok && op.PerProfile {
+			targets = append(targets, filepath.Join(home, ".config", "grok", rel))
+		}
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	runner := newRunner(ios)
+	bin, err := mise.EnsureInstalled(ctx, runner, exec.LookPath, mise.Fetch, home)
+	if err != nil {
+		return err
+	}
+	client := mise.New(runner, bin, mise.Dir(profile.Dir(configDir, name)))
+	return client.Dotfiles(ctx, append([]string{"apply", "--yes"}, targets...)...)
 }
 
 // activatePrivate swaps the private identity along with the profile: when

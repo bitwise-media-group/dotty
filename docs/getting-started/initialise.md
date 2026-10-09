@@ -10,9 +10,17 @@ template embedded in dotty and sets the machine up around it. The order is
 deliberate: **every question comes before the first write**, and nothing at all
 is written until you confirm a summary. After confirmation it renders the
 repository, stages it with git (the first commit is left for you to
-[sign](signing.md)), links the home tree into `$HOME`, activates the profile,
-writes your private git identity, enrols security keys, installs the glyph font,
-and applies macOS defaults last.
+[sign](signing.md)), links the home tree into `$HOME`, and activates the
+profile. It then installs the profile's tools and packages through mise, makes
+the brewed zsh your login shell, and on macOS applies the
+[defaults groups](../reference/macos-defaults.md) you picked. Last, it writes
+your private git identity, enrols security keys, installs the glyph font, and
+enforces smart-card login if you asked for it.
+
+Setting the login shell adds the brewed zsh to `/etc/shells` and runs `chsh`, so
+expect a sudo prompt and a password prompt. If the install fails, init warns and
+carries on; run [`dotty packages sync`](../cli/dotty_packages_sync.md)
+afterwards to finish it.
 
 ## Run the wizard
 
@@ -61,10 +69,11 @@ walks the same interview with your previous answers as defaults. See
 
 ### Addons
 
-Optional tools, each rendering its config into the repo: `nvim`, `btop`, `k9s`,
-`lazygit`, `lsd`, `tmux`, `yazi`. ghostty, zsh, oh-my-posh, vivid, and git
-config are always included. The [reference section](../reference/tmux.md)
-documents what each config contains.
+Optional tools, each rendering its config into the repo: `nvim`, `btop`,
+`kubernetes` (k9s plus kubectl, flux, colima and docker; formerly `k9s`, which
+still selects it), `lazygit`, `lsd`, `tmux`, `yazi`. ghostty, zsh, oh-my-posh,
+vivid, and git config are always included. The
+[reference section](../reference/tmux.md) documents what each config contains.
 
 ### Coding agents
 
@@ -84,6 +93,13 @@ Whether this machine class signs with hardware keys, and optionally which key
 serials the profile allows (`--allowed-serials`). The [signing page](signing.md)
 walks the enrolment that follows.
 
+### Login banner
+
+Whether to silence the `Last login: …` line and message of the day that
+`login(1)` prints in every new terminal. On by default: the profile renders a
+`~/.hushlogin` (its presence is all `login` checks), linked through the active profile, so a profile that
+declines it (`--hush-login=false`) keeps the banner even on a shared repository.
+
 ### Agent worktrees
 
 Where sandboxed agents' git worktrees live: a directory name inside each repo
@@ -92,9 +108,10 @@ Where sandboxed agents' git worktrees live: a directory name inside each repo
 
 ### macOS
 
-Which [defaults groups](../reference/macos-defaults.md) to apply, an optional
-wallpaper from `~/.local/share/wallpapers`, and optional system-wide smart-card
-(PIV) login enforcement.
+Which [defaults groups](../reference/macos-defaults.md) to apply, which optional
+apps the Dock pins when you pick the dock group (Ghostty, plus Claude and
+ChatGPT when you chose those agents; `--dock-apps`), and optional system-wide
+smart-card (PIV) login enforcement.
 
 ### Conflicts
 

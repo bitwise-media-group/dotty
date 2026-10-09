@@ -28,6 +28,13 @@ if [ -n "${DOTTY_TEST_MISE_LOG-}" ]; then
 	printf '%s|%s\n' "${MISE_CONFIG_DIR-}" "$*" >>"$DOTTY_TEST_MISE_LOG"
 fi
 case "$*" in
+"dot "*)
+	if [ -n "${DOTTY_TEST_REAL_MISE-}" ]; then
+		export MISE_TRUSTED_CONFIG_PATHS="$MISE_CONFIG_DIR"
+		export MISE_AUTO_UPDATE=0
+		exec "$DOTTY_TEST_REAL_MISE" --cd "$MISE_CONFIG_DIR" "$@"
+	fi
+	;;
 "bootstrap packages prune --dry-run")
 	printf '%s\n' "${DOTTY_TEST_PRUNE-}"
 	;;
@@ -314,7 +321,7 @@ func TestPackagesImport(t *testing.T) {
 	t.Run("brewfile", func(t *testing.T) {
 		dir, logPath := packagesEnv(t, testPackagesConfig, testPackagesFragments)
 		brewfile := filepath.Join(t.TempDir(), "Brewfile")
-		if err := os.WriteFile(brewfile, []byte("brew \"jq\"\nbrew \"colima\"\ncask \"raycast\"\n"), 0o644); err != nil {
+		if err := os.WriteFile(brewfile, []byte("brew \"jq\"\nbrew \"watch\"\ncask \"raycast\"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		if err := execDotty(t, "packages", "import", "--brewfile="+brewfile); err != nil {
@@ -324,7 +331,7 @@ func TestPackagesImport(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{"# imported from Brewfile\n\"brew:colima\" = \"latest\"\n",
+		for _, want := range []string{"# imported from Brewfile\n\"brew:watch\" = \"latest\"\n",
 			`"brew-cask:raycast" = { version = "latest", os = "macos" }`} {
 			if !strings.Contains(string(got), want) {
 				t.Errorf("converted entry %q missing:\n%s", want, got)

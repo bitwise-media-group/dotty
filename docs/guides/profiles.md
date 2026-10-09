@@ -68,6 +68,10 @@ profile's packages and lockfile are what mise sees from then on. After switching
 classes on a machine, follow with [`dotty packages sync`](packages.md) to make
 the installed packages match the new profile.
 
+Grok configuration uses regular copies because its sandbox refuses symlinked
+protected paths. Profile activation reapplies the new profile's Grok settings.
+Save live copy edits with `dotty dotfiles add --changed` before switching profiles.
+
 ```mermaid
 flowchart LR
     subgraph repo [dotfiles repo]

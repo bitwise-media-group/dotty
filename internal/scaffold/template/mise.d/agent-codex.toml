@@ -3,3 +3,6 @@
 # packages to ../config.toml instead.
 [tools]
 "aqua:openai/codex" = "latest"
+
+[bootstrap.packages]
+"brew-cask:chatgpt" = { version = "latest", os = "macos" }

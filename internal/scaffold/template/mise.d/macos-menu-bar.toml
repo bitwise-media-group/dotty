@@ -1,0 +1,14 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# Always visible, except in full screen.
+[bootstrap.macos.defaults.NSGlobalDomain]
+_HIHideMenuBar = false
+AppleMenuBarVisibleInFullscreen = false
+
+[bootstrap.macos.defaults."com.apple.controlcenter"]
+AutoHideMenuBarOption = 2
+
+# hooks run under errexit; killall fails when the process is not running.
+[bootstrap.hooks.post-defaults]
+run = "killall SystemUIServer || true"

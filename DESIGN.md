@@ -345,7 +345,7 @@ directory, which dotty links to `~/.config/mise`:
 ```text
 profiles/<name>/mise/
 ├── config.toml   # user-owned: [settings] lockfile, [bootstrap.brew] adopt, the user's [tools] and [bootstrap.packages]
-├── conf.d/       # one fragment per selected component (core.toml, addon-nvim.toml, …), rendered by init
+├── conf.d/       # one fragment per selected component (core.toml, addon-nvim.toml, macos-dock.toml, …), rendered by init
 └── mise.lock     # written by mise for every platform; committed
 ```
 
@@ -363,7 +363,9 @@ a bare http id has no URL. Registry shorthand (`git`, `flux`) is refused
 everywhere: it resolves to whichever registry entry claims the name.
 
 Ownership splits by file: the fragments under `conf.d/` are rendered by
-`dotty init` from the selected components and pruned when a component is
+`dotty init` from the selected components — including one `macos-<group>.toml`
+per selected macOS defaults group, carrying `[bootstrap.macos.*]` settings and
+any `post-defaults` hook the group needs — and pruned when a component is
 deselected; `config.toml` is rendered once from the template and then belongs to
 the user — `dotty packages add`, `mise use -g`, and hand edits all write there,
 and a re-render never resets it. dotty never merges TOML documents: it only
@@ -395,10 +397,17 @@ new tool and `mise install` refuse backends that carry no download URL (pipx,
 npm, the core runtimes). `lockfile = true` alone makes mise resolve "latest" to
 the locked version, which is the reproducibility that matters.
 
-dotty only ever calls `mise install/upgrade/prune/lock/use/unuse` and
-`mise bootstrap packages …`; `mise bootstrap` as a whole (dotfiles, macOS
-defaults, launchd, shell activation) overlaps dotty's own linker and is left
-alone.
+dotty only ever calls `mise install/upgrade/prune/lock/use/unuse`,
+`mise bootstrap packages …`, and — from init — `mise bootstrap --only user` (the
+core fragment's `[bootstrap.user] login_shell`, the brewed zsh under the
+Homebrew prefix of the OS and architecture that rendered it) and, on macOS,
+`mise bootstrap --only macos-defaults`; `mise bootstrap` as a whole (dotfiles,
+launchd, shell activation) overlaps dotty's own linker and is left alone. The
+defaults go through the bootstrap phase rather than
+`mise bootstrap macos defaults apply` because only the phase runs the
+`post-defaults` hooks the fragments declare (the Dock, Finder, and
+SystemUIServer restarts, the default-terminal handlers); mise merges hooks from
+every conf.d fragment and runs each on every apply.
 
 ## Migrating from a Brewfile
 
@@ -407,13 +416,15 @@ converts it once, and `dotty packages import --brewfile` converts any other:
 
 - `brew "x"` becomes the locked tool the template's fragments replaced it with
   (`brew "ripgrep"` → `aqua:BurntSushi/ripgrep`, `brew "derailed/k9s/k9s"` →
-  `aqua:derailed/k9s`, `brew "go"` → `go`) when there is one, else the locked
-  tool that stands in for a formula mise cannot pour (`kubectl` is a Homebrew
-  alias with no API entry; `hashicorp/tap/terraform` and `fluxcd/tap/flux` come
-  from taps that publish no API metadata) — kubectl, terraform, flux, awscli,
-  yt-dlp, actions-up — else the `brew:x` bootstrap package. Any other
-  tap-qualified formula records its tap under `[bootstrap.brew.taps]` with a
-  warning that mise needs the tap to publish `api/formula/<name>.json`.
+  `aqua:derailed/k9s`, `brew "kubectl"` → `aqua:kubernetes/kubernetes/kubectl`,
+  `brew "go"` → `go`) when there is one, else the locked tool that stands in for
+  a formula mise cannot pour or that pours better elsewhere
+  (`hashicorp/tap/terraform` comes from a tap that publishes no API metadata) —
+  terraform, yt-dlp, actions-up — else the `brew:x` bootstrap package. awscli
+  stays `brew:awscli`: aqua's aws-cli puts its bundled Python framework on PATH,
+  where it shadows `python`. Any other tap-qualified formula records its tap
+  under `[bootstrap.brew.taps]` with a warning that mise needs the tap to
+  publish `api/formula/<name>.json`.
 - `cask "x"` becomes `"brew-cask:x" = { version = "latest", os = "macos" }`,
   except the bitwise tap's casks (dotty, evolve, patchy), which become
   `github:bitwise-media-group/<x>` tools — the tap publishes no cask API — and
@@ -571,8 +582,8 @@ repositories directory home-relative, the repository relative to it, and
 rendered shell files use `${HOME}` so no machine-specific prefix enters the
 repository. The wizard also asks for a profile name when creating one (machine
 name by default), whether to import the installed Homebrew formulae into the
-profile's packages, optional add-ons (nvim, btop, k9s, lazygit, lsd, tmux,
-yazi), and coding agents (claude-code, codex, opencode, antigravity, grok,
+profile's packages, optional add-ons (nvim, btop, kubernetes, lazygit, lsd,
+tmux, yazi), and coding agents (claude-code, codex, opencode, antigravity, grok,
 openclaude). Once at least one agent is selected, init offers the bitwise skills
 marketplace; choosing it wires the marketplace into every selected agent that
 supports one. ghostty, oh-my-posh, vivid, zsh, and git config are always
@@ -606,14 +617,21 @@ before the identity step, and re-checks before writing so the private copy
 always wins.
 
 On macOS, init finishes with the system questions: a picklist of curated
-`defaults write` groups (keyboard, menu bar, trackpad, finder, screenshots,
-software update, spaces, dock, animations, gpg keychain — everything
-preselected), a wallpaper chosen from `~/.local/share/wallpapers` when that
-directory has images (dotty distributes no wallpapers; the private repo supplies
-them), and smart-card (PIV) login enforcement — off unless chosen, confirmed
-with a lock-out warning, and applied through sudo. The selections persist in the
-profile and re-apply on a re-run; the tweaks run last and best-effort, so a
-declined sudo never unwinds a completed init.
+defaults groups (keyboard, input sources, menu bar, trackpad, mouse, finder,
+screenshots, software update, spaces, dock, animations, gpg keychain, default
+terminal — everything preselected), which optional apps the Dock pins when the
+dock group is picked (Ghostty always offered, Claude with the claude-code agent,
+ChatGPT with codex; every offered app preselected), and smart-card (PIV) login
+enforcement — off unless chosen, confirmed with a lock-out warning, and applied
+through sudo. Each selected group renders as its own mise fragment
+(`conf.d/macos-<group>.toml`, on every OS — mise's macOS sections are inert
+elsewhere, so the committed profile stays identical across machines), and mise
+applies them; the Dock fragment is the one templated fragment, its app list
+following the Dock answer. The default-terminal group points the UTIs Ghostty
+declares at it through `duti` in a hook, because Launch Services handlers are a
+single array mise could only replace whole. PIV stays in dotty — it writes
+`/Library/Preferences` through sudo, which mise's user defaults cannot — and
+runs last and best-effort, so a declined sudo never unwinds a completed init.
 
 Profiles are shared through the repository and activated per machine: one
 dotfiles repo serves every machine, and a profile (personal, work) captures how
@@ -654,14 +672,22 @@ installed packages when asked, installs mise into `~/.local/bin` when the
 machine has none, runs `git init` and stages everything (the first commit is
 left to the user so it can be signed), links the repository's `home` tree into
 `$HOME` plus the profile-varying files and `~/.config/mise` through
-active-profile, activates the profile, and downloads the pinned lobe-icons glyph
-font into the user font directory (a warning, never a failure, when offline).
-Re-running init against an existing repository and profile asks the same
-questions with the stored answers as the defaults; keeping them re-renders and
-re-links idempotently — which is also how a second machine of the same class
-adopts a freshly cloned repo, either run from inside the clone or with `--repo`
-naming it. Against a legacy-layout repository, re-running init first migrates it
-in place: profiles are lifted to top-level `profiles/<name>` directories, each
+active-profile, activates the profile, installs what the profile declares
+(`mise lock --global`, `mise install --yes`,
+`mise bootstrap packages apply --yes`), makes the brewed zsh the login shell
+(`mise bootstrap --only user --yes`, which adds it to `/etc/shells` through sudo
+and runs `chsh`), applies the selected macOS defaults on macOS
+(`mise bootstrap --only macos-defaults --yes` — after the packages, since mise
+refuses to pin Dock apps that are not installed), and downloads the pinned
+lobe-icons glyph font into the user font directory (a warning, never a failure,
+when offline). The install runs before the fnox setup so fnox is on hand, and is
+best-effort: a failure warns and points at `dotty packages sync`. Re-running
+init against an existing repository and profile asks the same questions with the
+stored answers as the defaults; keeping them re-renders and re-links
+idempotently — which is also how a second machine of the same class adopts a
+freshly cloned repo, either run from inside the clone or with `--repo` naming
+it. Against a legacy-layout repository, re-running init first migrates it in
+place: profiles are lifted to top-level `profiles/<name>` directories, each
 per-profile `render/` dissolves into its profile root, `dotty.json` and
 `profile.json` merge into a single `profile.json`, and the tree of
 `$HOME`-relative entries is renamed to `home/`. A live
@@ -676,7 +702,7 @@ dotty init [--repo=<dir>] [--repos-dir=<dir>] [--profile-name=<name>]
            [--addons=<a,b>] [--agents=<a,b>] [--import-packages] [--marketplace]
            [--harden] [--security-keys] [--git-name=<name>] [--git-email=<email>]
            [--allowed-serials=<a,b>] [--worktrees=<dir>]
-           [--macos-defaults=<a,b>] [--wallpaper=<image>] [--piv]
+           [--macos-defaults=<a,b>] [--dock-apps=<a,b>] [--piv]
            [--on-conflict=(backup|adopt|skip|fail)] [--yes]
 ```
 
@@ -698,13 +724,35 @@ under `$XDG_DATA_HOME/dotty/backups/<timestamp>/` mirroring its absolute path,
 (per-profile files, profile directories) — those back up instead, so a stale
 live copy can never overwrite a fresh render.
 
-`status` reports the plan without changing anything. `restore` copies a backup
-set back over the links — every file dotty ever displaced stays recoverable.
+Deployment runs through mise against the profile's mise configuration. Symlinks
+remain the default, including folded directories; all Grok configuration is
+copied as regular files so its protected paths contain no symlinks. Activating a
+profile reapplies its copied Grok settings. `link` registers the repository's
+entries without capturing live files over their sources and tracks the shared
+and per-profile `home/` sources in mise history. The capture root for new files
+is the repository's `home/` tree.
+
+`dotty dotfiles <verb> [args]` proxies the mise dot verbs and flags. `status`
+reports mise's managed files and history. `add --changed` captures live copy
+edits back into their repository sources; `apply` refreshes copies from those
+sources. Tracking alone saves local checkpoints; automatic capture and remote
+history synchronization need mise's watcher and origin configuration.
+`untrack` stops history tracking, while `unapply` (also `remove`) removes deployed
+targets while retaining sources and declarations. `restore <path> [flags]`
+proxies `rollback`; restoring a copied repository source needs a subsequent
+`apply`. With no arguments or `--timestamp`, `restore` retains dotty's backup-set
+recovery so files displaced before the migration remain recoverable.
 
 ```text
 dotty dotfiles link [--repo=<dir>] [--on-conflict=(backup|adopt|skip|fail)]
-dotty dotfiles status [--repo=<dir>]
-dotty dotfiles restore [--timestamp=<ts>]
+dotty dotfiles status [mise flags]
+dotty dotfiles add --changed
+dotty dotfiles add ~/.config/example/config.toml
+dotty dotfiles track ~/.zshrc
+dotty dotfiles restore ~/.zshrc --dry-run
+dotty dotfiles untrack ~/.zshrc
+dotty dotfiles remove ~/.config/example/config.toml
+dotty dotfiles restore --timestamp=<ts>
 ```
 
 # Command: Private

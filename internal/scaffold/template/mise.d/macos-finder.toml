@@ -1,0 +1,26 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# A clean desktop, path and status bars, no extension-change warnings, no
+# .DS_Store files on network shares, no Time Machine offers for new disks.
+[bootstrap.macos.finder]
+show_pathbar = true
+show_status_bar = true
+show_extensions_warning = false
+
+[bootstrap.macos.defaults."com.apple.finder"]
+CreateDesktop = false
+ShowExternalHardDrivesOnDesktop = false
+ShowHardDrivesOnDesktop = false
+ShowRemovableMediaOnDesktop = false
+ShowMountedServersOnDesktop = false
+
+[bootstrap.macos.defaults."com.apple.desktopservices"]
+DSDontWriteNetworkStores = true
+
+[bootstrap.macos.defaults."com.apple.TimeMachine"]
+DoNotOfferNewDisksForBackup = true
+
+# hooks run under errexit; killall fails when the process is not running.
+[bootstrap.hooks.post-defaults]
+run = "killall Finder || true"

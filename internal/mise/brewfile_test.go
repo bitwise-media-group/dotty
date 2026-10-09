@@ -26,8 +26,8 @@ func TestConvertBrewfile(t *testing.T) {
 		{name: "options do not matter", line: `brew "jandedobbeleer/oh-my-posh/oh-my-posh", args: ["formula"], trusted: true`,
 			wantTools: []string{"aqua:JanDeDobbeleer/oh-my-posh"}},
 		{name: "runtime formula", line: `brew "go"`, wantTools: []string{"go"}},
-		{name: "other formula becomes brew package", line: `brew "colima"`,
-			wantPackages: []string{`"brew:colima" = "latest"`}},
+		{name: "other formula becomes brew package", line: `brew "watch"`,
+			wantPackages: []string{`"brew:watch" = "latest"`}},
 		{name: "tapped formula records its tap and warns", line: `brew "acme/tap/widget", trusted: true`,
 			wantPackages: []string{`"brew:acme/tap/widget" = "latest"`},
 			wantTaps:     []string{`"acme/tap" = "https://github.com/acme/homebrew-tap.git"`}, wantWarnings: 1},
@@ -108,9 +108,9 @@ func TestConvertRealBrewfile(t *testing.T) {
 	for _, want := range []string{
 		"aqua:sharkdp/bat", "aqua:JanDeDobbeleer/oh-my-posh", "aqua:derailed/k9s", "aqua:neovim/neovim",
 		"github:bitwise-media-group/dotty", "github:bitwise-media-group/evolve", "github:bitwise-media-group/patchy",
-		"go", "dotnet", "aqua:astral-sh/uv", "pipx:yubikey-manager",
-		"aqua:hashicorp/terraform", "aqua:fluxcd/flux2", "aqua:kubernetes/kubernetes/kubectl", "aqua:aws/aws-cli",
-		"brew:git", "brew:colima", "brew:docker", "brew:docker-compose",
+		"go", "dotnet", "aqua:astral-sh/uv", "brew:ykman",
+		"aqua:hashicorp/terraform", "aqua:fluxcd/flux2", "aqua:kubernetes/kubernetes/kubectl", "brew:awscli",
+		"brew:git", "aqua:abiosoft/colima", "aqua:docker/cli", "aqua:docker/compose",
 		"brew-cask:ghostty", "brew-cask:raycast", "brew-cask:font-iosevka-nerd-font",
 		"aqua:anthropics/claude-code", "aqua:openai/codex", "http:grok",
 	} {
@@ -124,7 +124,7 @@ func TestConvertRealBrewfile(t *testing.T) {
 		}
 	}
 	for _, gone := range []string{"brew:mise", "brew:bat", "brew-cask:dotty", "brew-cask:patchy", "brew:go",
-		"brew:kubectl", "brew:hashicorp/tap/terraform", "brew:fluxcd/tap/flux",
+		"brew:kubectl", "brew:hashicorp/tap/terraform", "brew:fluxcd/tap/flux", "brew:colima", "brew:docker",
 		"brew-cask:claude-code@latest", "brew-cask:codex", "brew-cask:grok-build"} {
 		if ids[gone] {
 			t.Errorf("%s should not survive the conversion", gone)

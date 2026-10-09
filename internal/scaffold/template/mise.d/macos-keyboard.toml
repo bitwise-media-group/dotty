@@ -1,0 +1,9 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+[bootstrap.macos.keyboard]
+press_and_hold = false
+automatic_capitalization = true
+
+[bootstrap.macos.defaults.NSGlobalDomain]
+NSAutomaticPeriodSubstitutionEnabled = true

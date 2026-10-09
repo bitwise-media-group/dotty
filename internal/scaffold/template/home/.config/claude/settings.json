@@ -114,7 +114,9 @@
     "defaultMode": "auto"
   },
 {{- end }}
+{{- if not .OpenClaudeSettings }}
   "model": "claude-fable-5[1m]",
+{{- end }}
   "hooks": {
     "WorktreeCreate": [
       {

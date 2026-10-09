@@ -2,6 +2,7 @@
 # init re-renders it and deselecting the component removes it. Add your own
 # packages to ../config.toml instead.
 [tools]
+"aqua:mas-cli/mas" = { version = "latest", os = "macos" }
 "aqua:sharkdp/bat" = "latest"
 "aqua:sharkdp/fd" = "latest"
 "aqua:junegunn/fzf" = "latest"
@@ -17,7 +18,6 @@
 "aqua:astral-sh/uv" = "latest"
 "aqua:jdx/fnox" = "latest"
 "aqua:FiloSottile/age" = "latest"
-"github:bitwise-media-group/dotty" = "latest"
 
 [bootstrap.packages]
 "brew:git" = "latest"
@@ -25,6 +25,12 @@
 "brew:wget" = "latest"
 "brew:zsh" = "latest"
 "brew:zinit" = "latest"
-"brew-cask:font-iosevka-nerd-font" = { version = "latest", os = "macos" }
-"brew-cask:font-symbols-only-nerd-font" = { version = "latest", os = "macos" }
+
+"brew-cask:font-iosevka-nerd-font" = "latest"
+"brew-cask:font-symbols-only-nerd-font" = "latest"
 "brew-cask:ghostty" = { version = "latest", os = "macos" }
+
+# The brewed zsh is the login shell; mise adds it to /etc/shells and runs chsh.
+# The Homebrew prefix is the one for the OS and architecture init ran on.
+[bootstrap.user]
+login_shell = "{{.BrewPrefix}}/bin/zsh"

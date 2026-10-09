@@ -1,0 +1,2 @@
+# Presence alone silences login(1)'s "Last login" line and message of the day.
+# Rendered by dotty for profiles that answer yes to the hush-login question.

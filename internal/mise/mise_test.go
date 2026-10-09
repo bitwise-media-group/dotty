@@ -306,6 +306,48 @@ func TestUpgrade(t *testing.T) {
 	})
 }
 
+// TestInstallThenMacOSDefaults pins the order init drives: lock, install
+// the tools, apply the bootstrap packages, set the login shell, then the
+// macOS defaults through the bootstrap phase that also runs the
+// post-defaults hooks.
+func TestInstallThenMacOSDefaults(t *testing.T) {
+	dir := profileDir(t, testConfig, nil)
+	r := &fakeRunner{}
+	c := New(r, "mise", dir)
+	if err := c.Install(context.Background()); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	if err := c.ApplyUser(context.Background()); err != nil {
+		t.Fatalf("ApplyUser: %v", err)
+	}
+	if err := c.ApplyMacOSDefaults(context.Background()); err != nil {
+		t.Fatalf("ApplyMacOSDefaults: %v", err)
+	}
+	wantCalls(t, r.argvs(t, "mise", dir), []string{
+		"run lock --global",
+		"interactive install --yes",
+		"interactive bootstrap packages apply --yes",
+		"interactive bootstrap --only user --yes",
+		"interactive bootstrap --only macos-defaults --yes",
+	})
+}
+
+func TestShimsDir(t *testing.T) {
+	t.Setenv("MISE_DATA_DIR", "")
+	t.Setenv("XDG_DATA_HOME", "")
+	if got, want := ShimsDir("/h"), "/h/.local/share/mise/shims"; got != want {
+		t.Errorf("ShimsDir = %q, want %q", got, want)
+	}
+	t.Setenv("XDG_DATA_HOME", "/xdg")
+	if got, want := ShimsDir("/h"), "/xdg/mise/shims"; got != want {
+		t.Errorf("ShimsDir = %q, want %q", got, want)
+	}
+	t.Setenv("MISE_DATA_DIR", "/m")
+	if got, want := ShimsDir("/h"), "/m/shims"; got != want {
+		t.Errorf("ShimsDir = %q, want %q", got, want)
+	}
+}
+
 func TestStatusLockImport(t *testing.T) {
 	dir := profileDir(t, testConfig, nil)
 	r := &fakeRunner{}

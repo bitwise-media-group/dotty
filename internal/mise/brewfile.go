@@ -50,19 +50,29 @@ var toolForFormula = map[string]string{
 	"oh-my-posh":                           "aqua:JanDeDobbeleer/oh-my-posh",
 	"uv":                                   "aqua:astral-sh/uv",
 	// add-ons
-	"btop":             "aqua:aristocratos/btop",
+	"btop":    "aqua:aristocratos/btop",
+	"lazygit": "aqua:jesseduffield/lazygit",
+	"lsd":     "aqua:lsd-rs/lsd",
+	"neovim":  "aqua:neovim/neovim",
+	"tmux":    "aqua:tmux/tmux-builds",
+	"yazi":    "aqua:sxyazi/yazi",
+	"resvg":   "aqua:linebender/resvg",
+	// kubernetes add-on; kubectl and flux are tapped or aliased formulae
+	// mise could not pour as brew: packages anyway
 	"derailed/k9s/k9s": "aqua:derailed/k9s",
 	"k9s":              "aqua:derailed/k9s",
-	"lazygit":          "aqua:jesseduffield/lazygit",
-	"lsd":              "aqua:lsd-rs/lsd",
-	"neovim":           "aqua:neovim/neovim",
-	"tmux":             "aqua:tmux/tmux-builds",
-	"yazi":             "aqua:sxyazi/yazi",
-	"resvg":            "aqua:linebender/resvg",
+	"kubectl":          "aqua:kubernetes/kubernetes/kubectl",
+	"kubernetes-cli":   "aqua:kubernetes/kubernetes/kubectl",
+	"fluxcd/tap/flux":  "aqua:fluxcd/flux2",
+	"flux":             "aqua:fluxcd/flux2",
+	"colima":           "aqua:abiosoft/colima",
+	"lima":             "aqua:lima-vm/lima",
+	"docker":           "aqua:docker/cli",
+	"docker-buildx":    "aqua:docker/buildx",
+	"docker-compose":   "aqua:docker/compose",
 	// security keys
 	"age":                "aqua:FiloSottile/age",
 	"age-plugin-yubikey": "github:str4d/age-plugin-yubikey",
-	"ykman":              "pipx:yubikey-manager",
 	// agents
 	"anomalyco/tap/opencode": "aqua:anomalyco/opencode",
 	"opencode":               "aqua:anomalyco/opencode",
@@ -77,20 +87,17 @@ var toolForFormula = map[string]string{
 var coreRuntimeTools = []string{"go", "dotnet", "node"}
 
 // toolForUserFormula maps formulae no fragment covers but that mise cannot
-// pour as `brew:` packages — Homebrew aliases (`kubectl` is the
-// `kubernetes-cli` formula; formulae.brew.sh has no `kubectl.json`) and
-// tapped formulae (mise pours a tap's formula only when the tap publishes
-// `api/formula/<name>.json`, which hashicorp/tap and fluxcd/tap do not) —
-// onto the locked tools that replace them. The plain names are included so
-// a Brewfile that names them unqualified converts the same way.
+// pour as `brew:` packages — Homebrew aliases and tapped formulae (mise
+// pours a tap's formula only when the tap publishes
+// `api/formula/<name>.json`, which hashicorp/tap does not) — onto the locked
+// tools that replace them. The plain names are included so a Brewfile that
+// names them unqualified converts the same way. awscli deliberately stays a
+// `brew:` package: aqua's aws-cli puts the whole bundle directory on PATH,
+// and its embedded Python framework (`Python`, which a case-insensitive
+// filesystem also answers to as `python`) shadows the real interpreter.
 var toolForUserFormula = map[string]string{
-	"kubectl":                 "aqua:kubernetes/kubernetes/kubectl",
-	"kubernetes-cli":          "aqua:kubernetes/kubernetes/kubectl",
 	"hashicorp/tap/terraform": "aqua:hashicorp/terraform",
 	"terraform":               "aqua:hashicorp/terraform",
-	"fluxcd/tap/flux":         "aqua:fluxcd/flux2",
-	"flux":                    "aqua:fluxcd/flux2",
-	"awscli":                  "aqua:aws/aws-cli",
 	"yt-dlp":                  "github:yt-dlp/yt-dlp",
 	"actions-up":              "npm:actions-up",
 }

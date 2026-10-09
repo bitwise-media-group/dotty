@@ -26,18 +26,27 @@ const (
 )
 
 // DefaultConfig is the user-owned config.toml a profile starts with: the
-// lockfile setting, cask adoption, and the empty tables `mise use -g` and
+// lockfile and release-age settings, GitHub API auth through gh, cask
+// adoption, and the empty tables `mise use -g` and
 // `mise bootstrap packages use -g` write into. It mirrors the scaffold's
 // template/mise/config.toml; a test keeps the two identical. `locked` is
-// deliberately not set: with a lockfile present it makes `mise use` refuse
-// new tools and `mise install` refuse the backends that carry no download
-// URL (pipx, npm, the core runtimes). Reproducibility comes from the
-// lockfile itself — mise resolves "latest" to the locked version when the
-// file has one — and from Sync locking before it installs.
+// explicitly off: with a lockfile present it makes `mise use` refuse new
+// tools and `mise install` refuse the backends that carry no download URL
+// (pipx, npm, the core runtimes). Reproducibility comes from the lockfile
+// itself — mise resolves "latest" to the locked version when the file has
+// one — and from Sync locking before it installs. minimum_release_age holds
+// back releases younger than a day, and credential_command lets mise's
+// GitHub-backed lookups use the gh login instead of the anonymous rate limit.
 const DefaultConfig = `# User-owned: ` + "`dotty packages add`" + ` / ` + "`mise use -g`" + ` write here.
 # Component packages live in conf.d/ and are managed by ` + "`dotty init`" + `.
 [settings]
 lockfile = true
+locked = false
+minimum_release_age = "1d"
+auto_update = true
+
+[settings.github]
+credential_command = "gh auth token"
 
 [bootstrap.brew]
 adopt = true

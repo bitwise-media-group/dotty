@@ -5,11 +5,14 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 	"github.com/bitwise-media-group/dotty/internal/signingkey"
 	"github.com/bitwise-media-group/dotty/internal/wizard"
@@ -20,13 +23,46 @@ import (
 // everything.
 func initEnv(t *testing.T) string {
 	t.Helper()
+	// Deployment is an integration with mise; package installs remain fake.
+	bin, err := exec.LookPath("mise")
+	if err != nil {
+		t.Skip("mise is required for dotfiles integration tests")
+	}
+	t.Setenv("DOTTY_TEST_REAL_MISE", bin)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
+	t.Setenv("MISE_STATE_DIR", filepath.Join(home, ".local", "state", "mise"))
+	t.Setenv("MISE_DATA_DIR", filepath.Join(home, ".local", "share", "mise"))
+	t.Setenv("MISE_CACHE_DIR", filepath.Join(home, ".cache", "mise"))
 	// A fake mise in the home keeps init from installing the real one.
 	installFakeMise(t, home)
 	return home
+}
+
+func packageCallsAfterDotfiles(t *testing.T, logPath, dir string) []string {
+	t.Helper()
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls []string
+	for line := range strings.Lines(string(data)) {
+		config, args, ok := strings.Cut(strings.TrimSpace(line), "|")
+		if !ok {
+			t.Fatalf("invalid mise log: %s", line)
+		}
+		if strings.HasPrefix(args, "dot ") {
+			continue
+		}
+		if config != dir {
+			t.Errorf("mise config = %s, want %s", config, dir)
+		}
+		calls = append(calls, args)
+	}
+	return calls
 }
 
 func TestInitEndToEnd(t *testing.T) {
@@ -48,6 +84,61 @@ func TestInitEndToEnd(t *testing.T) {
 	if err := execDotty(t, "init", "--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"),
 		"--yes", "--skip-font", "--skip-git", "--on-conflict=fail"); err != nil {
 		t.Fatalf("re-run: %v", err)
+	}
+}
+
+// TestInitInstallsProfile pins the install step: after activating the
+// profile, init locks and installs the tools, applies the bootstrap
+// packages, sets the login shell, and on macOS applies the defaults through the bootstrap phase
+// that runs the fragments' hooks — all against the profile's mise
+// directory. --skip-install leaves mise alone.
+func TestInitInstallsProfile(t *testing.T) {
+	home := initEnv(t)
+	logPath := filepath.Join(home, "mise.log")
+	t.Setenv("DOTTY_TEST_MISE_LOG", logPath)
+	initFlags = wizard.Flags{}
+	t.Cleanup(func() { initFlags = wizard.Flags{} })
+	repo := filepath.Join(home, "Repos", "dotfiles")
+	if err := execDotty(t, "init", "--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"),
+		"--profile-name=testbox", "--agents=claude-code", "--macos-defaults=dock,finder", "--dock-apps=ghostty",
+		"--import-packages=false", "--yes", "--skip-font", "--skip-git"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	profileDir := filepath.Join(home, ".config", "dotty", "testbox")
+	calls := packageCallsAfterDotfiles(t, logPath, filepath.Join(profileDir, "mise"))
+	want := []string{"lock --global", "install --yes", "bootstrap packages apply --yes", "bootstrap --only user --yes"}
+	if runtime.GOOS == "darwin" {
+		want = append(want, "bootstrap --only macos-defaults --yes")
+	}
+	if !slices.Equal(calls, want) {
+		t.Errorf("mise calls =\n  %s\nwant\n  %s", strings.Join(calls, "\n  "), strings.Join(want, "\n  "))
+	}
+
+	dock, err := os.ReadFile(filepath.Join(profileDir, "mise", "conf.d", "macos-dock.toml"))
+	if err != nil {
+		t.Fatalf("dock fragment: %v", err)
+	}
+	if !strings.Contains(string(dock), "Ghostty.app") || strings.Contains(string(dock), "Claude.app") {
+		t.Errorf("dock fragment ignores --dock-apps:\n%s", dock)
+	}
+	answers, err := scaffold.LoadAnswers(profileDir)
+	if err != nil || !slices.Equal(answers.DockApps, []string{"ghostty"}) {
+		t.Errorf("dockApps = %v, %v", answers.DockApps, err)
+	}
+
+	if err := os.Remove(logPath); err != nil {
+		t.Fatal(err)
+	}
+	// Slice flags append when parsed again, so the re-run passes only the
+	// paths and lets the stored answers supply the rest.
+	initFlags = wizard.Flags{}
+	if err := execDotty(t, "init", "--repo="+repo, "--repos-dir="+filepath.Join(home, "Repos"),
+		"--profile-name=testbox", "--yes", "--skip-font", "--skip-git", "--skip-install"); err != nil {
+		t.Fatalf("re-run: %v", err)
+	}
+	if calls := packageCallsAfterDotfiles(t, logPath, filepath.Join(profileDir, "mise")); len(calls) != 0 {
+		t.Errorf("--skip-install still ran mise: %v", calls)
 	}
 }
 
@@ -276,7 +367,7 @@ func TestInitRerunExtendsProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read profile mise config: %v", err)
 	}
-	config = append(config, "\"brew:user-added\" = \"latest\"\n"...)
+	config, _ = mise.MergeEntries(config, mise.TablePackages, []string{`"brew:user-added" = "latest"`}, "user package")
 	if err := os.WriteFile(configPath, config, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -296,7 +387,11 @@ func TestInitRerunExtendsProfile(t *testing.T) {
 	if !containsLine(string(merged), `"brew:user-added" = "latest"`) {
 		t.Errorf("user package destroyed by re-run:\n%s", merged)
 	}
-	if strings.Contains(string(merged), "tmux") {
+	declared, err := mise.Declared(filepath.Dir(configPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry, ok := declared["aqua:tmux/tmux-builds"]; ok && entry.File == configPath {
 		t.Errorf("component package leaked into the user config:\n%s", merged)
 	}
 	if _, err := os.Stat(filepath.Join(repo, "profiles", "box", "mise", "conf.d", "addon-lsd.toml")); err != nil {
@@ -480,7 +575,7 @@ func TestInitSecurityKeys(t *testing.T) {
 
 	// The profile picked up the security-key packages.
 	fragment, err := os.ReadFile(filepath.Join(repo, "profiles", "keys", "mise", "conf.d", "feature-security-keys.toml"))
-	if err != nil || !containsLine(string(fragment), `"pipx:yubikey-manager" = "latest"`) {
+	if err != nil || !containsLine(string(fragment), `"brew:ykman" = "latest"`) {
 		t.Errorf("security-keys fragment missing ykman: %v", err)
 	}
 }
@@ -664,6 +759,51 @@ func TestInitPrunesRelocatedRenders(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(profileDir, "home", ".config", "claude", "settings.json")); err != nil {
 		t.Errorf("current render missing after the prune: %v", err)
+	}
+}
+
+// TestInitHushLogin pins the hush-login answer end to end: on by default, a
+// ~/.hushlogin links through the active profile; answering no on a re-run
+// prunes the render and the link it leaves dangling.
+func TestInitHushLogin(t *testing.T) {
+	home := initEnv(t)
+	repo := filepath.Join(home, "Repos", "dotfiles")
+	// pflag never resets Changed, so a passed --hush-login would leak into
+	// later tests' runs.
+	t.Cleanup(func() { initCmd.Flags().Lookup("hush-login").Changed = false })
+
+	initFlags = wizard.Flags{}
+	if err := execDotty(t, "init", "--repo="+repo, "--profile-name=box",
+		"--yes", "--skip-font", "--skip-git"); err != nil {
+		t.Fatalf("first init: %v", err)
+	}
+	site := filepath.Join(home, ".hushlogin")
+	render := filepath.Join(repo, "profiles", "box", "home", ".hushlogin")
+	wantLink := filepath.Join(home, ".config", "dotty", "active-profile", "home", ".hushlogin")
+	if link, err := os.Readlink(site); err != nil || link != wantLink {
+		t.Fatalf("~/.hushlogin link = %q, %v (want %s)", link, err, wantLink)
+	}
+	if _, err := os.Stat(site); err != nil {
+		t.Errorf("~/.hushlogin does not resolve to the profile's render: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(repo, "home", ".hushlogin")); err == nil {
+		t.Error(".hushlogin rendered into the shared home tree")
+	}
+
+	initFlags = wizard.Flags{}
+	if err := execDotty(t, "init", "--repo="+repo, "--profile-name=box", "--hush-login=false",
+		"--yes", "--skip-font", "--skip-git", "--on-conflict=fail"); err != nil {
+		t.Fatalf("re-run: %v", err)
+	}
+	if _, err := os.Lstat(render); err == nil {
+		t.Error("declined hush login left the profile's .hushlogin render")
+	}
+	if _, err := os.Lstat(site); err == nil {
+		t.Error("declined hush login left ~/.hushlogin behind")
+	}
+	answers, err := scaffold.LoadAnswers(filepath.Join(home, ".config", "dotty", "box"))
+	if err != nil || answers.HushLogin {
+		t.Errorf("stored hushLogin = %v, %v; want false", answers.HushLogin, err)
 	}
 }
 

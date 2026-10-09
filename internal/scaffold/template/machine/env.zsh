@@ -30,6 +30,12 @@ export CODEX_SQLITE_HOME="${XDG_DATA_HOME}/codex"
 export CLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/claude"
 export CLAUDE_CODE_PLUGIN_CACHE_DIR="${XDG_CACHE_HOME}/claude/plugins"
 {{- end }}
+{{- if .HasOpenClaude }}
+
+# OpenClaude has Claude-compatible settings but its own credentials,
+# sessions and provider profiles. Override its legacy CLAUDE_CONFIG_DIR fallback.
+export OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"
+{{- end }}
 {{- if .HasGrok }}
 
 # Relocate Grok's home under XDG config (it defaults to ~/.grok).

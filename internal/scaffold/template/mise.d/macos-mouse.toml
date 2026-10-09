@@ -1,0 +1,24 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# Magic Mouse: primary click only, two-finger swipe between full-screen apps,
+# two-finger double-tap for Mission Control, no smart zoom.
+[bootstrap.macos.defaults."com.apple.AppleMultitouchMouse"]
+MouseButtonMode = "OneButton"
+MouseButtonDivision = 55
+MouseHorizontalScroll = true
+MouseVerticalScroll = true
+MouseMomentumScroll = true
+MouseOneFingerDoubleTapGesture = 0
+MouseTwoFingerDoubleTapGesture = 3
+MouseTwoFingerHorizSwipeGesture = 2
+
+[bootstrap.macos.defaults."com.apple.driver.AppleBluetoothMultitouch.mouse"]
+MouseButtonMode = "OneButton"
+MouseButtonDivision = 55
+MouseHorizontalScroll = true
+MouseVerticalScroll = true
+MouseMomentumScroll = true
+MouseOneFingerDoubleTapGesture = 0
+MouseTwoFingerDoubleTapGesture = 3
+MouseTwoFingerHorizSwipeGesture = 2

@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -58,10 +59,16 @@ type Answers struct {
 	SecurityKeys bool `json:"securityKeys"`
 	Harden       bool `json:"harden"`
 	Marketplace  bool `json:"marketplace"`
+	// HushLogin renders ~/.hushlogin, silencing login(1)'s banner. It
+	// defaults on: a document that predates the question reads as true.
+	HushLogin bool `json:"hushLogin"`
 
 	MacOSDefaults []string `json:"macosDefaults,omitzero"`
-	Wallpaper     string   `json:"wallpaper"`
-	PIV           bool     `json:"piv"`
+	// DockApps picks which of the optional apps (ghostty, claude-code,
+	// codex — the agents' desktop apps go by the agent's id) the dock
+	// defaults group pins. nil, never asked, pins every eligible one.
+	DockApps []string `json:"dockApps,omitzero"`
+	PIV      bool     `json:"piv"`
 
 	// AllowedSerials restricts the profile's machines to these security-key
 	// serials; empty means unrestricted. Serials identify hardware (they are
@@ -110,8 +117,9 @@ type AnswerKeys struct {
 	SecurityKeys   bool
 	Harden         bool
 	Marketplace    bool
+	HushLogin      bool
 	MacOSDefaults  bool
-	Wallpaper      bool
+	DockApps       bool
 	PIV            bool
 	PrivateRepo    bool
 }
@@ -133,8 +141,9 @@ func answerKeys(raw map[string]json.RawMessage) AnswerKeys {
 		SecurityKeys:   has("securityKeys"),
 		Harden:         has("harden"),
 		Marketplace:    has("marketplace"),
+		HushLogin:      has("hushLogin"),
 		MacOSDefaults:  has("macosDefaults"),
-		Wallpaper:      has("wallpaper"),
+		DockApps:       has("dockApps"),
 		PIV:            has("piv"),
 		PrivateRepo:    has("privateRepo"),
 	}
@@ -180,7 +189,8 @@ const legacyImportKey = "dumpBrews"
 
 // readAnswers parses one answers document. A document from before packages
 // moved to mise answers the import question under the legacy key; its value
-// carries over.
+// carries over. One that predates the hush-login question takes its
+// default, on.
 func readAnswers(path string) (Answers, AnswerKeys, error) {
 	var a Answers
 	data, err := os.ReadFile(path)
@@ -199,7 +209,37 @@ func readAnswers(path string) (Answers, AnswerKeys, error) {
 			_ = json.Unmarshal(legacy, &a.ImportPackages) // a malformed legacy value reads as unanswered
 		}
 	}
-	return a, answerKeys(raw), nil
+	keys := answerKeys(raw)
+	if !keys.HushLogin {
+		a.HushLogin = true
+	}
+	a.AddOns = CanonicalAddOns(a.AddOns)
+	return a, keys, nil
+}
+
+// renamedAddOns maps retired add-on names onto the add-ons that replaced
+// them, so a stored profile or an --addons flag written before a rename
+// still selects the component. k9s grew into kubernetes when the add-on
+// took on kubectl, flux and the colima/docker toolchain.
+var renamedAddOns = map[string]string{"k9s": "kubernetes"}
+
+// CanonicalAddOns rewrites retired add-on names to their replacements,
+// dropping any duplicate the rewrite creates. Order and nilness are kept —
+// a nil slice is a never-asked question, an empty one an answered "none".
+func CanonicalAddOns(names []string) []string {
+	if names == nil {
+		return nil
+	}
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		if renamed, ok := renamedAddOns[n]; ok {
+			n = renamed
+		}
+		if !slices.Contains(out, n) {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 // TildePath folds a home prefix into ~ so the path stores portably in
@@ -251,17 +291,32 @@ type Vars struct {
 	// so a machine class shares them across homes.
 	ReposDirShell string
 	DotfilesDir   string
+	// BrewPrefix is Homebrew's prefix on the OS and architecture rendering
+	// the template; the core fragment points the login shell at its zsh.
+	BrewPrefix string
 
 	SecurityKeys bool
 	Harden       bool
 	Marketplace  bool
 
-	HasNvim   bool
-	HasLsd    bool
-	HasYazi   bool
-	HasCodex  bool
-	HasClaude bool
-	HasGrok   bool
+	HasNvim       bool
+	HasLsd        bool
+	HasYazi       bool
+	HasCodex      bool
+	HasClaude     bool
+	HasOpenClaude bool
+	HasGrok       bool
+
+	// OpenClaudeSettings is scoped to rendering OpenClaude's settings from
+	// the shared Claude template; provider selection owns its model default.
+	OpenClaudeSettings bool
+
+	// DockGhostty, DockClaude and DockChatGPT pin the optional apps in the
+	// dock defaults group's fragment. An agent's app needs the agent
+	// selected, so a stale pick drops out with its agent.
+	DockGhostty bool
+	DockClaude  bool
+	DockChatGPT bool
 
 	// Worktrees is the raw answer; the derived forms feed different template
 	// spots. WorktreesRoot is a permission-rule glob (**/<name> or the
@@ -271,6 +326,20 @@ type Vars struct {
 	Worktrees     string
 	WorktreesRoot string
 	WorktreesAbs  string
+}
+
+// BrewPrefix is Homebrew's default prefix for goos/goarch: /opt/homebrew on
+// Apple silicon, /usr/local on Intel Macs, and the shared linuxbrew prefix
+// on Linux.
+func BrewPrefix(goos, goarch string) string {
+	switch {
+	case goos == "darwin" && goarch == "arm64":
+		return "/opt/homebrew"
+	case goos == "darwin":
+		return "/usr/local"
+	default:
+		return "/home/linuxbrew/.linuxbrew"
+	}
 }
 
 // NewVars derives template variables from the answers plus the machine facts
@@ -284,6 +353,7 @@ func NewVars(a Answers, home, dotfilesDir string) Vars {
 		ReposDir:      reposDir,
 		ReposDirShell: shellHome(reposDir, home),
 		DotfilesDir:   dotfilesDir,
+		BrewPrefix:    BrewPrefix(runtime.GOOS, runtime.GOARCH),
 		SecurityKeys:  a.SecurityKeys,
 		Harden:        a.Harden,
 		Marketplace:   a.Marketplace,
@@ -292,8 +362,13 @@ func NewVars(a Answers, home, dotfilesDir string) Vars {
 		HasYazi:       slices.Contains(a.AddOns, "yazi"),
 		HasCodex:      slices.Contains(a.Agents, "codex"),
 		HasClaude:     slices.Contains(a.Agents, "claude-code"),
+		HasOpenClaude: slices.Contains(a.Agents, "openclaude"),
 		HasGrok:       slices.Contains(a.Agents, "grok"),
 	}
+	dock := func(app string) bool { return a.DockApps == nil || slices.Contains(a.DockApps, app) }
+	v.DockGhostty = dock("ghostty")
+	v.DockClaude = v.HasClaude && dock("claude-code")
+	v.DockChatGPT = v.HasCodex && dock("codex")
 	v.Worktrees = a.Worktrees
 	if v.Worktrees == "" {
 		v.Worktrees = DefaultWorktrees

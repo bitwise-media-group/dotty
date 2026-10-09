@@ -4,6 +4,7 @@
 package linker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 	"github.com/bitwise-media-group/dotty/internal/tui"
@@ -23,11 +25,47 @@ import (
 // It returns the report and the backup directory conflicts were mirrored
 // into.
 func LinkHome(ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict string) (Report, string, error) {
+	return linkHome(context.Background(), ios, a, repo, home, onConflict, nil)
+}
+
+// LinkHomeMise registers and deploys the home tree through mise. The linker
+// still owns migration, conflict backups, and the profile routing links.
+func LinkHomeMise(ctx context.Context, ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict string, client *mise.Client) (Report, string, error) {
+	if err := client.DotfilesRoot(scaffold.HomeDir(repo)); err != nil {
+		return Report{}, "", err
+	}
+	d := &miseDeployment{client: client, home: home}
+	rep, backup, err := linkHome(ctx, ios, a, repo, home, onConflict, d)
+	if err != nil {
+		return rep, backup, err
+	}
+	// Track only repository-owned sources, never agent runtime directories.
+	// Managed targets keep their symlink/copy modes; history tracks sources
+	// separately so rollback and undo do not replace deployment entries.
+	paths := []string{"track", "--yes", scaffold.HomeDir(repo)}
+	profileHome := filepath.Join(scaffold.ProfilesDir(repo), a.ProfileName, "home")
+	if _, err := os.Stat(profileHome); err == nil {
+		paths = append(paths, profileHome)
+	}
+	return rep, backup, client.Dotfiles(ctx, paths...)
+}
+
+func linkHome(ctx context.Context, ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict string, deployment *miseDeployment) (Report, string, error) {
 	unfold, err := scaffold.Unfold(a)
 	if err != nil {
 		return Report{}, "", err
 	}
 	for _, rel := range unfold {
+		// Grok rejects a linked config directory as well as linked files.
+		// Unfold a directory left by an older setup without touching its source.
+		if deployment != nil && rel == ".config/grok" {
+			site := filepath.Join(home, rel)
+			if info, err := os.Lstat(site); err == nil && info.Mode()&os.ModeSymlink != 0 {
+				if err := os.Remove(site); err != nil {
+					return Report{}, "", fmt.Errorf("unfold %s: %w", site, err)
+				}
+			}
+		}
 		perm := os.FileMode(0o755)
 		if rel == ".ssh" {
 			perm = 0o700
@@ -50,7 +88,13 @@ func LinkHome(ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict stri
 	if err != nil {
 		return Report{}, "", err
 	}
-	report, err := Apply(Tree{Source: scaffold.HomeDir(repo), Target: home, Copy: scaffold.CopyDirs}, resolve, backupDir)
+	var report Report
+	tree := Tree{Source: scaffold.HomeDir(repo), Target: home, Copy: scaffold.CopyDirs}
+	if deployment == nil {
+		report, err = Apply(tree, resolve, backupDir)
+	} else {
+		err = deployment.tree(ctx, tree, resolve, backupDir, &report)
+	}
 	if err != nil {
 		return report, backupDir, err
 	}
@@ -78,6 +122,13 @@ func LinkHome(ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict stri
 		resolve, backupDir, &report); err != nil {
 		return report, backupDir, err
 	}
+	if deployment != nil {
+		// Copy entries need a readable source during apply; unlike symlinks
+		// they cannot be created against a not-yet-active profile.
+		if _, err := profile.Activate(configDir, a.ProfileName); err != nil {
+			return report, backupDir, err
+		}
+	}
 
 	// Per-profile files link through the active-profile symlink, so
 	// activating a different profile swaps them without relinking.
@@ -92,7 +143,13 @@ func LinkHome(ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict stri
 		}
 		site := filepath.Join(home, rel)
 		dest := filepath.Join(configDir, "active-profile", op.Dst)
-		if err := ApplyFile(site, dest, resolve, backupDir, &report); err != nil {
+		var err error
+		if deployment == nil {
+			err = ApplyFile(site, dest, resolve, backupDir, &report)
+		} else {
+			err = deployment.file(ctx, site, dest, resolve, backupDir, &report)
+		}
+		if err != nil {
 			return report, backupDir, err
 		}
 	}
@@ -214,7 +271,7 @@ func Summarize(ios cli.IOStreams, rep Report, backupDir string) {
 	tui.Successf(ios, "Linked %d, replaced %d stale links, %d already correct",
 		len(rep.Linked), len(rep.Replaced), rep.OK)
 	if len(rep.Copied) > 0 {
-		tui.Infof(ios, "Mirrored %d copy-deployed directories: %s", len(rep.Copied), strings.Join(rep.Copied, ", "))
+		tui.Infof(ios, "Copied %d entries: %s", len(rep.Copied), strings.Join(rep.Copied, ", "))
 	}
 	if len(rep.Adopted) > 0 {
 		tui.Infof(ios, "Adopted %d existing files into the repository — review with git diff", len(rep.Adopted))

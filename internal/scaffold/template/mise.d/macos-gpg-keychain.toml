@@ -1,0 +1,7 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# Let pinentry-mac cache GPG PINs in the macOS keychain.
+[bootstrap.macos.defaults."org.gpgtools.common"]
+UseKeychain = true
+DisableKeychain = false

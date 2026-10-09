@@ -19,9 +19,10 @@ func everything() Answers {
 	return Answers{
 		ProfileName:  "test",
 		ReposDir:     "/repos",
-		AddOns:       []string{"nvim", "btop", "k9s", "lazygit", "lsd", "tmux", "yazi"},
+		AddOns:       []string{"nvim", "btop", "kubernetes", "lazygit", "lsd", "tmux", "yazi"},
 		Agents:       []string{"claude-code", "codex", "opencode", "antigravity", "grok", "openclaude"},
 		SecurityKeys: true,
+		HushLogin:    true,
 	}
 }
 
@@ -125,6 +126,33 @@ func TestRenderEverything(t *testing.T) {
 		if _, has := settings["extraKnownMarketplaces"]; has != marketplace {
 			t.Errorf("extraKnownMarketplaces present=%v, want %v", has, marketplace)
 		}
+		openClaudeData, err := os.ReadFile(filepath.Join(machineDir, "home/.config/openclaude/settings.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var openClaudeSettings map[string]any
+		if err := json.Unmarshal(openClaudeData, &openClaudeSettings); err != nil {
+			t.Fatalf("openclaude settings.json is not valid JSON: %v", err)
+		}
+		if _, has := openClaudeSettings["model"]; has {
+			t.Error("openclaude must leave the model to its provider")
+		}
+		// Every other default must match, including hardening and marketplace toggles.
+		if settings["model"] != "claude-fable-5[1m]" {
+			t.Error("Claude's pinned model default changed")
+		}
+		delete(settings, "model")
+		claudeDefaults, err := json.Marshal(settings)
+		if err != nil {
+			t.Fatal(err)
+		}
+		openClaudeDefaults, err := json.Marshal(openClaudeSettings)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(claudeDefaults, openClaudeDefaults) {
+			t.Error("openclaude settings differ from Claude's shared defaults")
+		}
 		grok, err := os.ReadFile(filepath.Join(machineDir, "home/.config/grok/config.toml"))
 		if err != nil {
 			t.Fatal(err)
@@ -140,7 +168,7 @@ func TestRenderEverything(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{`REPOS_DIR="/repos"`, "EDITOR=nvim", "CODEX_HOME"} {
+		for _, want := range []string{`REPOS_DIR="/repos"`, "EDITOR=nvim", "CODEX_HOME", `OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`} {
 			if !bytes.Contains(env, []byte(want)) {
 				t.Errorf("env.zsh missing %s:\n%s", want, env)
 			}
@@ -225,7 +253,7 @@ func assertHardenToggles(t *testing.T, machineDir string, settings map[string]an
 }
 
 func TestRenderSharedDocLinks(t *testing.T) {
-	a := Answers{ProfileName: "t", ReposDir: "/r", Agents: []string{"codex", "grok", "claude-code"}}
+	a := Answers{ProfileName: "t", ReposDir: "/r", Agents: []string{"codex", "grok", "claude-code", "openclaude"}}
 	ops, err := Plan(a)
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
@@ -240,7 +268,7 @@ func TestRenderSharedDocLinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("primary doc: %v", err)
 	}
-	for _, doc := range []string{"home/.config/codex/AGENTS.md", "home/.config/grok/AGENTS.md"} {
+	for _, doc := range []string{"home/.config/codex/AGENTS.md", "home/.config/grok/AGENTS.md", "home/.config/openclaude/CLAUDE.md"} {
 		info, err := os.Lstat(filepath.Join(repo, doc))
 		if err != nil || info.Mode()&os.ModeSymlink == 0 {
 			t.Fatalf("%s: want symlink, got %v, %v", doc, info, err)
@@ -249,6 +277,50 @@ func TestRenderSharedDocLinks(t *testing.T) {
 		if err != nil || !bytes.Equal(got, primary) {
 			t.Fatalf("%s does not resolve to the primary doc: %v", doc, err)
 		}
+	}
+}
+
+func TestRenderOpenClaudeWithoutClaude(t *testing.T) {
+	a := Answers{ProfileName: "t", ReposDir: "/r", Agents: []string{"openclaude"}, Harden: true, Marketplace: true}
+	ops, err := Plan(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo, profile := t.TempDir(), t.TempDir()
+	if err := Render(ops, repo, profile, NewVars(a, "/home/x", repo)); err != nil {
+		t.Fatal(err)
+	}
+	assertRenderedOps(t, ops, repo, profile)
+	for _, root := range []string{repo, profile} {
+		if _, err := os.Stat(filepath.Join(root, "home/.config/claude")); !os.IsNotExist(err) {
+			t.Errorf("OpenClaude-only selection created Claude config: %v", err)
+		}
+	}
+	for _, rel := range []string{"home/.config/openclaude/CLAUDE.md", "home/.config/openclaude/themes/cyberdream.json", "home/.config/oh-my-posh/claude.yaml"} {
+		if _, err := os.Stat(filepath.Join(repo, rel)); err != nil {
+			t.Errorf("missing OpenClaude dependency %s: %v", rel, err)
+		}
+	}
+	settings, err := os.ReadFile(filepath.Join(profile, "home/.config/openclaude/settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(settings, []byte(`"sandbox"`)) || !bytes.Contains(settings, []byte(`"extraKnownMarketplaces"`)) {
+		t.Error("OpenClaude-only selection missing hardening or marketplace")
+	}
+	env, err := os.ReadFile(filepath.Join(profile, "env.zsh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(env, []byte(`export OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`)) || bytes.Contains(env, []byte(`export CLAUDE_CONFIG_DIR=`)) {
+		t.Error("OpenClaude-only selection has incorrect config environment")
+	}
+	dirs, err := Unfold(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(dirs, ".config/openclaude") {
+		t.Error("OpenClaude config must remain a real directory for runtime state")
 	}
 }
 
@@ -417,8 +489,8 @@ func TestAnswerKeysSurviveFalsyAnswers(t *testing.T) {
 		ReposDir:    "~/Repos",
 		AddOns:      []string{},
 		Agents:      []string{},
-		// Harden, ImportPackages, PIV, Wallpaper stay zero: answered "no"/"keep".
-		// MacOSDefaults and AllowedSerials stay nil: never asked.
+		// Harden, ImportPackages, HushLogin, PIV stay zero: answered "no".
+		// MacOSDefaults, DockApps and AllowedSerials stay nil: never asked.
 	}
 	if err := SaveAnswers(dir, a); err != nil {
 		t.Fatalf("SaveAnswers: %v", err)
@@ -435,15 +507,15 @@ func TestAnswerKeysSurviveFalsyAnswers(t *testing.T) {
 		{"AddOns", keys.AddOns}, {"Agents", keys.Agents},
 		{"ImportPackages", keys.ImportPackages}, {"SecurityKeys", keys.SecurityKeys},
 		{"Harden", keys.Harden}, {"Marketplace", keys.Marketplace},
-		{"Wallpaper", keys.Wallpaper}, {"PIV", keys.PIV},
+		{"HushLogin", keys.HushLogin}, {"PIV", keys.PIV},
 	}
 	for _, k := range answered {
 		if !k.got {
 			t.Errorf("key %s: answered falsy value not reported as answered", k.name)
 		}
 	}
-	if keys.MacOSDefaults {
-		t.Error("key MacOSDefaults: nil slice reported as answered")
+	if keys.MacOSDefaults || keys.DockApps {
+		t.Error("keys MacOSDefaults/DockApps: nil slice reported as answered")
 	}
 }
 
@@ -452,7 +524,8 @@ func TestAnswerKeysSurviveFalsyAnswers(t *testing.T) {
 // does not answer it, so a --yes re-run still asks.
 func TestAnswerKeysAbsentInLegacyDocument(t *testing.T) {
 	dir := t.TempDir()
-	doc := `{"profile":"test","reposDir":"~/Repos","addons":["tmux"],"macosDefaults":null}`
+	// wallpaper is a retired question; documents carrying it still load.
+	doc := `{"profile":"test","reposDir":"~/Repos","addons":["tmux"],"macosDefaults":null,"wallpaper":""}`
 	if err := os.WriteFile(filepath.Join(dir, AnswersFile), []byte(doc), 0o644); err != nil {
 		t.Fatalf("write %s: %v", AnswersFile, err)
 	}
@@ -463,7 +536,7 @@ func TestAnswerKeysAbsentInLegacyDocument(t *testing.T) {
 	if !keys.ReposDir || !keys.AddOns {
 		t.Errorf("stored keys not reported as answered: %+v", keys)
 	}
-	if keys.Harden || keys.SecurityKeys || keys.Wallpaper || keys.PIV {
+	if keys.Harden || keys.SecurityKeys || keys.DockApps || keys.PIV {
 		t.Errorf("missing keys reported as answered: %+v", keys)
 	}
 	if keys.MacOSDefaults {
@@ -471,6 +544,31 @@ func TestAnswerKeysAbsentInLegacyDocument(t *testing.T) {
 	}
 	if !slices.Equal(got.AddOns, []string{"tmux"}) {
 		t.Errorf("answers not loaded alongside keys: %+v", got)
+	}
+	// Hush login defaults on, so a document that predates the question reads
+	// as yes while still reporting it unanswered.
+	if keys.HushLogin || !got.HushLogin {
+		t.Errorf("legacy document: HushLogin = %v (answered %v), want true (unanswered)", got.HushLogin, keys.HushLogin)
+	}
+}
+
+// TestPlanHushLoginPerProfile pins where ~/.hushlogin comes from: the
+// profile's own home tree, and only when the profile answers yes — the
+// shared tree would hand it to every profile of the repository.
+func TestPlanHushLoginPerProfile(t *testing.T) {
+	for _, hush := range []bool{false, true} {
+		a := Answers{ProfileName: "test", ReposDir: "/repos", HushLogin: hush}
+		ops, err := Plan(a)
+		if err != nil {
+			t.Fatalf("Plan(hushLogin=%v): %v", hush, err)
+		}
+		i := slices.IndexFunc(ops, func(op FileOp) bool { return op.Dst == "home/.hushlogin" })
+		if (i >= 0) != hush {
+			t.Fatalf("Plan(hushLogin=%v) renders home/.hushlogin = %v", hush, i >= 0)
+		}
+		if hush && !ops[i].PerProfile {
+			t.Error("home/.hushlogin renders into the shared repository, want the profile")
+		}
 	}
 }
 

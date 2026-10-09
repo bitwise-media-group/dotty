@@ -42,22 +42,27 @@ type Flags struct {
 	Marketplace    bool
 	Harden         bool
 	SecurityKeys   bool
+	// HushLogin defaults on, so unlike the other yes/no flags it needs
+	// HushLoginSet to tell an explicit --hush-login=false from an unset flag.
+	HushLogin      bool
+	HushLoginSet   bool
 	GitName        string
 	GitEmail       string
 	AllowedSerials []string
 	Worktrees      string
 	PrivateRepo    string
 	MacOSDefaults  []string
-	Wallpaper      string
+	DockApps       []string
 	PIV            bool
 	OnConflict     string
 	// Yes skips the confirmation summary and, on a re-run, every question the
 	// stored profile already answers — only the profile pick and questions the
 	// stored document predates are asked.
-	Yes      bool
-	SkipFont bool
-	SkipGit  bool
-	SkipKeys bool
+	Yes         bool
+	SkipFont    bool
+	SkipGit     bool
+	SkipKeys    bool
+	SkipInstall bool
 }
 
 // Collect resolves the wizard answers: the profile first (so a machine with
@@ -97,9 +102,9 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 		answers = mergeAnswers(prev, flags, reposDir, repo, home)
 	} else {
 		answers = scaffold.Answers{ProfileName: profileName, Description: flags.Description,
-			AddOns: flags.AddOns, Agents: flags.Agents, ImportPackages: flags.ImportPackages,
+			AddOns: scaffold.CanonicalAddOns(flags.AddOns), Agents: flags.Agents, ImportPackages: flags.ImportPackages,
 			Marketplace: flags.Marketplace, Harden: flags.Harden, SecurityKeys: flags.SecurityKeys,
-			MacOSDefaults: flags.MacOSDefaults, Wallpaper: flags.Wallpaper, PIV: flags.PIV,
+			HushLogin: flags.hushLogin(true), MacOSDefaults: flags.MacOSDefaults, DockApps: flags.DockApps, PIV: flags.PIV,
 			AllowedSerials: flags.AllowedSerials, Worktrees: flags.Worktrees}
 		setAnswerPaths(&answers, reposDir, repo, home)
 	}
@@ -118,7 +123,7 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 	if err := collectSelections(ios, flags, known, &answers); err != nil {
 		return none, "", false, err
 	}
-	if err := collectMacOSAnswers(ios, flags, known, home, &answers); err != nil {
+	if err := collectMacOSAnswers(ios, flags, known, &answers); err != nil {
 		return none, "", false, err
 	}
 	return answers, repo, rerun, nil
@@ -182,6 +187,15 @@ func collectPrivateRepo(ios cli.IOStreams, flags Flags, known scaffold.AnswerKey
 // the interview still asks.
 func (f Flags) reuses(answered bool) bool {
 	return f.Yes && answered
+}
+
+// hushLogin resolves the hush-login answer: the flag when it was passed,
+// otherwise def — on for a new profile, the stored answer on a re-run.
+func (f Flags) hushLogin(def bool) bool {
+	if f.HushLoginSet {
+		return f.HushLogin
+	}
+	return def
 }
 
 // ConfirmSummary recaps what init will do and asks once; false means the
@@ -439,7 +453,7 @@ func collectSelections(ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys
 
 // collectFeatureConfirms asks the yes/no feature questions that follow the
 // picklists: the marketplace and hardening (which only mean something once
-// at least one agent is selected) and security keys.
+// at least one agent is selected), security keys, and hush login.
 func collectFeatureConfirms(
 	ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys, answers *scaffold.Answers,
 ) error {
@@ -476,17 +490,25 @@ func collectFeatureConfirms(
 			return err
 		}
 	}
+
+	if !flags.HushLoginSet && !flags.reuses(known.HushLogin) {
+		if answers.HushLogin, err = tui.ConfirmDefault(ios, "Silence the login banner?",
+			`renders ~/.hushlogin, hiding the "Last login" line and message of the day in new terminals`,
+			answers.HushLogin); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // collectMacOSAnswers asks the darwin-only questions: which defaults groups
 // to apply (everything preselected on a first run, the stored picks on a
-// re-run), a wallpaper when the conventional directory has any, and PIV
-// enforcement (off unless chosen — it can lock a machine without an
+// re-run), which optional apps the Dock pins when the dock group is picked,
+// and PIV enforcement (off unless chosen — it can lock a machine without an
 // enrolled card out). Like the interview proper, --yes reuses whatever the
 // stored profile answers.
 func collectMacOSAnswers(ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys,
-	home string, answers *scaffold.Answers) error {
+	answers *scaffold.Answers) error {
 	if runtime.GOOS != "darwin" || !ios.IsInteractive() {
 		return nil
 	}
@@ -504,22 +526,19 @@ func collectMacOSAnswers(ios cli.IOStreams, flags Flags, known scaffold.AnswerKe
 		answers.MacOSDefaults = picked
 	}
 
-	if flags.Wallpaper == "" && !flags.reuses(known.Wallpaper) {
-		if images := macos.Wallpapers(filepath.Join(home, ".local", "share", "wallpapers")); len(images) > 0 {
-			options := []tui.Option{{Label: "keep the current wallpaper", Value: ""}}
-			for _, img := range images {
-				options = append(options, tui.Option{Label: img, Value: img})
-			}
-			picked, err := tui.FuzzySelect(ios, "Choose a wallpaper?", options)
-			if err != nil && !errors.Is(err, tui.ErrAborted) {
-				return err
-			}
-			// Keeping the current wallpaper keeps the stored answer too, so a
-			// re-run does not forget the machine class's wallpaper.
-			if picked != "" {
-				answers.Wallpaper = picked
+	if slices.Contains(answers.MacOSDefaults, "dock") && flags.DockApps == nil && !flags.reuses(known.DockApps) {
+		options := dockAppOptions(answers.Agents)
+		selected := answers.DockApps
+		if selected == nil {
+			for _, o := range options {
+				selected = append(selected, o.Value)
 			}
 		}
+		picked, err := askMulti(ios, "Which apps should the Dock pin?", options, selected)
+		if err != nil {
+			return err
+		}
+		answers.DockApps = picked
 	}
 
 	if !flags.PIV && !flags.reuses(known.PIV) {
@@ -534,10 +553,24 @@ func collectMacOSAnswers(ios cli.IOStreams, flags Flags, known scaffold.AnswerKe
 	return nil
 }
 
+// dockAppOptions are the optional Dock apps on offer: Ghostty always (core
+// installs it), and each agent's desktop app only when the agent is picked,
+// keyed by the agent's id.
+func dockAppOptions(agents []string) []tui.Option {
+	options := []tui.Option{{Label: "ghostty", Value: "ghostty"}}
+	if slices.Contains(agents, "claude-code") {
+		options = append(options, tui.Option{Label: "claude", Value: "claude-code"})
+	}
+	if slices.Contains(agents, "codex") {
+		options = append(options, tui.Option{Label: "chatgpt (codex)", Value: "codex"})
+	}
+	return options
+}
+
 var addOnOptions = []tui.Option{
 	{Label: "neovim (with lazygit)", Value: "nvim"},
 	{Label: "btop", Value: "btop"},
-	{Label: "k9s", Value: "k9s"},
+	{Label: "kubernetes (k9s, kubectl, flux, colima, docker)", Value: "kubernetes"},
 	{Label: "lazygit", Value: "lazygit"},
 	{Label: "lsd", Value: "lsd"},
 	{Label: "tmux", Value: "tmux"},
@@ -564,7 +597,7 @@ func mergeAnswers(prev scaffold.Answers, flags Flags, reposDir, repo, home strin
 		prev.ImportPackages = true
 	}
 	if flags.AddOns != nil {
-		prev.AddOns = flags.AddOns
+		prev.AddOns = scaffold.CanonicalAddOns(flags.AddOns)
 	}
 	if flags.Agents != nil {
 		prev.Agents = flags.Agents
@@ -578,11 +611,12 @@ func mergeAnswers(prev scaffold.Answers, flags Flags, reposDir, repo, home strin
 	if flags.Harden {
 		prev.Harden = true
 	}
+	prev.HushLogin = flags.hushLogin(prev.HushLogin)
 	if flags.MacOSDefaults != nil {
 		prev.MacOSDefaults = flags.MacOSDefaults
 	}
-	if flags.Wallpaper != "" {
-		prev.Wallpaper = flags.Wallpaper
+	if flags.DockApps != nil {
+		prev.DockApps = flags.DockApps
 	}
 	if flags.PIV {
 		prev.PIV = true

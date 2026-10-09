@@ -25,7 +25,9 @@ class — stages it with git (the first commit is left for you to sign), links
 the home/ tree into your home directory and ~/.config/mise to the profile's
 packages, activates the profile (the active-profile symlink is the only
 machine-local state), installs mise into ~/.local/bin when the machine has
-none, and installs the lobe-icons glyph font. Files already in the way of a link are resolved per
+none, installs the profile's tools and packages through mise, makes the
+brewed zsh the login shell, applies the chosen macOS defaults groups (on
+macOS), and installs the lobe-icons glyph font. Files already in the way of a link are resolved per
 --on-conflict, and legacy files that shadow the rendered configuration from
 outside any link site (~/.gitconfig, ~/.zshrc and the other bare zsh startup
 files) are retired; backups land under $XDG_DATA_HOME/dotty/backups and are
@@ -45,7 +47,7 @@ clone the same way — run init from inside it, or point --repo at it.
 
 .SH OPTIONS
 \fB--addons\fP=[]
-	optional add-ons: nvim,btop,k9s,lazygit,lsd,tmux,yazi
+	optional add-ons: nvim,btop,kubernetes,lazygit,lsd,tmux,yazi
 
 .PP
 \fB--agents\fP=[]
@@ -58,6 +60,10 @@ clone the same way — run init from inside it, or point --repo at it.
 .PP
 \fB--description\fP=""
 	short description of the profile
+
+.PP
+\fB--dock-apps\fP=[]
+	optional apps the dock defaults group pins: ghostty,claude-code,codex (empty for none)
 
 .PP
 \fB--git-email\fP=""
@@ -74,6 +80,10 @@ clone the same way — run init from inside it, or point --repo at it.
 .PP
 \fB-h\fP, \fB--help\fP[=false]
 	help for init
+
+.PP
+\fB--hush-login\fP[=true]
+	render ~/.hushlogin to silence the login banner (--hush-login=false to keep it)
 
 .PP
 \fB--import-packages\fP[=false]
@@ -114,10 +124,6 @@ clone the same way — run init from inside it, or point --repo at it.
 .PP
 \fB--security-keys\fP[=false]
 	this machine class signs with hardware security keys
-
-.PP
-\fB--wallpaper\fP=""
-	wallpaper image from ~/.local/share/wallpapers
 
 .PP
 \fB--worktrees\fP=""

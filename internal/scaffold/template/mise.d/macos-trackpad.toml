@@ -1,0 +1,68 @@
+# Rendered by dotty init for the macOS defaults group named in the file name;
+# the next init re-renders it and deselecting the group removes it. Add your
+# own settings to ../config.toml instead.
+# Tap to click, light click, three-finger drag, four-finger swipes between
+# spaces and full-screen apps, maximum tracking speed.
+[bootstrap.macos.trackpad]
+tap_to_click = true
+three_finger_drag = true
+
+# The built-in trackpad.
+[bootstrap.macos.defaults."com.apple.AppleMultitouchTrackpad"]
+FirstClickThreshold = 0
+SecondClickThreshold = 0
+TrackpadThreeFingerHorizSwipeGesture = 0
+TrackpadThreeFingerVertSwipeGesture = 0
+TrackpadThreeFingerTapGesture = 0
+TrackpadFourFingerHorizSwipeGesture = 2
+TrackpadFourFingerVertSwipeGesture = 2
+
+# Bluetooth trackpads.
+[bootstrap.macos.defaults."com.apple.driver.AppleBluetoothMultitouch.trackpad"]
+TrackpadThreeFingerHorizSwipeGesture = 0
+TrackpadThreeFingerVertSwipeGesture = 0
+TrackpadThreeFingerTapGesture = 0
+TrackpadFourFingerHorizSwipeGesture = 2
+TrackpadFourFingerVertSwipeGesture = 2
+
+[bootstrap.macos.defaults.NSGlobalDomain]
+"com.apple.trackpad.scaling" = 3.0
+"com.apple.trackpad.forceClick" = true
+NSWindowShouldDragOnGesture = true
+
+# System Settings reads the gestures from the current-host global domain.
+[[bootstrap.macos.defaults_entries]]
+domain = "NSGlobalDomain"
+key = "com.apple.trackpad.threeFingerDragGesture"
+host = "current"
+value = true
+
+[[bootstrap.macos.defaults_entries]]
+domain = "NSGlobalDomain"
+key = "com.apple.trackpad.threeFingerHorizSwipeGesture"
+host = "current"
+value = 0
+
+[[bootstrap.macos.defaults_entries]]
+domain = "NSGlobalDomain"
+key = "com.apple.trackpad.threeFingerVertSwipeGesture"
+host = "current"
+value = 0
+
+[[bootstrap.macos.defaults_entries]]
+domain = "NSGlobalDomain"
+key = "com.apple.trackpad.fourFingerHorizSwipeGesture"
+host = "current"
+value = 2
+
+[[bootstrap.macos.defaults_entries]]
+domain = "NSGlobalDomain"
+key = "com.apple.trackpad.fourFingerVertSwipeGesture"
+host = "current"
+value = 2
+
+[[bootstrap.macos.defaults_entries]]
+domain = "NSGlobalDomain"
+key = "com.apple.mouse.tapBehavior"
+host = "current"
+value = 1
