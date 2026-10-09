@@ -28,7 +28,8 @@ description = "symlink the local build into PATH (+ the ssh-askpass helper)"
 dir = "{{cwd}}"
 run = [
   { task = "build" },
-  "ln -fs $PWD/dotty /usr/local/bin",
+  "mkdir -p ~/.local/bin",
+  "ln -fs $PWD/dotty ~/.local/bin",
   "mkdir -p ~/.local/share/dotty",
   "ln -fs $PWD/dotty ~/.local/share/dotty/dotty-ssh-askpass",
 ]
