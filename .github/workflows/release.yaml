@@ -5,9 +5,10 @@
 # release-please watches main and keeps a release PR current from the Conventional
 # Commit history; when that PR merges the workflow cuts the draft GitHub release +
 # vX.Y.Z tag and GoReleaser adopts it — binary archives + checksums + SBOMs +
-# keyless cosign signatures (linux), Developer ID-signed + notarized darwin
-# binaries, the Homebrew cask pushed to bitwise-media-group/homebrew-tap, and a
-# SLSA build-provenance attestation over everything in checksums.txt. Because a
+# keyless cosign signatures over every binary, Developer ID-signed + notarized
+# darwin binaries (cosign signs them after notarization), the Homebrew cask
+# pulled into bitwise-media-group/homebrew-tap, and a SLSA build-provenance
+# attestation over everything in checksums.txt. Because a
 # zensical.toml lives at the repo root, the
 # reusable workflow's docs job also rebuilds the Zensical site and publishes it to
 # GitHub Pages on each release (needs Settings → Pages → Source → GitHub Actions).

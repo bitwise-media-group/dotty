@@ -8,8 +8,8 @@
 The recommended way to install dotty is [mise](#mise), which is also what dotty
 drives to manage every other package; the [Homebrew tap](#homebrew) still works.
 The alternative methods below all install the same signed binary: the macOS
-binaries are Developer ID-signed and notarized by Apple, the Linux binaries
-carry keyless [cosign](#signatures) signatures, and every release ships
+binaries are Developer ID-signed and notarized by Apple, every binary carries a
+keyless [cosign](#signatures) signature, and every release ships
 checksums and a SLSA build-provenance [attestation](#attestations) you can
 verify yourself.
 
@@ -83,17 +83,17 @@ install -m 0755 dotty /usr/local/bin/dotty
 
 ## Verifying the artifacts
 
-Every release attaches a `checksums.txt`, a cosign signature bundle per Linux
-binary, SPDX SBOMs, and a GitHub build-provenance attestation; the macOS
-binaries carry an Apple Developer ID signature and notarization ticket instead
-of a cosign bundle. None of the steps below require trusting a long-lived key —
-cosign and `gh` verify against Sigstore's transparency log and GitHub's
-attestation API, and `codesign` / `spctl` verify against Apple's root.
+Every release attaches a `checksums.txt`, a cosign signature bundle per binary,
+SPDX SBOMs, and a GitHub build-provenance attestation; the macOS binaries also
+carry an Apple Developer ID signature and notarization ticket. None of the steps
+below require trusting a long-lived key — cosign and `gh` verify against
+Sigstore's transparency log and GitHub's attestation API, and `codesign` /
+`spctl` verify against Apple's root.
 
 ### Checksums
 
-`checksums.txt` lists the SHA-256 of every release archive. Download it
-alongside the archives you grabbed and check them:
+`checksums.txt` lists the SHA-256 of every release archive, SBOM and signature
+bundle. Download it alongside the archives you grabbed and check them:
 
 ```sh
 sha256sum --ignore-missing -c checksums.txt
@@ -104,11 +104,12 @@ On macOS without the GNU coreutils, use
 
 ### Signatures
 
-**Linux.** Each Linux binary is signed keyless with
+**cosign.** Every binary is signed keyless with
 [cosign](https://docs.sigstore.dev/) in the release workflow; the signature
 travels as a Sigstore bundle named `dotty_<os>_<arch>.sigstore.json` on the
-release. Extract the binary from its archive, download the matching bundle, then
-verify the binary against it:
+release. The darwin bundles are signed after notarization, so they cover the
+exact bytes in the archive. Extract the binary from its archive, download the
+matching bundle, then verify the binary against it:
 
 ```sh
 cosign verify-blob \
@@ -118,11 +119,11 @@ cosign verify-blob \
   dotty
 ```
 
-**macOS.** The darwin binaries are signed with Bitwise Media Group's Apple
+**macOS.** The darwin binaries are also signed with Bitwise Media Group's Apple
 Developer ID Application certificate and notarized by Apple in the same release
-workflow, so they ship no cosign bundle — the signature is embedded in the
-binary and Gatekeeper checks it (and fetches the notarization ticket) on first
-run. Inspect and verify it with the tools already on your Mac:
+workflow. That signature is embedded in the binary and Gatekeeper checks it
+(and fetches the notarization ticket) on first run. Inspect and verify it with
+the tools already on your Mac:
 
 ```sh
 # Authority=Developer ID Application: … (TEAMID); flags include "runtime"
@@ -131,9 +132,6 @@ codesign --verify --strict --verbose=2 dotty
 # source=Notarized Developer ID
 spctl -a -vv -t install dotty
 ```
-
-The build-provenance [attestation](#attestations) below covers the darwin
-archives too, so it is the provenance check for macOS.
 
 !!! info "Why a regexp for the identity"
 
