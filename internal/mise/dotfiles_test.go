@@ -28,7 +28,8 @@ func TestDotfilesRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Count(string(data), `[settings.dotfiles]`) != 1 || !strings.Contains(string(data), `root = "~/`+filepath.Base(repo)+`/home"`) {
+	wantRoot := `root = "~/` + filepath.Base(repo) + `/home"`
+	if strings.Count(string(data), `[settings.dotfiles]`) != 1 || !strings.Contains(string(data), wantRoot) {
 		t.Fatalf("capture root config:\n%s", data)
 	}
 }
@@ -39,7 +40,8 @@ func TestDotfilesPassthrough(t *testing.T) {
 	if err := c.Dotfiles(context.Background(), "track", "--dry-run", "~/a file"); err != nil {
 		t.Fatal(err)
 	}
-	if got := r.argvs(t, "mise", c.Dir); len(got) != 1 || got[0] != "interactive dot --cd "+c.Dir+" track --dry-run ~/a file" {
+	want := "interactive dot --cd " + c.Dir + " track --dry-run ~/a file"
+	if got := r.argvs(t, "mise", c.Dir); len(got) != 1 || got[0] != want {
 		t.Fatalf("calls = %v", got)
 	}
 }

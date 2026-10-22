@@ -28,7 +28,9 @@ func (d *miseDeployment) tree(ctx context.Context, tree Tree, resolve Resolver, 
 	return d.apply(ctx, actions, resolve, backup, rep)
 }
 
-func (d *miseDeployment) file(ctx context.Context, site, source string, resolve Resolver, backup string, rep *Report) error {
+func (d *miseDeployment) file(
+	ctx context.Context, site, source string, resolve Resolver, backup string, rep *Report,
+) error {
 	a := Action{Site: site, Dest: source, State: StateLink, Generated: true}
 	info, err := os.Lstat(site)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -51,7 +53,9 @@ func (d *miseDeployment) file(ctx context.Context, site, source string, resolve 
 // config so mise add/untrack can edit them rather than a generated fragment
 // masking the user's changes. Registering does not capture live files over
 // the repository's sources.
-func (d *miseDeployment) apply(ctx context.Context, actions []Action, resolve Resolver, backup string, rep *Report) error {
+func (d *miseDeployment) apply(
+	ctx context.Context, actions []Action, resolve Resolver, backup string, rep *Report,
+) error {
 	managed, err := d.client.DotfileTargets()
 	if err != nil {
 		return err

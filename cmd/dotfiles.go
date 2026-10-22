@@ -46,7 +46,10 @@ func init() {
 	dotfilesCmd.PersistentFlags().StringVar(&dotfilesFlags.Repo, "repo", "",
 		"dotfiles repository (default: found via $REPOS_DIR)")
 	rootCmd.AddCommand(dotfilesCmd)
-	for _, verb := range []string{"add", "apply", "capture", "conflicts", "diff", "edit", "exclude", "history", "include", "origin", "paths", "pull", "recover", "rollback", "save", "sync", "track", "unapply", "undo", "untrack", "watch", "help"} {
+	for _, verb := range []string{
+		"add", "apply", "capture", "conflicts", "diff", "edit", "exclude", "history", "include", "origin", "paths",
+		"pull", "recover", "rollback", "save", "sync", "track", "unapply", "undo", "untrack", "watch", "help",
+	} {
 		proxy := &cobra.Command{
 			Use:                verb + " [mise arguments]",
 			Short:              "Proxy mise dot " + verb + " against the selected profile.",

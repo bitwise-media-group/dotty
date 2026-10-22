@@ -63,6 +63,18 @@ func TestDotfilesGrokCopiesAndCapture(t *testing.T) {
 	home := initEnv(t)
 	repo := filepath.Join(home, "Repos", "dotfiles")
 	grok := filepath.Join(home, ".config", "grok")
+
+	grokInitCopies(t, home, repo, grok)
+	grokMigrateSymlinks(t, repo, grok)
+	grokCapture(t, home, repo, grok)
+	grokUnlinkRoot(t, repo, grok)
+	grokActivateProfile(t, home, grok)
+}
+
+// grokInitCopies runs init over a pre-existing grok config and checks it was
+// backed up and replaced by copies, while other agents stay symlinked.
+func grokInitCopies(t *testing.T, home, repo, grok string) {
+	t.Helper()
 	if err := os.MkdirAll(grok, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +93,9 @@ func TestDotfilesGrokCopiesAndCapture(t *testing.T) {
 	if got, err := os.ReadFile(backups[0]); err != nil || string(got) != "original grok config\n" {
 		t.Fatalf("original grok config lost: %q, %v", got, err)
 	}
-	for _, rel := range []string{"AGENTS.md", "config.toml", "sandbox.toml", "hooks/pre-tool-use-policy", "hooks/tmux-status.json"} {
+	for _, rel := range []string{
+		"AGENTS.md", "config.toml", "sandbox.toml", "hooks/pre-tool-use-policy", "hooks/tmux-status.json",
+	} {
 		info, err := os.Lstat(filepath.Join(grok, rel))
 		if err != nil || !info.Mode().IsRegular() {
 			t.Fatalf("grok %s is not a regular file: %v, %v", rel, info, err)
@@ -90,8 +104,12 @@ func TestDotfilesGrokCopiesAndCapture(t *testing.T) {
 	if _, err := os.Readlink(filepath.Join(home, ".config", "tmux")); err != nil {
 		t.Fatalf("default deployment is not a symlink: %v", err)
 	}
+}
 
-	// Migrate old symlinks, including one inside the copied hooks tree.
+// grokMigrateSymlinks replaces copies with old-layout symlinks, including one
+// inside the copied hooks tree, and checks relinking turns them back into files.
+func grokMigrateSymlinks(t *testing.T, repo, grok string) {
+	t.Helper()
 	for _, rel := range []string{"AGENTS.md", "hooks/pre-tool-use-policy"} {
 		target := filepath.Join(grok, rel)
 		if err := os.Remove(target); err != nil {
@@ -110,7 +128,12 @@ func TestDotfilesGrokCopiesAndCapture(t *testing.T) {
 			t.Fatalf("migration left a symlink at %s: %v", rel, err)
 		}
 	}
+}
 
+// grokCapture checks live edits to a copy and brand-new files are both
+// captured into the repository.
+func grokCapture(t *testing.T, home, repo, grok string) {
+	t.Helper()
 	target := filepath.Join(grok, "AGENTS.md")
 	if err := os.WriteFile(target, []byte("edited live\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -131,7 +154,8 @@ func TestDotfilesGrokCopiesAndCapture(t *testing.T) {
 	if err := execDotty(t, "dotfiles", "add", newFile, "--yes"); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := os.ReadFile(filepath.Join(repo, "home", ".newconfig")); err != nil || !strings.Contains(string(got), "new config") {
+	got, err := os.ReadFile(filepath.Join(repo, "home", ".newconfig"))
+	if err != nil || !strings.Contains(string(got), "new config") {
 		t.Fatalf("capture root = %q, %v", got, err)
 	}
 	if _, err := os.Readlink(newFile); err != nil {
@@ -140,6 +164,12 @@ func TestDotfilesGrokCopiesAndCapture(t *testing.T) {
 	if got, err := os.ReadFile(newFile); err != nil || string(got) != "new config\n" {
 		t.Fatalf("captured symlink does not resolve: %q, %v", got, err)
 	}
+}
+
+// grokUnlinkRoot checks relinking unfolds a grok config directory that an
+// older setup linked as a whole.
+func grokUnlinkRoot(t *testing.T, repo, grok string) {
+	t.Helper()
 	if err := os.RemoveAll(grok); err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +182,12 @@ func TestDotfilesGrokCopiesAndCapture(t *testing.T) {
 	if info, err := os.Lstat(grok); err != nil || !info.IsDir() {
 		t.Fatalf("grok root remains linked: %v, %v", info, err)
 	}
+}
 
+// grokActivateProfile checks activating another profile deploys that
+// profile's grok copies.
+func grokActivateProfile(t *testing.T, home, grok string) {
+	t.Helper()
 	configDir := filepath.Join(home, ".config", "dotty")
 	if _, err := profile.Create(configDir, "work", ""); err != nil {
 		t.Fatal(err)
@@ -178,7 +213,9 @@ func TestDotfilesGrokCopiesAndCapture(t *testing.T) {
 	if err := mise.EnsureConfig(mise.Dir(work)); err != nil {
 		t.Fatal(err)
 	}
-	config := "[dotfiles]\n\"~/.config/grok/config.toml\" = { source = \"../home/.config/grok/config.toml\", mode = \"copy\" }\n\"~/.config/grok/sandbox.toml\" = { source = \"../home/.config/grok/sandbox.toml\", mode = \"copy\" }\n"
+	config := "[dotfiles]\n" +
+		"\"~/.config/grok/config.toml\" = { source = \"../home/.config/grok/config.toml\", mode = \"copy\" }\n" +
+		"\"~/.config/grok/sandbox.toml\" = { source = \"../home/.config/grok/sandbox.toml\", mode = \"copy\" }\n"
 	if err := os.WriteFile(mise.ConfigPath(mise.Dir(work)), []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}

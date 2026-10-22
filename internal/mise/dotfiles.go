@@ -77,6 +77,7 @@ func (c *Client) DotfilesRoot(root string) error {
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
-	data, _ = MergeEntries(data, "settings.dotfiles", []string{fmt.Sprintf("root = %q", root)}, "dotty: capture new dotfiles in the repository")
+	data, _ = MergeEntries(data, "settings.dotfiles", []string{fmt.Sprintf("root = %q", root)},
+		"dotty: capture new dotfiles in the repository")
 	return writeConfig(path, data)
 }

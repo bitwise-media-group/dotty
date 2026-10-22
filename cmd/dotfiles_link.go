@@ -61,7 +61,8 @@ dotty dotfiles add are captured into this repository's home/ tree.`,
 		if err != nil {
 			return err
 		}
-		report, backupDir, err := linker.LinkHomeMise(cmd.Context(), ios, answers, repo, home, dotfilesLinkFlags.OnConflict, client)
+		report, backupDir, err := linker.LinkHomeMise(
+			cmd.Context(), ios, answers, repo, home, dotfilesLinkFlags.OnConflict, client)
 		if err != nil {
 			return err
 		}

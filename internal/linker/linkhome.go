@@ -30,7 +30,9 @@ func LinkHome(ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict stri
 
 // LinkHomeMise registers and deploys the home tree through mise. The linker
 // still owns migration, conflict backups, and the profile routing links.
-func LinkHomeMise(ctx context.Context, ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict string, client *mise.Client) (Report, string, error) {
+func LinkHomeMise(
+	ctx context.Context, ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict string, client *mise.Client,
+) (Report, string, error) {
 	if err := client.DotfilesRoot(scaffold.HomeDir(repo)); err != nil {
 		return Report{}, "", err
 	}
@@ -50,29 +52,15 @@ func LinkHomeMise(ctx context.Context, ios cli.IOStreams, a scaffold.Answers, re
 	return rep, backup, client.Dotfiles(ctx, paths...)
 }
 
-func linkHome(ctx context.Context, ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict string, deployment *miseDeployment) (Report, string, error) {
+func linkHome(
+	ctx context.Context, ios cli.IOStreams, a scaffold.Answers, repo, home, onConflict string, deployment *miseDeployment,
+) (Report, string, error) {
 	unfold, err := scaffold.Unfold(a)
 	if err != nil {
 		return Report{}, "", err
 	}
-	for _, rel := range unfold {
-		// Grok rejects a linked config directory as well as linked files.
-		// Unfold a directory left by an older setup without touching its source.
-		if deployment != nil && rel == ".config/grok" {
-			site := filepath.Join(home, rel)
-			if info, err := os.Lstat(site); err == nil && info.Mode()&os.ModeSymlink != 0 {
-				if err := os.Remove(site); err != nil {
-					return Report{}, "", fmt.Errorf("unfold %s: %w", site, err)
-				}
-			}
-		}
-		perm := os.FileMode(0o755)
-		if rel == ".ssh" {
-			perm = 0o700
-		}
-		if err := cli.EnsureDir(filepath.Join(home, rel), perm); err != nil {
-			return Report{}, "", err
-		}
+	if err := unfoldDirs(home, unfold, deployment != nil); err != nil {
+		return Report{}, "", err
 	}
 
 	dataDir, err := cli.DataDir()
@@ -154,6 +142,31 @@ func linkHome(ctx context.Context, ios cli.IOStreams, a scaffold.Answers, repo, 
 		}
 	}
 	return report, backupDir, err
+}
+
+// unfoldDirs pre-creates the directories under home that are linked into
+// file by file rather than as a whole.
+func unfoldDirs(home string, unfold []string, viaMise bool) error {
+	for _, rel := range unfold {
+		// Grok rejects a linked config directory as well as linked files.
+		// Unfold a directory left by an older setup without touching its source.
+		if viaMise && rel == ".config/grok" {
+			site := filepath.Join(home, rel)
+			if info, err := os.Lstat(site); err == nil && info.Mode()&os.ModeSymlink != 0 {
+				if err := os.Remove(site); err != nil {
+					return fmt.Errorf("unfold %s: %w", site, err)
+				}
+			}
+		}
+		perm := os.FileMode(0o755)
+		if rel == ".ssh" {
+			perm = 0o700
+		}
+		if err := cli.EnsureDir(filepath.Join(home, rel), perm); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // MiseConfigDir returns mise's global config directory — the sibling of

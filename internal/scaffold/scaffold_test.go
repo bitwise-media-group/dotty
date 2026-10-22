@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -126,33 +127,7 @@ func TestRenderEverything(t *testing.T) {
 		if _, has := settings["extraKnownMarketplaces"]; has != marketplace {
 			t.Errorf("extraKnownMarketplaces present=%v, want %v", has, marketplace)
 		}
-		openClaudeData, err := os.ReadFile(filepath.Join(machineDir, "home/.config/openclaude/settings.json"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		var openClaudeSettings map[string]any
-		if err := json.Unmarshal(openClaudeData, &openClaudeSettings); err != nil {
-			t.Fatalf("openclaude settings.json is not valid JSON: %v", err)
-		}
-		if _, has := openClaudeSettings["model"]; has {
-			t.Error("openclaude must leave the model to its provider")
-		}
-		// Every other default must match, including hardening and marketplace toggles.
-		if settings["model"] != "claude-fable-5[1m]" {
-			t.Error("Claude's pinned model default changed")
-		}
-		delete(settings, "model")
-		claudeDefaults, err := json.Marshal(settings)
-		if err != nil {
-			t.Fatal(err)
-		}
-		openClaudeDefaults, err := json.Marshal(openClaudeSettings)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(claudeDefaults, openClaudeDefaults) {
-			t.Error("openclaude settings differ from Claude's shared defaults")
-		}
+		assertOpenClaudeDefaults(t, machineDir, settings)
 		grok, err := os.ReadFile(filepath.Join(machineDir, "home/.config/grok/config.toml"))
 		if err != nil {
 			t.Fatal(err)
@@ -168,7 +143,9 @@ func TestRenderEverything(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{`REPOS_DIR="/repos"`, "EDITOR=nvim", "CODEX_HOME", `OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`} {
+		for _, want := range []string{
+			`REPOS_DIR="/repos"`, "EDITOR=nvim", "CODEX_HOME", `OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`,
+		} {
 			if !bytes.Contains(env, []byte(want)) {
 				t.Errorf("env.zsh missing %s:\n%s", want, env)
 			}
@@ -220,6 +197,40 @@ func assertRenderedOps(t *testing.T, ops []FileOp, repo, machineDir string) {
 	}
 }
 
+// assertOpenClaudeDefaults checks OpenClaude shares every Claude settings
+// default, including hardening and marketplace toggles, except the model it
+// leaves to its provider.
+func assertOpenClaudeDefaults(t *testing.T, machineDir string, settings map[string]any) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(machineDir, "home/.config/openclaude/settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var openClaudeSettings map[string]any
+	if err := json.Unmarshal(data, &openClaudeSettings); err != nil {
+		t.Fatalf("openclaude settings.json is not valid JSON: %v", err)
+	}
+	if _, has := openClaudeSettings["model"]; has {
+		t.Error("openclaude must leave the model to its provider")
+	}
+	if settings["model"] != "claude-fable-5[1m]" {
+		t.Error("Claude's pinned model default changed")
+	}
+	shared := maps.Clone(settings)
+	delete(shared, "model")
+	claudeDefaults, err := json.Marshal(shared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	openClaudeDefaults, err := json.Marshal(openClaudeSettings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(claudeDefaults, openClaudeDefaults) {
+		t.Error("openclaude settings differ from Claude's shared defaults")
+	}
+}
+
 // assertHardenToggles checks that hardening gates each agent's confinement
 // in its native config.
 func assertHardenToggles(t *testing.T, machineDir string, settings map[string]any, grok []byte, harden bool) {
@@ -268,7 +279,9 @@ func TestRenderSharedDocLinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("primary doc: %v", err)
 	}
-	for _, doc := range []string{"home/.config/codex/AGENTS.md", "home/.config/grok/AGENTS.md", "home/.config/openclaude/CLAUDE.md"} {
+	for _, doc := range []string{
+		"home/.config/codex/AGENTS.md", "home/.config/grok/AGENTS.md", "home/.config/openclaude/CLAUDE.md",
+	} {
 		info, err := os.Lstat(filepath.Join(repo, doc))
 		if err != nil || info.Mode()&os.ModeSymlink == 0 {
 			t.Fatalf("%s: want symlink, got %v, %v", doc, info, err)
@@ -296,7 +309,11 @@ func TestRenderOpenClaudeWithoutClaude(t *testing.T) {
 			t.Errorf("OpenClaude-only selection created Claude config: %v", err)
 		}
 	}
-	for _, rel := range []string{"home/.config/openclaude/CLAUDE.md", "home/.config/openclaude/themes/cyberdream.json", "home/.config/oh-my-posh/claude.yaml"} {
+	for _, rel := range []string{
+		"home/.config/openclaude/CLAUDE.md",
+		"home/.config/openclaude/themes/cyberdream.json",
+		"home/.config/oh-my-posh/claude.yaml",
+	} {
 		if _, err := os.Stat(filepath.Join(repo, rel)); err != nil {
 			t.Errorf("missing OpenClaude dependency %s: %v", rel, err)
 		}
@@ -312,7 +329,8 @@ func TestRenderOpenClaudeWithoutClaude(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(env, []byte(`export OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`)) || bytes.Contains(env, []byte(`export CLAUDE_CONFIG_DIR=`)) {
+	if !bytes.Contains(env, []byte(`export OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`)) ||
+		bytes.Contains(env, []byte(`export CLAUDE_CONFIG_DIR=`)) {
 		t.Error("OpenClaude-only selection has incorrect config environment")
 	}
 	dirs, err := Unfold(a)
