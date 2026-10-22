@@ -736,11 +736,11 @@ is the repository's `home/` tree.
 reports mise's managed files and history. `add --changed` captures live copy
 edits back into their repository sources; `apply` refreshes copies from those
 sources. Tracking alone saves local checkpoints; automatic capture and remote
-history synchronization need mise's watcher and origin configuration.
-`untrack` stops history tracking, while `unapply` (also `remove`) removes deployed
-targets while retaining sources and declarations. `restore <path> [flags]`
-proxies `rollback`; restoring a copied repository source needs a subsequent
-`apply`. With no arguments or `--timestamp`, `restore` retains dotty's backup-set
+history synchronization need mise's watcher and origin configuration. `untrack`
+stops history tracking, while `unapply` (also `remove`) removes deployed targets
+while retaining sources and declarations. `restore <path> [flags]` proxies
+`rollback`; restoring a copied repository source needs a subsequent `apply`.
+With no arguments or `--timestamp`, `restore` retains dotty's backup-set
 recovery so files displaced before the migration remain recoverable.
 
 ```text

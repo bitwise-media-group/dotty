@@ -51,20 +51,21 @@ the agent isn't installed:
 OpenClaude starts with its saved provider configuration. Use its `/provider`
 menu to sign in and switch providers within the session, including Anthropic,
 ChatGPT/Codex OAuth, and xAI/Grok subscriptions; use `/model` to switch models.
-See [OpenClaude's subscription guide](https://openclaude.gitlawb.com/docs/providers/#subscriptions).
+See
+[OpenClaude's subscription guide](https://openclaude.gitlawb.com/docs/providers/#subscriptions).
 
 Selecting the `openclaude` agent also renders settings and the cyberdream theme
 under `.config/openclaude/` and exports
 `OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`. Its settings reuse the
-Claude Code template, including permissions, sandbox settings, worktree and
-tmux hooks, status line, and the optional skills marketplace. The pinned Claude
-model is omitted so OpenClaude can resolve a model for the chosen provider.
-The shared instructions are available as `CLAUDE.md`; settings are per-profile,
-while OpenClaude's credentials, sessions, and provider profiles stay separate
-from Claude Code. OpenClaude normally uses `~/.openclaude` and falls back to
-`CLAUDE_CONFIG_DIR` when `OPENCLAUDE_CONFIG_DIR` is unset, so the explicit override
-also prevents accidentally sharing Claude Code's directory.
-See [OpenClaude's configuration guide](https://openclaude.gitlawb.com/docs/configuration).
+Claude Code template, including permissions, sandbox settings, worktree and tmux
+hooks, status line, and the optional skills marketplace. The pinned Claude model
+is omitted so OpenClaude can resolve a model for the chosen provider. The shared
+instructions are available as `CLAUDE.md`; settings are per-profile, while
+OpenClaude's credentials, sessions, and provider profiles stay separate from
+Claude Code. OpenClaude normally uses `~/.openclaude` and falls back to
+`CLAUDE_CONFIG_DIR` when `OPENCLAUDE_CONFIG_DIR` is unset, so the explicit
+override also prevents accidentally sharing Claude Code's directory. See
+[OpenClaude's configuration guide](https://openclaude.gitlawb.com/docs/configuration).
 
 ### Copy mode (vi keys)
 

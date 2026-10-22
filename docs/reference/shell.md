@@ -25,11 +25,11 @@ moves Go's caches under XDG, wires `SSH_ASKPASS` to the dotty askpass applet
 (see [Signing keys](../getting-started/signing.md)), and sources the active
 profile's `env.zsh` — which is how per-profile values like `$DOTTY_WORKTREES`
 and agent home relocations reach the shell. On macOS, `/etc/zprofile` runs
-`path_helper` in login shells after `.zshenv` and pushes `/usr/bin` ahead of
-the Homebrew prefix; `.zprofile` moves the env file's entries back to the
-front, so login shells and tmux panes resolve tools (e.g. a FIDO-capable
-`ssh-keygen`) identically. Unless the profile declines the hush-login question,
-it also renders `~/.hushlogin`, which suppresses the `Last login: …` banner new
+`path_helper` in login shells after `.zshenv` and pushes `/usr/bin` ahead of the
+Homebrew prefix; `.zprofile` moves the env file's entries back to the front, so
+login shells and tmux panes resolve tools (e.g. a FIDO-capable `ssh-keygen`)
+identically. Unless the profile declines the hush-login question, it also
+renders `~/.hushlogin`, which suppresses the `Last login: …` banner new
 terminals print.
 
 Plugins load through [zinit](https://github.com/zdharma-continuum/zinit):

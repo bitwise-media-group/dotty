@@ -97,8 +97,9 @@ walks the enrolment that follows.
 
 Whether to silence the `Last login: …` line and message of the day that
 `login(1)` prints in every new terminal. On by default: the profile renders a
-`~/.hushlogin` (its presence is all `login` checks), linked through the active profile, so a profile that
-declines it (`--hush-login=false`) keeps the banner even on a shared repository.
+`~/.hushlogin` (its presence is all `login` checks), linked through the active
+profile, so a profile that declines it (`--hush-login=false`) keeps the banner
+even on a shared repository.
 
 ### Agent worktrees
 

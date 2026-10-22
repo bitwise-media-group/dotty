@@ -95,14 +95,14 @@ comment, so the import is idempotent.
 
 `--brewfile <path>` converts a Brewfile instead: formulae the components now
 provide as locked tools are dropped, formulae mise cannot pour get their locked
-stand-ins (`terraform`, `yt-dlp`, `actions-up`),
-other formulae become `brew:` packages (with the taps they need — mise pours a
-tapped formula only when the tap publishes API metadata, so those come with a
-warning), casks become `brew-cask:` packages restricted to macOS (the agent CLIs
-and the bitwise casks become their tools instead), and entry types mise has no
-equivalent for (`vscode`, `krew`) are reported. A profile from before packages
-moved to mise still carries its `Brewfile`; `dotty init` converts it once and
-leaves the file for you to delete.
+stand-ins (`terraform`, `yt-dlp`, `actions-up`), other formulae become `brew:`
+packages (with the taps they need — mise pours a tapped formula only when the
+tap publishes API metadata, so those come with a warning), casks become
+`brew-cask:` packages restricted to macOS (the agent CLIs and the bitwise casks
+become their tools instead), and entry types mise has no equivalent for
+(`vscode`, `krew`) are reported. A profile from before packages moved to mise
+still carries its `Brewfile`; `dotty init` converts it once and leaves the file
+for you to delete.
 
 ## Syncing
 

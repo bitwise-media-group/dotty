@@ -9,9 +9,8 @@ The recommended way to install dotty is [mise](#mise), which is also what dotty
 drives to manage every other package; the [Homebrew tap](#homebrew) still works.
 The alternative methods below all install the same signed binary: the macOS
 binaries are Developer ID-signed and notarized by Apple, every binary carries a
-keyless [cosign](#signatures) signature, and every release ships
-checksums and a SLSA build-provenance [attestation](#attestations) you can
-verify yourself.
+keyless [cosign](#signatures) signature, and every release ships checksums and a
+SLSA build-provenance [attestation](#attestations) you can verify yourself.
 
 ## mise
 
@@ -121,9 +120,9 @@ cosign verify-blob \
 
 **macOS.** The darwin binaries are also signed with Bitwise Media Group's Apple
 Developer ID Application certificate and notarized by Apple in the same release
-workflow. That signature is embedded in the binary and Gatekeeper checks it
-(and fetches the notarization ticket) on first run. Inspect and verify it with
-the tools already on your Mac:
+workflow. That signature is embedded in the binary and Gatekeeper checks it (and
+fetches the notarization ticket) on first run. Inspect and verify it with the
+tools already on your Mac:
 
 ```sh
 # Authority=Developer ID Application: … (TEAMID); flags include "runtime"
