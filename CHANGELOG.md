@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.4.0](https://github.com/bitwise-media-group/dotty/compare/v0.3.4...v0.4.0) (2026-10-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* dotty init no longer takes --wallpaper or sets the desktop wallpaper; dotty dotfiles status prints mise dot status instead of the ok/missing/stale/conflict report; and the k9s add-on is now named kubernetes.
+* **env:** the dotty env add, get, list, remove, run, and use verbs are removed; use fnox set, get, list, remove, exec, and export --all -o .env (namespaces are fnox profiles, -P <ns>). Run dotty env migrate once to move existing keychain credentials and .env.dotty templates into fnox. The global gitignore no longer whitelists .env.dotty and now ignores fnox.local.toml; age moves from the security-keys package set into core.
+* **packages:** dotty brewfile and its verbs are gone in favour of dotty packages; init's --dump-brews is now --import-packages (stored answers under the old key still load); the profile Brewfile is no longer read and is converted into profiles/<name>/mise/config.toml on the next init.
+* **toolchain:** rename make submodule to toolchain and pin to v3 pre-release
+
+### Features
+
+* **env:** replace dotty env with fnox ([bb77111](https://github.com/bitwise-media-group/dotty/commit/bb771114b9d0018e7d6d56e2b2282b03f3815115))
+* **fonts:** install lobe-icons into the XDG font dir on linux ([b29d60b](https://github.com/bitwise-media-group/dotty/commit/b29d60b3d8baf5d5e497583b50f7dc0d2357e17f))
+* **init:** add openclaude as an optional coding agent ([9ab1732](https://github.com/bitwise-media-group/dotty/commit/9ab1732c85df4ea3f21b7dfd643c6433497ebc64))
+* manage dotfiles, installs and macOS defaults through mise ([de9a947](https://github.com/bitwise-media-group/dotty/commit/de9a94778c3d3b90a279cce684bbbf92289309a4))
+* **packages:** replace Homebrew Brewfiles with mise-managed packages ([c0c50a1](https://github.com/bitwise-media-group/dotty/commit/c0c50a1713b599ecb8c927178d2311a457b3ec49))
+
+
+### Bug Fixes
+
+* **deps:** update bitwise-media-group/github-workflows action to v7.0.1 ([#210](https://github.com/bitwise-media-group/dotty/issues/210)) ([9cb4216](https://github.com/bitwise-media-group/dotty/commit/9cb4216030e2c39b9aba9e862ca348533b7be45c))
+* **deps:** update bitwise-media-group/github-workflows action to v8 ([#212](https://github.com/bitwise-media-group/dotty/issues/212)) ([06d6c07](https://github.com/bitwise-media-group/dotty/commit/06d6c075b95faeafb84d6437cab322eb35c41f9c))
+* **deps:** update bitwise-media-group/github-workflows action to v8.0.1 ([#219](https://github.com/bitwise-media-group/dotty/issues/219)) ([da18e3e](https://github.com/bitwise-media-group/dotty/commit/da18e3e9ac96fb0a04081fb9bcc2125e3be62743))
+* **deps:** update go to 1.27.2 ([0eb40ba](https://github.com/bitwise-media-group/dotty/commit/0eb40ba0abefb65713043cd7470e658f813a3cca))
+* **deps:** update go to 1.27.3 ([ca9c762](https://github.com/bitwise-media-group/dotty/commit/ca9c7620e01a2464764daf6577eafe7f0ad15de4))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.10 ([#191](https://github.com/bitwise-media-group/dotty/issues/191)) ([78148d9](https://github.com/bitwise-media-group/dotty/commit/78148d9d1ac3a66328e56330e0f02b7c4f9c889d))
+* **deps:** update module charm.land/bubbletea/v2 to v2.1.0 ([#215](https://github.com/bitwise-media-group/dotty/issues/215)) ([c7b34ce](https://github.com/bitwise-media-group/dotty/commit/c7b34ce3e4ca68735dc0308f4c044e0e50c91f16))
+* **deps:** update module github.com/protonmail/go-crypto to v1.5.0 ([#188](https://github.com/bitwise-media-group/dotty/issues/188)) ([c3eccbb](https://github.com/bitwise-media-group/dotty/commit/c3eccbb3e804b8a1851ad25fef979ac515f0b87a))
+* **deps:** update module github.com/protonmail/go-crypto to v1.5.1 ([#190](https://github.com/bitwise-media-group/dotty/issues/190)) ([b45fa9f](https://github.com/bitwise-media-group/dotty/commit/b45fa9f4dfcbdd75f755a7dfb847fff1ac2e0f47))
+* **deps:** update module github.com/protonmail/go-crypto to v1.5.2 ([#196](https://github.com/bitwise-media-group/dotty/issues/196)) ([751ed20](https://github.com/bitwise-media-group/dotty/commit/751ed206a742e56b51d9a18e600a631504579036))
+* **deps:** update module golang.org/x/term to v0.46.0 ([#159](https://github.com/bitwise-media-group/dotty/issues/159)) ([c7e7bed](https://github.com/bitwise-media-group/dotty/commit/c7e7bed440bced9242a2bcbc5c4fb52f3d92259c))
+* **deps:** update module golang.org/x/term to v0.47.0 ([#216](https://github.com/bitwise-media-group/dotty/issues/216)) ([fcc7d09](https://github.com/bitwise-media-group/dotty/commit/fcc7d09fbc30f34987bc9b069a0dafd7d588886b))
+* **mise:** spell out the grok http tool declaration ([2cc61f7](https://github.com/bitwise-media-group/dotty/commit/2cc61f7514301b37c611d8ad81cb4ed6dfc31688))
+* **release:** cosign the darwin binaries after notarization ([080329f](https://github.com/bitwise-media-group/dotty/commit/080329fafad14711b161f92f8c1d7883dd7d4728))
+* **release:** notarize darwin arches concurrently and wait the full 20m ([3d485ba](https://github.com/bitwise-media-group/dotty/commit/3d485badfdecb70c2273edd0a747b5fd5d58fc6e))
+
+
+### Build System
+
+* **toolchain:** rename make submodule to toolchain and pin to v3 pre-release ([86d4942](https://github.com/bitwise-media-group/dotty/commit/86d4942751d4e04375d8b142fb4679a186aecb5b))
+
 ## [0.3.4](https://github.com/bitwise-media-group/dotty/compare/v0.3.3...v0.3.4) (2026-09-07)
 
 
