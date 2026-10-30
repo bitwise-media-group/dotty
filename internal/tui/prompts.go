@@ -5,7 +5,10 @@ package tui
 
 import (
 	"errors"
+	"slices"
 
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
@@ -21,11 +24,13 @@ var ErrAborted = errors.New("aborted")
 
 // Option is one selectable entry: Label is what the user sees, Value is what
 // the caller gets back. Selected preselects the entry in MultiSelect, for
-// picklists that default to everything on.
+// picklists that default to everything on. Locked keeps a MultiSelect entry
+// selected: it starts ticked and cannot be unticked.
 type Option struct {
 	Label    string
 	Value    string
 	Selected bool
+	Locked   bool
 }
 
 // maxPromptRows caps how many rows a picklist renders (the FuzzySelect window
@@ -96,7 +101,8 @@ func Password(ios cli.IOStreams, title string, validate func(string) error) (str
 }
 
 // MultiSelect presents a fuzzy-filterable checklist and returns the Values of
-// the chosen options, in option order.
+// the chosen options, in option order. Locked options are always among them;
+// a checklist carrying one is not filterable (see lockedMultiSelect).
 func MultiSelect(ios cli.IOStreams, title string, options []Option) ([]string, error) {
 	var values []string
 	if err := runForm(ios, multiSelectField(title, options, &values)); err != nil {
@@ -110,17 +116,68 @@ func MultiSelect(ios cli.IOStreams, title string, options []Option) ([]string, e
 // then subtracts the title row, cutting off the last option — a one-entry
 // list renders empty. An explicit height is treated as the field total, so
 // the extra row covers the title and every option gets a row.
-func multiSelectField(title string, options []Option, values *[]string) *huh.MultiSelect[string] {
-	field := huh.NewMultiSelect[string]().Title(title).Options(huhOptions(options)...).Filterable(true).Value(values)
+func multiSelectField(title string, options []Option, values *[]string) huh.Field {
+	var locked []string
+	for _, o := range options {
+		if o.Locked {
+			locked = append(locked, o.Value)
+		}
+	}
+	field := huh.NewMultiSelect[string]().Title(title).Options(huhOptions(options)...).
+		Filterable(len(locked) == 0).Value(values)
 	field.Height(min(len(options), maxPromptRows) + 1)
-	return field
+	if len(locked) == 0 {
+		return field
+	}
+	return &lockedMultiSelect{MultiSelect: field, values: values, locked: locked,
+		toggle: huh.NewDefaultKeyMap().MultiSelect.Toggle}
+}
+
+// lockedMultiSelect keeps its locked values selected, which huh v2.0.3
+// cannot express: a toggle on a locked row is swallowed, and anything else
+// that unticks one (select none) is undone by re-ticking through the value
+// binding. The re-tick reaches huh's displayed rows only while they share
+// storage with its options, which filtering breaks — hence no filter.
+type lockedMultiSelect struct {
+	*huh.MultiSelect[string]
+	values *[]string
+	locked []string
+	toggle key.Binding
+}
+
+// Update handles msg like the wrapped field, then restores the locked values.
+func (m *lockedMultiSelect) Update(msg tea.Msg) (huh.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, m.toggle) {
+		if hovered, ok := m.Hovered(); ok && slices.Contains(m.locked, hovered) {
+			return m, nil
+		}
+	}
+	_, cmd := m.MultiSelect.Update(msg)
+	var missing []string
+	for _, v := range m.locked {
+		if !slices.Contains(*m.values, v) {
+			missing = append(missing, v)
+		}
+	}
+	if len(missing) > 0 {
+		*m.values = append(*m.values, missing...)
+		m.Value(m.values)
+	}
+	return m, cmd
+}
+
+// WithKeyMap applies k to the wrapped field and tracks its toggle binding.
+func (m *lockedMultiSelect) WithKeyMap(k *huh.KeyMap) huh.Field {
+	m.toggle = k.MultiSelect.Toggle
+	m.MultiSelect.WithKeyMap(k)
+	return m
 }
 
 // huhOptions converts dotty options to huh's option type.
 func huhOptions(options []Option) []huh.Option[string] {
 	huhOpts := make([]huh.Option[string], len(options))
 	for i, o := range options {
-		huhOpts[i] = huh.NewOption(o.Label, o.Value).Selected(o.Selected)
+		huhOpts[i] = huh.NewOption(o.Label, o.Value).Selected(o.Selected || o.Locked)
 	}
 	return huhOpts
 }
