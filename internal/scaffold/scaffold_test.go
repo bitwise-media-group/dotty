@@ -508,7 +508,8 @@ func TestAnswerKeysSurviveFalsyAnswers(t *testing.T) {
 		AddOns:      []string{},
 		Agents:      []string{},
 		// Harden, ImportPackages, HushLogin, PIV stay zero: answered "no".
-		// MacOSDefaults, DockApps and AllowedSerials stay nil: never asked.
+		// MacOSDefaults, DockApps, LockfilePlatforms and AllowedSerials stay
+		// nil: never asked.
 	}
 	if err := SaveAnswers(dir, a); err != nil {
 		t.Fatalf("SaveAnswers: %v", err)
@@ -532,8 +533,8 @@ func TestAnswerKeysSurviveFalsyAnswers(t *testing.T) {
 			t.Errorf("key %s: answered falsy value not reported as answered", k.name)
 		}
 	}
-	if keys.MacOSDefaults || keys.DockApps {
-		t.Error("keys MacOSDefaults/DockApps: nil slice reported as answered")
+	if keys.MacOSDefaults || keys.DockApps || keys.LockfilePlatforms {
+		t.Error("keys MacOSDefaults/DockApps/LockfilePlatforms: nil slice reported as answered")
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/version"
 )
 
@@ -55,6 +56,10 @@ type Answers struct {
 	// installed on the machine. It was dumpBrews before packages moved to
 	// mise; readAnswers still honours the old key.
 	ImportPackages bool `json:"importPackages"`
+	// LockfilePlatforms are the platforms `mise lock` resolves the profile's
+	// tools for (mise adds whichever platform it runs on). nil, never asked,
+	// leaves mise's own default in charge.
+	LockfilePlatforms []string `json:"lockfilePlatforms,omitzero"`
 
 	SecurityKeys bool `json:"securityKeys"`
 	Harden       bool `json:"harden"`
@@ -109,19 +114,20 @@ func SaveAnswers(profileDir string, a Answers) error {
 // an answered question (reusable, even when the answer is a falsy "no" or an
 // empty pick) from one the document predates and must still ask.
 type AnswerKeys struct {
-	ReposDir       bool
-	Repo           bool
-	AddOns         bool
-	Agents         bool
-	ImportPackages bool
-	SecurityKeys   bool
-	Harden         bool
-	Marketplace    bool
-	HushLogin      bool
-	MacOSDefaults  bool
-	DockApps       bool
-	PIV            bool
-	PrivateRepo    bool
+	ReposDir          bool
+	Repo              bool
+	AddOns            bool
+	Agents            bool
+	ImportPackages    bool
+	LockfilePlatforms bool
+	SecurityKeys      bool
+	Harden            bool
+	Marketplace       bool
+	HushLogin         bool
+	MacOSDefaults     bool
+	DockApps          bool
+	PIV               bool
+	PrivateRepo       bool
 }
 
 // answerKeys derives AnswerKeys from a document's raw keys; the literals here
@@ -133,19 +139,20 @@ func answerKeys(raw map[string]json.RawMessage) AnswerKeys {
 		return ok && string(v) != "null"
 	}
 	return AnswerKeys{
-		ReposDir:       has("reposDir"),
-		Repo:           has("repo"),
-		AddOns:         has("addons"),
-		Agents:         has("agents"),
-		ImportPackages: has("importPackages") || has(legacyImportKey),
-		SecurityKeys:   has("securityKeys"),
-		Harden:         has("harden"),
-		Marketplace:    has("marketplace"),
-		HushLogin:      has("hushLogin"),
-		MacOSDefaults:  has("macosDefaults"),
-		DockApps:       has("dockApps"),
-		PIV:            has("piv"),
-		PrivateRepo:    has("privateRepo"),
+		ReposDir:          has("reposDir"),
+		Repo:              has("repo"),
+		AddOns:            has("addons"),
+		Agents:            has("agents"),
+		ImportPackages:    has("importPackages") || has(legacyImportKey),
+		LockfilePlatforms: has("lockfilePlatforms"),
+		SecurityKeys:      has("securityKeys"),
+		Harden:            has("harden"),
+		Marketplace:       has("marketplace"),
+		HushLogin:         has("hushLogin"),
+		MacOSDefaults:     has("macosDefaults"),
+		DockApps:          has("dockApps"),
+		PIV:               has("piv"),
+		PrivateRepo:       has("privateRepo"),
 	}
 }
 
@@ -294,6 +301,9 @@ type Vars struct {
 	// BrewPrefix is Homebrew's prefix on the OS and architecture rendering
 	// the template; the core fragment points the login shell at its zsh.
 	BrewPrefix string
+	// LockfilePlatforms is the lockfile_platforms TOML array the core
+	// fragment sets, or empty when the answers leave mise's default alone.
+	LockfilePlatforms string
 
 	SecurityKeys bool
 	Harden       bool
@@ -364,6 +374,9 @@ func NewVars(a Answers, home, dotfilesDir string) Vars {
 		HasClaude:     slices.Contains(a.Agents, "claude-code"),
 		HasOpenClaude: slices.Contains(a.Agents, "openclaude"),
 		HasGrok:       slices.Contains(a.Agents, "grok"),
+	}
+	if a.LockfilePlatforms != nil {
+		v.LockfilePlatforms = mise.PlatformsTOML(a.LockfilePlatforms)
 	}
 	dock := func(app string) bool { return a.DockApps == nil || slices.Contains(a.DockApps, app) }
 	v.DockGhostty = dock("ghostty")

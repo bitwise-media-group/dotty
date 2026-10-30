@@ -34,3 +34,10 @@
 # The Homebrew prefix is the one for the OS and architecture init ran on.
 [bootstrap.user]
 login_shell = "{{.BrewPrefix}}/bin/zsh"
+{{- if .LockfilePlatforms}}
+
+# The platforms `mise lock` resolves tools for, from init's picklist; mise adds
+# whichever platform it runs on. lockfile_platforms in ../config.toml wins.
+[settings]
+lockfile_platforms = {{.LockfilePlatforms}}
+{{- end}}
