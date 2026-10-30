@@ -609,3 +609,46 @@ func TestCoreFragmentSetsLoginShell(t *testing.T) {
 		t.Errorf("core fragment misses %s:\n%s", want, data)
 	}
 }
+
+// TestCoreFragmentLockfilePlatforms pins the lockfile_platforms setting in
+// the core fragment: absent while the question was never asked, so mise's
+// default stays in charge, and the picks verbatim otherwise — an empty pick
+// included, which locks only the platform mise runs on.
+func TestCoreFragmentLockfilePlatforms(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		platforms []string
+		want      string
+	}{
+		{"unasked", nil, ""},
+		{"answered none", []string{}, `lockfile_platforms = []`},
+		{"picked", []string{"macos-arm64", "linux-x64"}, `lockfile_platforms = ["macos-arm64", "linux-x64"]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := Answers{ProfileName: "t", ReposDir: "/r", LockfilePlatforms: tc.platforms}
+			ops, err := Plan(a)
+			if err != nil {
+				t.Fatalf("Plan: %v", err)
+			}
+			repo, profileDir := t.TempDir(), t.TempDir()
+			if err := Render(ops, repo, profileDir, NewVars(a, "/home/x", repo)); err != nil {
+				t.Fatalf("Render: %v", err)
+			}
+			data, err := os.ReadFile(filepath.Join(profileDir, MiseFragmentsDir, "core.toml"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := string(data)
+			if tc.want == "" {
+				if strings.Contains(got, "lockfile_platforms") || strings.Contains(got, "[settings]") {
+					t.Errorf("unasked platforms rendered a setting:\n%s", got)
+				}
+			} else if !strings.Contains(got, "[settings]\n"+tc.want+"\n") {
+				t.Errorf("core fragment misses %s:\n%s", tc.want, got)
+			}
+			if !strings.HasSuffix(got, "\n") || strings.HasSuffix(got, "\n\n") {
+				t.Errorf("core fragment does not end in exactly one newline: %q", got[max(len(got)-40, 0):])
+			}
+		})
+	}
+}
