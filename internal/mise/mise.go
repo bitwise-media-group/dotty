@@ -327,9 +327,9 @@ func (c *Client) Dotfiles(ctx context.Context, args ...string) error {
 	return c.interactive(ctx, append([]string{"dot", "--cd", c.Dir}, args...)...)
 }
 
-// Lock refreshes mise.lock for every platform the profile's tools publish —
-// the one committed lockfile serves macOS and Linux — creating it when the
-// profile has none yet.
+// Lock refreshes mise.lock for the profile's lockfile_platforms plus the
+// current one — the one committed lockfile serves every machine of the
+// profile — creating it when the profile has none yet.
 func (c *Client) Lock(ctx context.Context) error {
 	return c.run(ctx, "lock", "--global")
 }

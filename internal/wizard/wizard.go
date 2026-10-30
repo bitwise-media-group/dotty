@@ -16,6 +16,7 @@ import (
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
 	"github.com/bitwise-media-group/dotty/internal/macos"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/profile"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 	"github.com/bitwise-media-group/dotty/internal/securitykey"
@@ -39,9 +40,11 @@ type Flags struct {
 	AddOns         []string
 	Agents         []string
 	ImportPackages bool
-	Marketplace    bool
-	Harden         bool
-	SecurityKeys   bool
+	// LockfilePlatforms are the platforms mise.lock resolves tools for.
+	LockfilePlatforms []string
+	Marketplace       bool
+	Harden            bool
+	SecurityKeys      bool
 	// HushLogin defaults on, so unlike the other yes/no flags it needs
 	// HushLoginSet to tell an explicit --hush-login=false from an unset flag.
 	HushLogin      bool
@@ -103,7 +106,8 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 	} else {
 		answers = scaffold.Answers{ProfileName: profileName, Description: flags.Description,
 			AddOns: scaffold.CanonicalAddOns(flags.AddOns), Agents: flags.Agents, ImportPackages: flags.ImportPackages,
-			Marketplace: flags.Marketplace, Harden: flags.Harden, SecurityKeys: flags.SecurityKeys,
+			LockfilePlatforms: flags.LockfilePlatforms,
+			Marketplace:       flags.Marketplace, Harden: flags.Harden, SecurityKeys: flags.SecurityKeys,
 			HushLogin: flags.hushLogin(true), MacOSDefaults: flags.MacOSDefaults, DockApps: flags.DockApps, PIV: flags.PIV,
 			AllowedSerials: flags.AllowedSerials, Worktrees: flags.Worktrees}
 		setAnswerPaths(&answers, reposDir, repo, home)
@@ -121,6 +125,9 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 		return none, "", false, err
 	}
 	if err := collectSelections(ios, flags, known, &answers); err != nil {
+		return none, "", false, err
+	}
+	if err := collectLockfilePlatforms(ios, flags, known, rerun, &answers); err != nil {
 		return none, "", false, err
 	}
 	if err := collectMacOSAnswers(ios, flags, known, &answers); err != nil {
@@ -451,6 +458,45 @@ func collectSelections(ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys
 	return collectFeatureConfirms(ios, flags, known, answers)
 }
 
+// collectLockfilePlatforms asks which platforms mise.lock resolves the
+// profile's tools for, preselecting the stored picks. This machine's platform
+// is locked in — the picklist will not untick it, and a flag or stored answer
+// lacking it gains it — since mise locks for the platform it runs on
+// regardless; a profile shared across machines so accumulates each one's. An
+// unattended re-run of a profile that never answered keeps that silence,
+// which leaves mise's default in charge.
+func collectLockfilePlatforms(ios cli.IOStreams, flags Flags, known scaffold.AnswerKeys, rerun bool,
+	answers *scaffold.Answers) error {
+	current := mise.Platform(runtime.GOOS, runtime.GOARCH)
+	if flags.LockfilePlatforms == nil && ios.IsInteractive() && !flags.reuses(known.LockfilePlatforms) {
+		options := make([]tui.Option, len(mise.Platforms))
+		for i, p := range mise.Platforms {
+			options[i] = tui.Option{Label: p, Value: p}
+			if p == current {
+				options[i].Label += " (this machine, always locked)"
+				options[i].Locked = true
+			}
+		}
+		picked, err := askMulti(ios, "Which platforms should mise.lock cover?", options, answers.LockfilePlatforms)
+		if err != nil {
+			return err
+		}
+		answers.LockfilePlatforms = picked
+	} else if answers.LockfilePlatforms == nil && !rerun && current != "" {
+		answers.LockfilePlatforms = []string{}
+	}
+	for _, p := range answers.LockfilePlatforms {
+		if !mise.IsPlatform(p) {
+			return fmt.Errorf("--lockfile-platforms: %q is not a mise platform (want one of %s)",
+				p, strings.Join(mise.Platforms, ", "))
+		}
+	}
+	if answers.LockfilePlatforms != nil && current != "" && !slices.Contains(answers.LockfilePlatforms, current) {
+		answers.LockfilePlatforms = append(answers.LockfilePlatforms, current)
+	}
+	return nil
+}
+
 // collectFeatureConfirms asks the yes/no feature questions that follow the
 // picklists: the marketplace and hardening (which only mean something once
 // at least one agent is selected), security keys, and hush login.
@@ -595,6 +641,9 @@ func mergeAnswers(prev scaffold.Answers, flags Flags, reposDir, repo, home strin
 	}
 	if flags.ImportPackages {
 		prev.ImportPackages = true
+	}
+	if flags.LockfilePlatforms != nil {
+		prev.LockfilePlatforms = flags.LockfilePlatforms
 	}
 	if flags.AddOns != nil {
 		prev.AddOns = scaffold.CanonicalAddOns(flags.AddOns)
