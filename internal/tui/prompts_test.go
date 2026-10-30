@@ -5,6 +5,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -68,5 +69,45 @@ func TestMultiSelectFieldWindowCap(t *testing.T) {
 	view := renderField(t, multiSelectField("Allow which keys?", serialOptions(maxPromptRows+5), &values))
 	if rendered := strings.Count(view, "serial-"); rendered != maxPromptRows {
 		t.Errorf("rendered %d options, want %d:\n%s", rendered, maxPromptRows, view)
+	}
+}
+
+// TestMultiSelectFieldLockedOption pins that a locked option survives every
+// way of unticking it — toggling its row, select none — while the other
+// rows still toggle freely.
+func TestMultiSelectFieldLockedOption(t *testing.T) {
+	var (
+		space = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+		ctrlA = tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl}
+		down  = tea.KeyPressMsg{Code: tea.KeyDown}
+		up    = tea.KeyPressMsg{Code: tea.KeyUp}
+		enter = tea.KeyPressMsg{Code: tea.KeyEnter}
+	)
+	for _, tc := range []struct {
+		name string
+		keys []tea.KeyPressMsg
+		want []string
+	}{
+		{"untouched", nil, []string{"here", "kept"}},
+		{"toggle locked row", []tea.KeyPressMsg{space, space, space}, []string{"here", "kept"}},
+		{"select none", []tea.KeyPressMsg{ctrlA, ctrlA}, []string{"here"}},
+		{"toggle others", []tea.KeyPressMsg{down, space, down, space, up, up, space}, []string{"here", "other"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			options := []Option{
+				{Label: "here", Value: "here", Locked: true},
+				{Label: "kept", Value: "kept", Selected: true},
+				{Label: "other", Value: "other"},
+			}
+			var values []string
+			var form huh.Model = huh.NewForm(huh.NewGroup(multiSelectField("Which?", options, &values)))
+			form.Init()
+			for _, k := range append(tc.keys, enter) {
+				form, _ = form.Update(k)
+			}
+			if !slices.Equal(values, tc.want) {
+				t.Errorf("values = %v, want %v", values, tc.want)
+			}
+		})
 	}
 }
