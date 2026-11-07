@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bitwise-media-group/dotty/internal/cli"
 	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 	"github.com/bitwise-media-group/dotty/internal/signingkey"
@@ -39,6 +41,10 @@ func initEnv(t *testing.T) string {
 	t.Setenv("MISE_CACHE_DIR", filepath.Join(home, ".cache", "mise"))
 	// A fake mise in the home keeps init from installing the real one.
 	installFakeMise(t, home)
+	// Never sudo or touch /etc; internal/linker covers the system link.
+	orig := linkCodexSystemConfig
+	linkCodexSystemConfig = func(context.Context, cli.IOStreams, string, string) {}
+	t.Cleanup(func() { linkCodexSystemConfig = orig })
 	return home
 }
 
@@ -251,7 +257,7 @@ func assertHomeLinks(t *testing.T, home, repo string) {
 		t.Errorf("~/.config/codex/dotty.config.toml link = %q, %v (want %s)", link, err, wantCodex)
 	}
 	if got, err := os.ReadFile(codexLayer); err != nil || len(got) == 0 {
-		t.Errorf("codex profile layer does not resolve through active-profile: %v", err)
+		t.Errorf("codex settings layer does not resolve through active-profile: %v", err)
 	}
 }
 
@@ -812,7 +818,7 @@ func TestInitHushLogin(t *testing.T) {
 // layout) becomes a real machine-local file carrying the profile render's
 // content — Codex's project trust and desktop state — with a backup set, while
 // the orphaned render is pruned and dotty.config.toml takes over as the
-// linked profile layer.
+// linked settings layer.
 func TestInitMigratesCodexMachineState(t *testing.T) {
 	home := initEnv(t)
 	repo := filepath.Join(home, "Repos", "dotfiles")
@@ -856,7 +862,7 @@ func TestInitMigratesCodexMachineState(t *testing.T) {
 		t.Error("orphaned config.toml render survived the re-run")
 	}
 	if _, err := os.Stat(filepath.Join(profileDir, "home", ".config", "codex", "dotty.config.toml")); err != nil {
-		t.Errorf("profile layer missing after re-run: %v", err)
+		t.Errorf("dotty.config.toml missing after re-run: %v", err)
 	}
 	backups, err := filepath.Glob(filepath.Join(home, ".local", "share", "dotty", "backups", "*",
 		strings.TrimPrefix(site, string(filepath.Separator))))

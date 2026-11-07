@@ -6,13 +6,15 @@
 # Codex CLI configuration — the OpenAI agent, brought to the same guardrails as
 # Claude Code (.config/claude/settings.json) and OpenCode (.config/opencode/opencode.jsonc).
 #
-# This file is a Codex profile layer, loaded as $CODEX_HOME/dotty.config.toml
-# when codex runs with --profile dotty — the shared .zshrc alias and
-# `dotty tmux new` both pass it. $CODEX_HOME/config.toml is machine-local and
+# Codex reads this file as its system config layer: `dotty init` and
+# `dotty dotfiles link` symlink /etc/codex/config.toml to it (through sudo, the
+# first time), so every codex invocation — interactive, exec, doctor, scripts —
+# picks it up without a flag. $CODEX_HOME/config.toml is machine-local and
 # Codex-owned (hooks.state, project trust, marketplace caches, desktop-app MCP
-# servers); dotty never renders, links, or touches it. The profile layer has
-# higher precedence than config.toml, so stale dotty-rendered keys left in a
-# migrated config.toml are overridden whenever --profile dotty is in effect.
+# servers); dotty never renders, links, or touches it. That file overrides this
+# one key by key: a model picked with /model wins as intended, and dotty warns
+# when it finds approval_policy, sandbox_mode, or [sandbox_workspace_write]
+# there, since those would loosen the hardening below.
 # CODEX_HOME itself is set to ~/.config/codex in the active profile's env.zsh
 # so this whole package lives under XDG config like every other tool in this
 # repo (CLAUDE_CONFIG_DIR relocates Claude Code the same way).
@@ -24,18 +26,15 @@
 #   [[hooks.*]] -> dotty tmux set-status      <- the Claude Code "needs you" tmux indicator
 #   [tui]                                      <- theme: custom:cyberdream (inherited via ANSI)
 #
-# Validate edits with:  codex --profile dotty doctor   (config parse + sandbox summary)
+# Validate edits with:  codex doctor   (config parse + sandbox summary)
 
-{{- if .Harden }}
-# Prompt before anything that execpolicy hasn't explicitly trusted — the analog
-# of Claude Code's "ask unless allow-listed" default (autoAllowBashIfSandboxed=false).
-approval_policy = "untrusted"
-
-{{- end }}
-{{- if not .Harden }}
-# Without hardening, prompt on request like a stock install.
+# Codex 0.167 removed "untrusted" (prompt for anything execpolicy hasn't
+# trusted); "on-request" is the closest remaining mode. Commands run inside the
+# workspace-write sandbox without a prompt, execpolicy "allow" rules auto-run,
+# and anything needing to escape the sandbox asks — with approvals_reviewer
+# routing those asks through auto-review first. Without hardening this is the
+# stock behaviour.
 approval_policy = "on-request"
-{{- end }}
 {{- if .Harden }}
 # ── Sandbox ──────────────────────────────────────────────────────────────────
 # workspace-write: read broadly, write only to cwd + writable_roots; everything
@@ -44,8 +43,6 @@ approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 {{- end }}
 approvals_reviewer = "auto_review"
-model = "gpt-5.6-sol"
-model_reasoning_effort = "high"
 
 {{- if .Harden }}
 [sandbox_workspace_write]
