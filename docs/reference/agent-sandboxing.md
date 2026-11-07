@@ -30,16 +30,16 @@ can't express a rule. Without `--harden`, agents get only the non-security parts
 
 ## The shared baseline
 
-|                  | Claude Code                     | Codex                           | Grok                                 | OpenCode                      |
-| ---------------- | ------------------------------- | ------------------------------- | ------------------------------------ | ----------------------------- |
-| Config file      | `settings.json`                 | `config.toml`                   | `config.toml` + `sandbox.toml`       | `opencode.jsonc`              |
-| OS sandbox       | Seatbelt (full: FS + network)   | Seatbelt (`workspace-write`)    | Seatbelt (custom `dotfiles` profile) | — (permission layer only)     |
-| Network policy   | per-domain allowlist            | on/off only (on)                | unrestricted                         | webfetch: ask                 |
-| Credential reads | sandbox `denyRead`              | PreToolUse hook                 | kernel `deny` + hook                 | permission denies             |
-| Keychain block   | no `SecurityServer` mach lookup | hook denies `security` CLI      | `Bash(security *)` deny + hook       | `security *` bash deny        |
-| fnox block       | `Bash(fnox get/exec/export *)`  | hook + rule deny `fnox`         | `Bash(fnox *)` deny + hook           | `fnox *` bash deny            |
-| Approval default | ask unless allow-listed         | `approval_policy = "untrusted"` | prompt + explicit allows             | `"*": "ask"`                  |
-| tmux status      | hooks in `settings.json`        | `[[hooks.*]]` in `config.toml`  | `hooks/tmux-status.json`             | `plugin/agent-tmux-status.js` |
+|                  | Claude Code                     | Codex                            | Grok                                 | OpenCode                      |
+| ---------------- | ------------------------------- | -------------------------------- | ------------------------------------ | ----------------------------- |
+| Config file      | `settings.json`                 | `config.toml`                    | `config.toml` + `sandbox.toml`       | `opencode.jsonc`              |
+| OS sandbox       | Seatbelt (full: FS + network)   | Seatbelt (`workspace-write`)     | Seatbelt (custom `dotfiles` profile) | — (permission layer only)     |
+| Network policy   | per-domain allowlist            | on/off only (on)                 | unrestricted                         | webfetch: ask                 |
+| Credential reads | sandbox `denyRead`              | PreToolUse hook                  | kernel `deny` + hook                 | permission denies             |
+| Keychain block   | no `SecurityServer` mach lookup | hook denies `security` CLI       | `Bash(security *)` deny + hook       | `security *` bash deny        |
+| fnox block       | `Bash(fnox get/exec/export *)`  | hook + rule deny `fnox`          | `Bash(fnox *)` deny + hook           | `fnox *` bash deny            |
+| Approval default | ask unless allow-listed         | `approval_policy = "on-request"` | prompt + explicit allows             | `"*": "ask"`                  |
+| tmux status      | hooks in `settings.json`        | `[[hooks.*]]` in `config.toml`   | `hooks/tmux-status.json`             | `plugin/agent-tmux-status.js` |
 
 All four share the same Bash allowlist (read-only inspection commands, read-only
 `mise` (`ls`, `registry`, `outdated`, `config ls`, `bootstrap packages status`)
@@ -118,10 +118,15 @@ render), since those would loosen the hardening. An existing
   but it restricts _writes only_: the working directory plus `writable_roots`
   (repos dir, worktrees root when absolute, `~/.cache`, `~/.local/share/go`,
   `~/.npm`), with `/tmp` and `$TMPDIR` kept writable.
-- **Approvals**: `approval_policy = "untrusted"` — prompt for anything the
-  execution policy hasn't explicitly trusted. `rules/default.rules` is a
-  `prefix_rule` allowlist mirroring the shared Bash set, with the macOS
-  `security` tool and `fnox` marked `forbidden`.
+- **Approvals**: `approval_policy = "on-request"` — commands run inside the
+  sandbox without a prompt, and anything that needs to escape it asks (routed
+  through `approvals_reviewer = "auto_review"` first). Codex 0.167 removed
+  `"untrusted"`, which prompted for anything the execution policy hadn't
+  explicitly trusted, so this is looser than Claude Code's "ask unless
+  allow-listed": the sandbox, not a prompt, is the boundary for unlisted
+  commands. `rules/default.rules` is a `prefix_rule` allowlist mirroring the
+  shared Bash set, with the macOS `security` tool and `fnox` marked
+  `forbidden`.
 - **Network**: Codex can only toggle network access wholesale, so
   `network_access = true` keeps installs working. This is broader than Claude
   Code's per-domain allowlist — the credential guard below still applies

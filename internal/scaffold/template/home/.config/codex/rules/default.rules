@@ -4,8 +4,10 @@
 # `prefix_rule` matches a leading run of command tokens, so ["ls"] covers `ls -la`
 # and ["git","status"] covers `git status --short`. decision = "allow" auto-runs
 # without a prompt; "forbidden" blocks outright; anything unmatched falls through
-# to approval_policy = "untrusted" (prompt), mirroring Claude Code's "ask unless
-# allow-listed" default.
+# to approval_policy = "on-request": it runs inside the workspace-write sandbox,
+# and only a sandbox escape prompts. (Codex 0.167 removed "untrusted", which
+# prompted for every unmatched command like Claude Code's "ask unless
+# allow-listed" default.)
 #
 # Validate:  codex execpolicy check --rules ~/.config/codex/rules/default.rules -- git status
 

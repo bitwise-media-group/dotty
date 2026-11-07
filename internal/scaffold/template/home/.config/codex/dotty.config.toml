@@ -28,16 +28,13 @@
 #
 # Validate edits with:  codex doctor   (config parse + sandbox summary)
 
-{{- if .Harden }}
-# Prompt before anything that execpolicy hasn't explicitly trusted — the analog
-# of Claude Code's "ask unless allow-listed" default (autoAllowBashIfSandboxed=false).
-approval_policy = "untrusted"
-
-{{- end }}
-{{- if not .Harden }}
-# Without hardening, prompt on request like a stock install.
+# Codex 0.167 removed "untrusted" (prompt for anything execpolicy hasn't
+# trusted); "on-request" is the closest remaining mode. Commands run inside the
+# workspace-write sandbox without a prompt, execpolicy "allow" rules auto-run,
+# and anything needing to escape the sandbox asks — with approvals_reviewer
+# routing those asks through auto-review first. Without hardening this is the
+# stock behaviour.
 approval_policy = "on-request"
-{{- end }}
 {{- if .Harden }}
 # ── Sandbox ──────────────────────────────────────────────────────────────────
 # workspace-write: read broadly, write only to cwd + writable_roots; everything
