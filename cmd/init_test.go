@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bitwise-media-group/dotty/internal/cli"
 	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 	"github.com/bitwise-media-group/dotty/internal/signingkey"
@@ -39,6 +41,10 @@ func initEnv(t *testing.T) string {
 	t.Setenv("MISE_CACHE_DIR", filepath.Join(home, ".cache", "mise"))
 	// A fake mise in the home keeps init from installing the real one.
 	installFakeMise(t, home)
+	// Never sudo or touch /etc; internal/linker covers the system link.
+	orig := linkCodexSystemConfig
+	linkCodexSystemConfig = func(context.Context, cli.IOStreams, string, string) {}
+	t.Cleanup(func() { linkCodexSystemConfig = orig })
 	return home
 }
 
@@ -251,7 +257,7 @@ func assertHomeLinks(t *testing.T, home, repo string) {
 		t.Errorf("~/.config/codex/dotty.config.toml link = %q, %v (want %s)", link, err, wantCodex)
 	}
 	if got, err := os.ReadFile(codexLayer); err != nil || len(got) == 0 {
-		t.Errorf("codex profile layer does not resolve through active-profile: %v", err)
+		t.Errorf("codex settings layer does not resolve through active-profile: %v", err)
 	}
 }
 
@@ -807,12 +813,78 @@ func TestInitHushLogin(t *testing.T) {
 	}
 }
 
+// TestInitLockfilePlatforms pins the lockfile-platforms answer end to end: a
+// new profile defaults to this machine's platform, --lockfile-platforms
+// replaces the stored picks and renders them into the core fragment, this
+// machine's platform joins any pick that leaves it out, an unflagged re-run
+// keeps the picks, and an unknown platform is refused.
+func TestInitLockfilePlatforms(t *testing.T) {
+	current := mise.Platform(runtime.GOOS, runtime.GOARCH)
+	if current == "" {
+		t.Skipf("mise cannot lock for %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	home := initEnv(t)
+	repo := filepath.Join(home, "Repos", "dotfiles")
+	profileDir := filepath.Join(home, ".config", "dotty", "box")
+	check := func(want []string) {
+		t.Helper()
+		answers, err := scaffold.LoadAnswers(profileDir)
+		if err != nil || !slices.Equal(answers.LockfilePlatforms, want) {
+			t.Errorf("stored lockfilePlatforms = %v, %v; want %v", answers.LockfilePlatforms, err, want)
+		}
+		core, err := os.ReadFile(filepath.Join(profileDir, "mise", "conf.d", "core.toml"))
+		if err != nil {
+			t.Fatalf("core fragment: %v", err)
+		}
+		if line := "lockfile_platforms = " + mise.PlatformsTOML(want); !strings.Contains(string(core), line) {
+			t.Errorf("core fragment misses %s:\n%s", line, core)
+		}
+	}
+	reinit := func(extra ...string) error {
+		t.Helper()
+		initFlags = wizard.Flags{}
+		args := append([]string{"init", "--repo=" + repo, "--profile-name=box",
+			"--yes", "--skip-font", "--skip-git", "--on-conflict=fail"}, extra...)
+		return execDotty(t, args...)
+	}
+	t.Cleanup(func() { initFlags = wizard.Flags{} })
+
+	if err := reinit(); err != nil {
+		t.Fatalf("first init: %v", err)
+	}
+	check([]string{current})
+
+	// A pick without this machine's platform gains it.
+	other := "windows-arm64"
+	if err := reinit("--lockfile-platforms=" + other); err != nil {
+		t.Fatalf("flagged re-run: %v", err)
+	}
+	check([]string{other, current})
+
+	picked := []string{current, "linux-x64-musl", other}
+	if err := reinit("--lockfile-platforms=" + strings.Join(picked, ",")); err != nil {
+		t.Fatalf("flagged re-run: %v", err)
+	}
+	check(picked)
+
+	if err := reinit(); err != nil {
+		t.Fatalf("unflagged re-run: %v", err)
+	}
+	check(picked)
+
+	err := reinit("--lockfile-platforms=plan9-x64")
+	if err == nil || !strings.Contains(err.Error(), "plan9-x64") {
+		t.Errorf("unknown platform: err = %v, want a refusal naming it", err)
+	}
+	check(picked)
+}
+
 // TestInitMigratesCodexMachineState pins the codex config migration: a live
 // ~/.config/codex/config.toml symlinked through active-profile (the pre-layer
 // layout) becomes a real machine-local file carrying the profile render's
 // content — Codex's project trust and desktop state — with a backup set, while
 // the orphaned render is pruned and dotty.config.toml takes over as the
-// linked profile layer.
+// linked settings layer.
 func TestInitMigratesCodexMachineState(t *testing.T) {
 	home := initEnv(t)
 	repo := filepath.Join(home, "Repos", "dotfiles")
@@ -856,7 +928,7 @@ func TestInitMigratesCodexMachineState(t *testing.T) {
 		t.Error("orphaned config.toml render survived the re-run")
 	}
 	if _, err := os.Stat(filepath.Join(profileDir, "home", ".config", "codex", "dotty.config.toml")); err != nil {
-		t.Errorf("profile layer missing after re-run: %v", err)
+		t.Errorf("dotty.config.toml missing after re-run: %v", err)
 	}
 	backups, err := filepath.Glob(filepath.Join(home, ".local", "share", "dotty", "backups", "*",
 		strings.TrimPrefix(site, string(filepath.Separator))))

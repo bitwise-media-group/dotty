@@ -22,7 +22,7 @@ profiles/<profile>/mise/
 │   ├── core.toml    # fnox and age live here
 │   ├── addon-nvim.toml
 │   └── feature-security-keys.toml
-└── mise.lock        # written by mise for every platform; commit it
+└── mise.lock        # written by mise for the profile's lockfile platforms; commit it
 ```
 
 Two kinds of entry live there:
@@ -30,8 +30,9 @@ Two kinds of entry live there:
 - **Tools** (`[tools]`) — full backend ids such as `aqua:sharkdp/bat`,
   `github:owner/repo`, `npm:prettier`, `pipx:ruff`, or a mise core tool like
   `go` or `node`. mise installs them itself and records the exact version,
-  download URL, and checksum for every platform in `mise.lock`, so macOS and
-  Linux machines get byte-identical builds from one committed file.
+  download URL, and checksum for each of the profile's lockfile platforms
+  (picked during `dotty init`) in `mise.lock`, so macOS and Linux machines get
+  byte-identical builds from one committed file.
 - **Bootstrap packages** (`[bootstrap.packages]`) — `brew:git`,
   `brew-cask:ghostty`, `mas:497799835`, `flatpak:…`, `apt:…`. mise pours these
   into the Homebrew prefix (no Homebrew install required — kegs stay

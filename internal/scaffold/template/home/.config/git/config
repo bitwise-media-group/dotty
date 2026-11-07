@@ -1,6 +1,9 @@
 [core]
-    autocrlf = input
-    excludesFile = ~/.config/git/ignore
+	autocrlf = input
+	excludesFile = ~/.config/git/ignore
+
+[advice]
+	skippedCherryPicks = false
 
 [checkout]
 	defaultRemote = origin

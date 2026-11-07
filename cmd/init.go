@@ -104,6 +104,8 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 		"coding agents: claude-code,codex,opencode,antigravity,grok,openclaude")
 	cmd.Flags().BoolVar(&flags.ImportPackages, "import-packages", false,
 		"seed the profile's packages from the installed Homebrew formulae")
+	cmd.Flags().StringSliceVar(&flags.LockfilePlatforms, "lockfile-platforms", nil,
+		"platforms mise.lock covers: "+strings.Join(mise.Platforms, ",")+" (this machine's is always included)")
 	cmd.Flags().BoolVar(&flags.Marketplace, "marketplace", false,
 		"add the bitwise skills marketplace to the selected agents")
 	cmd.Flags().BoolVar(&flags.Harden, "harden", false,
@@ -133,7 +135,8 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 	cmd.Flags().BoolVar(&flags.SkipFont, "skip-font", false, "skip the lobe-icons font download")
 	cmd.Flags().BoolVar(&flags.SkipGit, "skip-git", false, "skip git init")
 	cmd.Flags().BoolVar(&flags.SkipInstall, "skip-install", false,
-		"skip installing the profile's tools and packages, the login shell, and the macOS defaults")
+		"skip installing the profile's tools and packages, the login shell, the Codex system config, "+
+			"and the macOS defaults")
 	for _, hidden := range []string{"skip-keys", "skip-font", "skip-git", "skip-install"} {
 		_ = cmd.Flags().MarkHidden(hidden)
 	}
@@ -215,6 +218,7 @@ func runInit(ctx context.Context, ios cli.IOStreams, flags wizard.Flags) error {
 		// Before the fnox setup, so fnox — a core tool — is installed by then.
 		client := mise.New(runner, miseBin, mise.Dir(profile.Dir(configDir, answers.ProfileName)))
 		installProfileBestEffort(ctx, ios, client, answers, home)
+		linkCodexSystemConfig(ctx, ios, home, configDir)
 	}
 	bootstrapFnoxBestEffort(ctx, ios, runner, answers, home)
 	if !iv.hadAllowlist && len(answers.AllowedSerials) > 0 {

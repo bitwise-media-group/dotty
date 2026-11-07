@@ -27,7 +27,9 @@ var dotfilesLinkCmd = &cobra.Command{
 are linked folded, existing real directories are descended into, and stale
 symlinks are replaced. A real file in the way is resolved per --on-conflict;
 link defaults to fail so an unexpected file stops a re-link instead of being
-moved. Legacy files that shadow the rendered configuration from outside any
+moved. When the active profile selects codex, /etc/codex/config.toml (Codex's
+system config layer) is linked to its rendered settings, through sudo the
+first time. Legacy files that shadow the rendered configuration from outside any
 link site (~/.gitconfig, ~/.zshrc and the other bare zsh startup files) are
 backed up and removed; restore them with dotty dotfiles restore.
 
@@ -67,6 +69,7 @@ dotty dotfiles add are captured into this repository's home/ tree.`,
 			return err
 		}
 		linker.Summarize(ios, report, backupDir)
+		linkCodexSystemConfig(cmd.Context(), ios, home, configDir)
 		return nil
 	},
 }

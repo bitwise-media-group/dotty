@@ -29,17 +29,13 @@ type SessionRunner interface {
 // with the lobe-icons font installed and mapped in the terminal — both wired
 // up by `dotty init` (~/Library/Fonts/lobe-icons.ttf + ghostty's
 // font-codepoint-map); the pinned release lives in internal/fonts.
-// codex runs with --profile dotty so it loads dotty's rendered profile layer
-// ($CODEX_HOME/dotty.config.toml) — config.toml is machine-local and carries
-// no dotty settings.
 var agentWindows = []struct {
 	bin, window string
-	args        []string
 }{
-	{"opencode", "\U000F40D3  opencode", nil},
-	{"grok", "\U000F4079  grok", nil},
-	{"codex", "\U000F403E  codex", []string{"--profile", "dotty"}},
-	{"claude", "\U000F4036  claude", nil},
+	{"opencode", "\U000F40D3  opencode"},
+	{"grok", "\U000F4079  grok"},
+	{"codex", "\U000F403E  codex"},
+	{"claude", "\U000F4036  claude"},
 }
 
 // SessionName derives the tmux session name from a repository path: its
@@ -88,7 +84,7 @@ func NewSession(ctx context.Context, r SessionRunner, name, dir, editor string, 
 		if err != nil {
 			continue // agent not installed
 		}
-		argv := append([]string{"new-window", "-a", "-d", "-t", window, "-c", dir, "-n", a.window, path}, a.args...)
+		argv := []string{"new-window", "-a", "-d", "-t", window, "-c", dir, "-n", a.window, path}
 		_, _ = r.Output(ctx, "tmux", argv...)
 	}
 	_, _ = r.Output(ctx, "tmux", "new-window", "-a", "-d", "-t", window, "-n", "  zsh", "-c", dir)

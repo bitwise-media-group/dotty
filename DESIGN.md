@@ -659,11 +659,17 @@ values only through the `${XDG_CONFIG_HOME}/dotty/active-profile` symlink — th
 only real machine-local state — so `dotty profile activate` retargets everything
 at once (e.g. `~/.config/dotty/active-profile/env.zsh`). Codex is the one agent
 whose live config is not the linked render itself: its per-profile file renders
-as `dotty.config.toml`, a Codex profile layer selected with `--profile dotty`
-(the shared `.zshrc` alias and `dotty tmux new` both pass it), while
-`$CODEX_HOME/config.toml` stays a real machine-local file Codex owns — Codex
-persists project trust, hook state, and desktop-app integration into it, and
-linking that file into the repository would commit machine state to every clone.
+as `dotty.config.toml`, which Codex reads as its system config layer —
+`/etc/codex/config.toml` is a symlink to it through active-profile, created with
+sudo by init and `dotty dotfiles link` (never replacing a file dotty did not
+create) — while `$CODEX_HOME/config.toml` stays a real machine-local file Codex
+owns. Codex persists project trust, hook state, and desktop-app integration into
+it, and linking that file into the repository would commit machine state to
+every clone. The system layer needs no flag, so every codex invocation picks it
+up (an earlier `--profile dotty` layer broke the subcommands that reject
+profiles, like `codex doctor`); config.toml overrides it key by key, so dotty
+warns when config.toml sets the hardening keys (`approval_policy`,
+`sandbox_mode`, `[sandbox_workspace_write]`).
 
 After confirmation, init renders the selected template components (shared files
 into the repo, profile-varying files into `profiles/<name>`, the mise fragments
@@ -692,8 +698,8 @@ per-profile `render/` dissolves into its profile root, `dotty.json` and
 `profile.json` merge into a single `profile.json`, and the tree of
 `$HOME`-relative entries is renamed to `home/`. A live
 `~/.config/codex/config.toml` still symlinked through active-profile (the layout
-before the codex profile layer) is migrated the same way: its content is backed
-up and rewritten in place as a real machine-local file — restorable with
+before `dotty.config.toml`) is migrated the same way: its content is backed up
+and rewritten in place as a real machine-local file — restorable with
 `dotty dotfiles restore` — so Codex's project trust survives the switch to
 `dotty.config.toml`.
 
