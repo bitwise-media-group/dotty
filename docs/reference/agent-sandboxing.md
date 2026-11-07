@@ -125,8 +125,7 @@ render), since those would loosen the hardening. An existing
   explicitly trusted, so this is looser than Claude Code's "ask unless
   allow-listed": the sandbox, not a prompt, is the boundary for unlisted
   commands. `rules/default.rules` is a `prefix_rule` allowlist mirroring the
-  shared Bash set, with the macOS `security` tool and `fnox` marked
-  `forbidden`.
+  shared Bash set, with the macOS `security` tool and `fnox` marked `forbidden`.
 - **Network**: Codex can only toggle network access wholesale, so
   `network_access = true` keeps installs working. This is broader than Claude
   Code's per-domain allowlist — the credential guard below still applies
