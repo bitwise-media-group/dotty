@@ -5,8 +5,12 @@ package linker
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -158,5 +162,186 @@ func TestMigrateCodexConfigRemovesDanglingOwnedSymlink(t *testing.T) {
 	}
 	if sets := backupSets(t, home); len(sets) != 0 {
 		t.Fatalf("backup sets created: %v", sets)
+	}
+}
+
+// output returns everything written to migrateIOS's buffers.
+func output(ios cli.IOStreams) string {
+	return ios.Out.(*bytes.Buffer).String() + ios.ErrOut.(*bytes.Buffer).String()
+}
+
+// fakeSudo records each elevated command and performs it without sudo, so
+// the tests exercise the real link against a scratch site.
+type fakeSudo struct {
+	calls [][]string
+	err   error
+}
+
+func (f *fakeSudo) RunInteractive(_ context.Context, name string, args ...string) error {
+	f.calls = append(f.calls, append([]string{name}, args...))
+	if f.err != nil {
+		return f.err
+	}
+	switch args[0] {
+	case "mkdir":
+		return os.MkdirAll(args[len(args)-1], 0o755)
+	case "ln":
+		return os.Symlink(args[len(args)-2], args[len(args)-1])
+	}
+	return fmt.Errorf("unexpected command %v", args)
+}
+
+// systemEnv builds a fake home whose active profile renders the codex
+// settings layer, returning the home, dotty config dir, the rendered layer
+// the link must target, and a scratch system site.
+func systemEnv(t *testing.T) (home, configDir, layer, site string) {
+	t.Helper()
+	home, configDir, _ = migrateEnv(t)
+	profileDir := filepath.Join(configDir, "box")
+	layer = filepath.Join(configDir, "active-profile", "home", ".config", "codex", "dotty.config.toml")
+	if err := os.MkdirAll(filepath.Join(profileDir, "home", ".config", "codex"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(profileDir, "home", ".config", "codex", "dotty.config.toml"),
+		[]byte("sandbox_mode = \"workspace-write\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("box", filepath.Join(configDir, "active-profile")); err != nil {
+		t.Fatal(err)
+	}
+	return home, configDir, layer, filepath.Join(home, "etc", "codex", "config.toml")
+}
+
+func TestLinkCodexSystemConfigCreatesLink(t *testing.T) {
+	home, configDir, layer, site := systemEnv(t)
+	sudo := &fakeSudo{}
+	if err := LinkCodexSystemConfig(context.Background(), migrateIOS(), sudo, site, home, configDir); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{
+		{"sudo", "mkdir", "-p", filepath.Dir(site)},
+		{"sudo", "ln", "-s", layer, site},
+	}
+	if !slices.EqualFunc(sudo.calls, want, slices.Equal) {
+		t.Errorf("calls = %v, want %v", sudo.calls, want)
+	}
+	if got, err := os.ReadFile(site); err != nil || !strings.Contains(string(got), "workspace-write") {
+		t.Errorf("site does not resolve to the layer: %q, %v", got, err)
+	}
+
+	// A second run finds the link in place and needs no sudo.
+	sudo.calls = nil
+	if err := LinkCodexSystemConfig(context.Background(), migrateIOS(), sudo, site, home, configDir); err != nil {
+		t.Fatal(err)
+	}
+	if len(sudo.calls) != 0 {
+		t.Errorf("re-run ran %v, want nothing", sudo.calls)
+	}
+}
+
+func TestLinkCodexSystemConfigWithoutCodex(t *testing.T) {
+	home, configDir, _ := migrateEnv(t)
+	site := filepath.Join(home, "etc", "codex", "config.toml")
+	sudo := &fakeSudo{}
+	if err := LinkCodexSystemConfig(context.Background(), migrateIOS(), sudo, site, home, configDir); err != nil {
+		t.Fatal(err)
+	}
+	if len(sudo.calls) != 0 {
+		t.Errorf("calls = %v, want none for a profile without codex", sudo.calls)
+	}
+	if _, err := os.Lstat(site); err == nil {
+		t.Error("site created for a profile without codex")
+	}
+}
+
+func TestLinkCodexSystemConfigLeavesForeignSite(t *testing.T) {
+	for name, seed := range map[string]func(site string) error{
+		"regular file":    func(site string) error { return os.WriteFile(site, []byte("model = \"x\"\n"), 0o644) },
+		"foreign symlink": func(site string) error { return os.Symlink("/elsewhere/config.toml", site) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			home, configDir, _, site := systemEnv(t)
+			if err := os.MkdirAll(filepath.Dir(site), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := seed(site); err != nil {
+				t.Fatal(err)
+			}
+			before, _ := os.Lstat(site)
+			ios := migrateIOS()
+			sudo := &fakeSudo{}
+			if err := LinkCodexSystemConfig(context.Background(), ios, sudo, site, home, configDir); err != nil {
+				t.Fatal(err)
+			}
+			if len(sudo.calls) != 0 {
+				t.Errorf("calls = %v, want none", sudo.calls)
+			}
+			if after, err := os.Lstat(site); err != nil || after.Mode() != before.Mode() {
+				t.Errorf("foreign site changed: %v, %v", after, err)
+			}
+			if out := output(ios); !strings.Contains(out, "sudo ln -sfn") {
+				t.Errorf("no replacement hint in output: %q", out)
+			}
+		})
+	}
+}
+
+func TestLinkCodexSystemConfigSudoFails(t *testing.T) {
+	home, configDir, _, site := systemEnv(t)
+	sudo := &fakeSudo{err: errors.New("declined")}
+	err := LinkCodexSystemConfig(context.Background(), migrateIOS(), sudo, site, home, configDir)
+	if err == nil || !strings.Contains(err.Error(), "sudo mkdir") {
+		t.Errorf("err = %v, want the failing sudo command", err)
+	}
+}
+
+func TestLinkCodexSystemConfigWarnsOnShadowedKeys(t *testing.T) {
+	home, configDir, _, site := systemEnv(t)
+	machine := filepath.Join(home, ".config", "codex", "config.toml")
+	if err := os.WriteFile(machine, []byte("sandbox_mode = \"danger-full-access\"\n"+codexState), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ios := migrateIOS()
+	if err := LinkCodexSystemConfig(context.Background(), ios, &fakeSudo{}, site, home, configDir); err != nil {
+		t.Fatal(err)
+	}
+	if out := output(ios); !strings.Contains(out, "sandbox_mode") {
+		t.Errorf("no shadowing warning in output: %q", out)
+	}
+}
+
+func TestCodexShadowedKeys(t *testing.T) {
+	tests := []struct {
+		name, content string
+		want          []string
+	}{
+		{"machine state only", "model = \"gpt\"\n" + codexState, nil},
+		{"top-level keys", "approval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n",
+			[]string{"approval_policy", "sandbox_mode"}},
+		{"table", "[sandbox_workspace_write]\nnetwork_access = true\n", []string{"sandbox_workspace_write"}},
+		{"dotted key", "sandbox_workspace_write.network_access = true\n", []string{"sandbox_workspace_write"}},
+		{"key inside another table", "[profiles.x]\nsandbox_mode = \"read-only\"\n", nil},
+		{"comment", "# sandbox_mode = \"read-only\"\n", nil},
+		{"array of tables", "[[sandbox_workspace_write]]\n", []string{"sandbox_workspace_write"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.toml")
+			if err := os.WriteFile(path, []byte(tt.content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			got, err := codexShadowedKeys(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("codexShadowedKeys = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	got, err := codexShadowedKeys(filepath.Join(t.TempDir(), "missing.toml"))
+	if err != nil || got != nil {
+		t.Errorf("missing file = %v, %v, want nil, nil", got, err)
 	}
 }

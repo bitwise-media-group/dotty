@@ -101,14 +101,18 @@ Claude Code's OS-level (Seatbelt) sandbox:
 ## Codex
 
 `~/.config/codex/dotty.config.toml` recovers the same guarantees with Codex's
-primitives. It is a Codex _profile layer_, applied when Codex runs with
-`--profile dotty` — the shared `.zshrc` alias and the `dotty tmux new` agent
-window both pass it. `~/.config/codex/config.toml` stays machine-local and
+primitives. Codex reads it as its _system config layer_: `dotty init` and
+`dotty dotfiles link` symlink `/etc/codex/config.toml` to it through
+active-profile (with sudo, the first time), so every `codex` invocation —
+interactive, `exec`, `doctor`, scripts, and `dotty tmux new` — applies it
+without a flag. `~/.config/codex/config.toml` stays machine-local and
 Codex-owned (project trust, hook state, desktop-app integration); dotty never
-touches it, and the profile layer overrides any stale dotty-rendered keys left
-there by the pre-layer layout. Bare `codex` from a script and the ChatGPT
-desktop app get stock behaviour (the `rules/default.rules` allowlist still
-auto-discovers from `$CODEX_HOME/rules/`).
+touches it. It sits above the system layer and overrides it key by key, so a
+model picked with `/model` wins as intended; dotty warns when it finds
+`approval_policy`, `sandbox_mode`, or `[sandbox_workspace_write]` there (a
+config.toml migrated from the pre-layer layout carries a full copy of the old
+render), since those would loosen the hardening. An existing
+`/etc/codex/config.toml` that dotty did not create is reported, never replaced.
 
 - **Sandbox**: `sandbox_mode = "workspace-write"` — the same Seatbelt mechanism,
   but it restricts _writes only_: the working directory plus `writable_roots`
