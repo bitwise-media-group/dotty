@@ -116,24 +116,6 @@ func TestSetArgs(t *testing.T) {
 	})
 }
 
-func TestSetDefaultArgs(t *testing.T) {
-	for _, tt := range targets {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &fakeRunner{}
-			if err := New(r, globalCfg).SetDefault(context.Background(), tt.t, "PORT", "8080"); err != nil {
-				t.Fatalf("SetDefault: %v", err)
-			}
-			want := append(append(append([]string{}, tt.prefix...), withG(tt.global, "set")...), "--default=8080", "PORT")
-			if len(r.calls) != 1 || !reflect.DeepEqual(r.calls[0].args, want) {
-				t.Errorf("calls = %+v, want fnox %v", r.calls, want)
-			}
-			if r.calls[0].stdin != "" {
-				t.Errorf("stdin = %q, want nothing for a metadata-only set", r.calls[0].stdin)
-			}
-		})
-	}
-}
-
 func TestRemoveArgs(t *testing.T) {
 	for _, tt := range targets {
 		t.Run(tt.name, func(t *testing.T) {

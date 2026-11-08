@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/env"
 	"github.com/bitwise-media-group/dotty/internal/envmigrate"
 	"github.com/bitwise-media-group/dotty/internal/fnox"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/privdot"
 	"github.com/bitwise-media-group/dotty/internal/tui"
 )
@@ -34,7 +36,7 @@ var envMigrateFlags = EnvMigrateFlags{}
 
 var envMigrateCmd = &cobra.Command{
 	Use:   "migrate [PATH...]",
-	Short: "Move dotty env credentials and templates into fnox.",
+	Short: "Move dotty env credentials into fnox, and template variables into mise.",
 	Long: `Set up fnox for dotty's use, then carry the legacy store into it. Setup is
 idempotent: a software age identity is generated and parked in the macOS
 Keychain, and the global config (~/.config/fnox/config.toml) gets an age
@@ -45,13 +47,18 @@ Secrets only enter fnox exec subprocesses (env = "exec"), never the shell.
 Every keychain namespace becomes a fnox profile in the global config (the
 "default" namespace lands in the top-level secrets); --namespace limits the
 set. Each PATH is a .env.dotty template (default: the one in the working
-directory, when present) that becomes a fnox.toml beside it — literals as
-defaults, {{ dotty://ns/KEY }} references as encrypted values. Keys fnox
-already has are skipped unless --force, so re-running is safe. Failures are
-reported per entry and never abort the run. The keychain items and templates
-are left in place; --purge deletes a namespace's keychain item once every
-credential in it migrated, after confirmation. Delete a template yourself
-once fnox exec works in its directory.`,
+directory, when present), split by what its lines hold. Plain KEY=value
+lines are configuration, not secrets: they become [env] variables in the
+mise.toml beside the template (trusted when dotty creates it), which mise
+loads into the shell and its tasks — mise expands $VARS and {{ }} there, so
+values carrying either are warned about. {{ dotty://ns/KEY }} references
+become encrypted values in a fnox.toml beside it, created only when the
+template has any. Keys already present are skipped unless --force, so
+re-running is safe. Failures are reported per entry and never abort the run.
+The keychain items and templates are left in place; --purge deletes a
+namespace's keychain item once every credential in it migrated, after
+confirmation. Delete a template yourself once mise (and fnox exec, for its
+secrets) works in its directory.`,
 	Example: `  dotty env migrate
   dotty env migrate --namespace aws --namespace ci --purge
   dotty env migrate --skip-keychain ./svc/.env.dotty
@@ -75,8 +82,13 @@ once fnox exec works in its directory.`,
 			return err
 		}
 
+		projectEnv, err := newProjectEnv(runner, files)
+		if err != nil {
+			return err
+		}
+
 		store := env.NewStore(env.NewKeychain(runner))
-		migrator := envmigrate.New(ios, store, client)
+		migrator := envmigrate.New(ios, store, client, projectEnv)
 		opts := envmigrate.Options{
 			Namespaces: envMigrateFlags.Namespaces,
 			Files:      files,
@@ -133,6 +145,24 @@ func envMigrateFiles(args []string) ([]string, error) {
 		}
 	}
 	return files, nil
+}
+
+// newProjectEnv returns the mise client templates' plain variables are
+// written through. Only templates need mise, so with none to migrate a
+// missing mise is no obstacle.
+func newProjectEnv(runner *cli.ExecRunner, files []string) (*mise.ProjectEnv, error) {
+	if len(files) == 0 {
+		return mise.NewProjectEnv(runner, ""), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("resolve home directory: %w", err)
+	}
+	bin, err := mise.Lookup(exec.LookPath, home)
+	if err != nil {
+		return nil, fmt.Errorf("templates' plain variables move to mise: %w", err)
+	}
+	return mise.NewProjectEnv(runner, bin), nil
 }
 
 // migrateNamespaces runs the keychain half, resolving the namespace set up

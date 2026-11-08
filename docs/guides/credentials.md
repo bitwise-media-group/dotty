@@ -36,7 +36,6 @@ Allow**.
 fnox set GITHUB_TOKEN                       # prompts for the value, hidden
 printf '%s' "$TOKEN" | fnox set GITHUB_TOKEN # or from stdin
 fnox set -P acme API_KEY                    # in the "acme" profile
-fnox set --default=8080 PORT                # a plain, non-secret default
 ```
 
 Inside a project, `fnox set` writes to its `fnox.toml` (create it with
@@ -44,6 +43,18 @@ Inside a project, `fnox set` writes to its `fnox.toml` (create it with
 namespaces: one project's secrets don't collide with another's, and
 `FNOX_PROFILE` selects one for a whole session. `fnox.local.toml` holds
 per-machine overrides and is globally ignored.
+
+Plain, non-secret configuration — a region, a service account to impersonate, a
+port — is not a secret and does not belong in fnox. Put it in the project's
+`mise.toml` instead:
+
+```sh
+mise set GOOGLE_IMPERSONATE_SERVICE_ACCOUNT=terraform-apply@….iam.gserviceaccount.com
+```
+
+mise loads `[env]` into the shell on `cd` and into every `mise run` task, so the
+variable reaches tools, `make` targets, and coding agents alike — no `fnox exec`
+needed. mise expands `$VARS` and `{{ … }}` templates in those values.
 
 ## Reading
 
@@ -76,16 +87,17 @@ fnox export --all -o .env      # then delete it when done; .env.* is ignored
 
 The old verbs are gone. `dotty env migrate` carries the old store over:
 
-| Was                    | Now                         |
-| ---------------------- | --------------------------- |
-| `dotty env add KEY`    | `fnox set KEY`              |
-| `dotty env get KEY`    | `fnox get KEY`              |
-| `dotty env list`       | `fnox list`                 |
-| `dotty env remove KEY` | `fnox remove KEY`           |
-| `dotty env run -- cmd` | `fnox exec -- cmd`          |
-| `dotty env use`        | `fnox export --all -o .env` |
-| `--namespace=ns`       | `-P ns`                     |
-| `.env.dotty` template  | `fnox.toml` beside it       |
+| Was                     | Now                           |
+| ----------------------- | ----------------------------- |
+| `dotty env add KEY`     | `fnox set KEY`                |
+| `dotty env get KEY`     | `fnox get KEY`                |
+| `dotty env list`        | `fnox list`                   |
+| `dotty env remove KEY`  | `fnox remove KEY`             |
+| `dotty env run -- cmd`  | `fnox exec -- cmd`            |
+| `dotty env use`         | `fnox export --all -o .env`   |
+| `--namespace=ns`        | `-P ns`                       |
+| `.env.dotty` literals   | `mise.toml` `[env]` beside it |
+| `.env.dotty` references | `fnox.toml` beside it         |
 
 ```sh
 dotty env migrate --dry-run             # what would move
@@ -95,20 +107,25 @@ dotty env migrate --skip-keychain svc/.env.dotty
 ```
 
 Every keychain namespace becomes a profile in the global config (`default` lands
-in the top-level secrets). Each template becomes the `fnox.toml` beside it:
-plain `KEY=value` lines as defaults, `{{ dotty://ns/KEY }}` references as
-encrypted values. Re-running is safe — keys fnox already has are skipped unless
-`--force` — and problems are reported per line without stopping the run:
+in the top-level secrets). Each template is split: plain `KEY=value` lines
+become `[env]` variables in the `mise.toml` beside it (trusted when dotty
+creates it), and `{{ dotty://ns/KEY }}` references become encrypted values in a
+`fnox.toml` beside it, created only when the template has any. Re-running is
+safe — keys either file already has are skipped unless `--force` — and problems
+are reported per line without stopping the run:
 
 - an unterminated quote or malformed reference;
+- a literal containing `$` or `{{`, which mise would expand: check it in
+  `mise.toml`;
 - a value mixing a reference with text (`postgres://{{ … }}/db`): store the
   secret on its own and use fnox's `default = "postgres://${HOST}/db"`
   interpolation;
 - fnox trims surrounding whitespace from values.
 
 Nothing old is deleted unless you pass `--purge` (confirmed, and only for a
-namespace whose every credential migrated). Delete a template yourself once
-`fnox exec` works in its directory, then run `fnox check --all`.
+namespace whose every credential migrated). Delete a template yourself once mise
+loads its variables (`mise env`) and `fnox exec` works in its directory, then
+run `fnox check --all`.
 
 ## Recovery with a backup key
 

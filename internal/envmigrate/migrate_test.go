@@ -7,9 +7,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -47,13 +49,12 @@ func (f *fakeKeychain) List(context.Context) ([]string, error) {
 	return names, nil
 }
 
-// write is one recorded fnox write: a value set or a default.
+// write is one recorded fnox write.
 type write struct {
 	target   fnox.Target
 	provider string
 	key      string
 	value    string
-	isDef    bool
 }
 
 // fakeFnox records writes and answers Keys from existing; failKeys makes
@@ -74,21 +75,60 @@ func (f *fakeFnox) Set(_ context.Context, t fnox.Target, provider, key string, v
 	return nil
 }
 
-func (f *fakeFnox) SetDefault(_ context.Context, t fnox.Target, key, def string) error {
-	f.writes = append(f.writes, write{target: t, key: key, value: def, isDef: true})
+func (f *fakeFnox) Keys(_ context.Context, t fnox.Target) ([]string, error) {
+	return f.existing[t.String()], nil
+}
+
+// envVar is one recorded mise variable write.
+type envVar struct {
+	path  string
+	key   string
+	value string
+}
+
+// fakeEnv records mise writes and trusts, answering Keys from existing.
+// Like mise set, a write creates the file it targets.
+type fakeEnv struct {
+	sets     []envVar
+	trusted  []string
+	existing map[string][]string // path -> keys
+	failKeys []string
+}
+
+func (f *fakeEnv) Keys(path string) ([]string, error) { return f.existing[path], nil }
+
+func (f *fakeEnv) Set(_ context.Context, path, key, value string) error {
+	if slices.Contains(f.failKeys, key) {
+		return errors.New("fake mise failure for " + key)
+	}
+	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
+		if err := os.WriteFile(path, []byte("[env]\n"), 0o600); err != nil {
+			return err
+		}
+	}
+	f.sets = append(f.sets, envVar{path: path, key: key, value: value})
 	return nil
 }
 
-func (f *fakeFnox) Keys(_ context.Context, t fnox.Target) ([]string, error) {
-	return f.existing[t.String()], nil
+func (f *fakeEnv) Trust(_ context.Context, path string) error {
+	f.trusted = append(f.trusted, path)
+	return nil
 }
 
 // newMigrator wires a migrator over fakes with a captured stderr.
 func newMigrator(t *testing.T, kc *fakeKeychain, f *fakeFnox) (*Migrator, *bytes.Buffer) {
 	t.Helper()
+	m, _, errOut := newMigratorEnv(t, kc, f)
+	return m, errOut
+}
+
+// newMigratorEnv is newMigrator that also returns the mise fake.
+func newMigratorEnv(t *testing.T, kc *fakeKeychain, f *fakeFnox) (*Migrator, *fakeEnv, *bytes.Buffer) {
+	t.Helper()
 	var errOut bytes.Buffer
 	ios := cli.IOStreams{In: strings.NewReader(""), Out: &bytes.Buffer{}, ErrOut: &errOut}
-	return New(ios, env.NewStore(kc), f), &errOut
+	e := &fakeEnv{}
+	return New(ios, env.NewStore(kc), f, e), e, &errOut
 }
 
 func TestTarget(t *testing.T) {
@@ -229,7 +269,7 @@ func TestFiles(t *testing.T) {
 		"default": `{"BARE":"bare"}`,
 	}}
 	f := &fakeFnox{}
-	m, errOut := newMigrator(t, kc, f)
+	m, e, errOut := newMigratorEnv(t, kc, f)
 
 	report, err := m.Files(ctx, Options{Files: []string{tmpl}, Provider: "dotty-age"})
 	if err != nil {
@@ -238,16 +278,24 @@ func TestFiles(t *testing.T) {
 	if report.Migrated != 4 || report.Failed != 3 {
 		t.Errorf("report = %+v, want 4 migrated, 3 failed", report)
 	}
+
+	// Literals land in mise, references in fnox.
+	miseDst := filepath.Join(dir, "mise.toml")
+	wantEnv := []envVar{{miseDst, "PORT", "8080"}, {miseDst, "LAST", "done"}}
+	if !reflect.DeepEqual(e.sets, wantEnv) {
+		t.Errorf("mise sets = %+v, want %+v", e.sets, wantEnv)
+	}
+	if !reflect.DeepEqual(e.trusted, []string{miseDst}) {
+		t.Errorf("trusted = %v, want the mise.toml dotty created", e.trusted)
+	}
 	dst := filepath.Join(dir, ProjectConfig)
 	pt := fnox.Target{Config: dst}
 	want := []write{
-		{target: pt, key: "PORT", value: "8080", isDef: true},
 		{target: pt, provider: "dotty-age", key: "TOKEN", value: "tok"},
 		{target: pt, provider: "dotty-age", key: "BARE", value: "bare"},
-		{target: pt, key: "LAST", value: "done", isDef: true},
 	}
 	if !reflect.DeepEqual(f.writes, want) {
-		t.Errorf("writes = %+v, want %+v", f.writes, want)
+		t.Errorf("fnox writes = %+v, want %+v", f.writes, want)
 	}
 	// The project file is seeded so fnox -c can write to it; the template
 	// stays for the user to delete.
@@ -264,43 +312,108 @@ func TestFiles(t *testing.T) {
 	}
 }
 
+func TestFilesPlainOnly(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	tmpl := filepath.Join(dir, ".env.dotty")
+	if err := os.WriteFile(tmpl, []byte("SA=apply@p.iam.gserviceaccount.com\nHOMEISH=$HOME/x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f := &fakeFnox{}
+	m, e, errOut := newMigratorEnv(t, &fakeKeychain{}, f)
+
+	report, err := m.Files(ctx, Options{Files: []string{tmpl}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Migrated != 2 || len(e.sets) != 2 || len(f.writes) != 0 {
+		t.Errorf("report = %+v, mise sets = %+v, fnox writes = %+v; want both in mise only", report, e.sets, f.writes)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ProjectConfig)); err == nil {
+		t.Error("fnox.toml created for a template without secrets")
+	}
+	if !strings.Contains(errOut.String(), ":2: mise expands") || strings.Contains(errOut.String(), ":1: mise expands") {
+		t.Errorf("stderr = %q, want only line 2 warned about expansion", errOut.String())
+	}
+}
+
+func TestFilesKeepsTrustOfExistingMiseConfig(t *testing.T) {
+	dir := t.TempDir()
+	tmpl := filepath.Join(dir, ".env.dotty")
+	if err := os.WriteFile(tmpl, []byte("A=1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "mise.toml"), []byte("[tools]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m, e, _ := newMigratorEnv(t, &fakeKeychain{}, &fakeFnox{})
+	if _, err := m.Files(context.Background(), Options{Files: []string{tmpl}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(e.sets) != 1 || len(e.trusted) != 0 {
+		t.Errorf("sets = %+v, trusted = %v; want the write but no trust for a file dotty did not create", e.sets, e.trusted)
+	}
+}
+
 func TestFilesSkipsExistingAndDryRun(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
 	tmpl := filepath.Join(dir, ".env.dotty")
-	if err := os.WriteFile(tmpl, []byte("A=1\nB=2\n"), 0o600); err != nil {
+	if err := os.WriteFile(tmpl, []byte("A=1\nB=2\nS={{ dotty://ci/S }}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	kc := &fakeKeychain{items: map[string]string{"ci": `{"S":"s"}`}}
 	dst := filepath.Join(dir, ProjectConfig)
+	miseDst := filepath.Join(dir, "mise.toml")
 
 	t.Run("dry run writes nothing", func(t *testing.T) {
 		f := &fakeFnox{}
-		m, _ := newMigrator(t, &fakeKeychain{}, f)
+		m, e, _ := newMigratorEnv(t, kc, f)
 		report, err := m.Files(ctx, Options{Files: []string{tmpl}, DryRun: true})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if report.Migrated != 2 || len(f.writes) != 0 {
-			t.Errorf("dry run report = %+v, writes = %v", report, f.writes)
+		if report.Migrated != 3 || len(f.writes) != 0 || len(e.sets) != 0 || len(e.trusted) != 0 {
+			t.Errorf("dry run report = %+v, fnox = %v, mise = %v", report, f.writes, e.sets)
 		}
-		if _, err := os.Stat(dst); err == nil {
-			t.Error("dry run created fnox.toml")
+		for _, p := range []string{dst, miseDst} {
+			if _, err := os.Stat(p); err == nil {
+				t.Errorf("dry run created %s", p)
+			}
 		}
 	})
 	t.Run("existing keys skipped", func(t *testing.T) {
 		if err := os.WriteFile(dst, []byte("[secrets]\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		f := &fakeFnox{existing: map[string][]string{dst: {"A"}}}
-		m, _ := newMigrator(t, &fakeKeychain{}, f)
+		f := &fakeFnox{existing: map[string][]string{dst: {"S"}}}
+		m, e, _ := newMigratorEnv(t, kc, f)
+		e.existing = map[string][]string{miseDst: {"A"}}
 		report, err := m.Files(ctx, Options{Files: []string{tmpl}})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if report.Migrated != 1 || report.Skipped != 1 || len(f.writes) != 1 || f.writes[0].key != "B" {
-			t.Errorf("report = %+v, writes = %+v; want only B written", report, f.writes)
+		if report.Migrated != 1 || report.Skipped != 2 || len(f.writes) != 0 || len(e.sets) != 1 || e.sets[0].key != "B" {
+			t.Errorf("report = %+v, fnox = %+v, mise = %+v; want only B written", report, f.writes, e.sets)
 		}
 	})
+}
+
+func TestFilesMiseFailureCounted(t *testing.T) {
+	dir := t.TempDir()
+	tmpl := filepath.Join(dir, ".env.dotty")
+	if err := os.WriteFile(tmpl, []byte("A=1\nB=2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m, e, errOut := newMigratorEnv(t, &fakeKeychain{}, &fakeFnox{})
+	e.failKeys = []string{"A"}
+	report, err := m.Files(context.Background(), Options{Files: []string{tmpl}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Migrated != 1 || report.Failed != 1 || !strings.Contains(errOut.String(), "fake mise failure for A") {
+		t.Errorf("report = %+v, stderr = %q; want A failed and warned, B migrated", report, errOut.String())
+	}
 }
 
 func TestReportAdd(t *testing.T) {

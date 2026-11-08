@@ -134,18 +134,6 @@ func (c *Client) set(ctx context.Context, t Target, provider, key string, value 
 	return nil
 }
 
-// SetDefault records key in t with a plaintext default and no provider
-// value — fnox's form for a non-secret literal. A metadata-only set never
-// reads stdin, so the value goes in argv; callers pass only values that were
-// already plaintext on disk.
-func (c *Client) SetDefault(ctx context.Context, t Target, key, def string) error {
-	argv := c.args(t, true, "set", "--default="+def, key)
-	if _, err := c.r.Output(ctx, Bin, argv...); err != nil {
-		return fmt.Errorf("set default for %s in %s: %w", key, t, err)
-	}
-	return nil
-}
-
 // Remove drops key's entry from t's config. fnox edits the TOML only; a
 // provider-side item (keychain, remote store) is left in place.
 func (c *Client) Remove(ctx context.Context, t Target, key string) error {

@@ -11,15 +11,20 @@ import (
 
 var envCmd = &cobra.Command{
 	Use:   "env <verb>",
-	Short: "Migrate legacy keychain credentials to fnox.",
+	Short: "Migrate legacy dotty env credentials to fnox and mise.",
 	Long: `Secrets are managed by fnox (https://fnox.jdx.dev): fnox set / get / list /
 remove replace the old dotty env verbs, fnox exec runs a command with them in
 its environment, and fnox export writes a .env for tools that insist on one.
 dotty installs fnox with its packages, activates its shell hook, and sets up
 an age provider whose identity lives in the macOS Keychain.
 
-The one verb left here carries credentials out of the old dotty env store —
-keychain namespaces and .env.dotty templates — into fnox.`,
+Plain, non-secret variables belong in mise instead: an [env] table in the
+project's mise.toml (mise set KEY=value) reaches the shell and mise tasks
+without fnox.
+
+The one verb left here carries the old dotty env store out — keychain
+namespaces into fnox, and .env.dotty templates into mise.toml (plain values)
+and fnox.toml (references).`,
 	Example: `  dotty env migrate
   dotty env migrate --namespace aws --purge
   fnox -P aws exec -- aws s3 ls`,

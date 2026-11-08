@@ -1,6 +1,6 @@
 ## dotty env migrate
 
-Move dotty env credentials and templates into fnox.
+Move dotty env credentials into fnox, and template variables into mise.
 
 ### Synopsis
 
@@ -14,13 +14,18 @@ Secrets only enter fnox exec subprocesses (env = "exec"), never the shell.
 Every keychain namespace becomes a fnox profile in the global config (the
 "default" namespace lands in the top-level secrets); --namespace limits the
 set. Each PATH is a .env.dotty template (default: the one in the working
-directory, when present) that becomes a fnox.toml beside it — literals as
-defaults, {{ dotty://ns/KEY }} references as encrypted values. Keys fnox
-already has are skipped unless --force, so re-running is safe. Failures are
-reported per entry and never abort the run. The keychain items and templates
-are left in place; --purge deletes a namespace's keychain item once every
-credential in it migrated, after confirmation. Delete a template yourself
-once fnox exec works in its directory.
+directory, when present), split by what its lines hold. Plain KEY=value
+lines are configuration, not secrets: they become [env] variables in the
+mise.toml beside the template (trusted when dotty creates it), which mise
+loads into the shell and its tasks — mise expands $VARS and {{ }} there, so
+values carrying either are warned about. {{ dotty://ns/KEY }} references
+become encrypted values in a fnox.toml beside it, created only when the
+template has any. Keys already present are skipped unless --force, so
+re-running is safe. Failures are reported per entry and never abort the run.
+The keychain items and templates are left in place; --purge deletes a
+namespace's keychain item once every credential in it migrated, after
+confirmation. Delete a template yourself once mise (and fnox exec, for its
+secrets) works in its directory.
 
 ```
 dotty env migrate [PATH...] [flags]
@@ -54,5 +59,5 @@ dotty env migrate [PATH...] [flags]
 
 ### SEE ALSO
 
-* [dotty env](dotty_env.md)	 - Migrate legacy keychain credentials to fnox.
+* [dotty env](dotty_env.md)	 - Migrate legacy dotty env credentials to fnox and mise.
 

@@ -17,6 +17,7 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/cli"
 	"github.com/bitwise-media-group/dotty/internal/env"
 	"github.com/bitwise-media-group/dotty/internal/fnox"
+	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/tui"
 )
 
@@ -33,11 +34,18 @@ const ProjectConfig = "fnox.toml"
 // above it rather than trailing the entries it adds.
 const projectHeader = "# Written by dotty env migrate from .env.dotty; edit freely.\n\n[secrets]\n"
 
-// Fnox is the slice of *fnox.Client the migrator writes through.
+// Fnox is the slice of *fnox.Client the migrator writes secrets through.
 type Fnox interface {
 	Set(ctx context.Context, t fnox.Target, provider, key string, value []byte) error
-	SetDefault(ctx context.Context, t fnox.Target, key, def string) error
 	Keys(ctx context.Context, t fnox.Target) ([]string, error)
+}
+
+// Env is the slice of *mise.ProjectEnv the migrator writes plain variables
+// through.
+type Env interface {
+	Keys(path string) ([]string, error)
+	Set(ctx context.Context, path, key, value string) error
+	Trust(ctx context.Context, path string) error
 }
 
 // Options selects what to migrate and how. Empty Namespaces means every
@@ -70,16 +78,19 @@ func (r *Report) Add(o Report) {
 	r.Purged = append(r.Purged, o.Purged...)
 }
 
-// Migrator moves credentials from the legacy store into fnox.
+// Migrator moves credentials from the legacy store into fnox, and plain
+// template variables into mise.
 type Migrator struct {
 	ios   cli.IOStreams
 	store *env.Store
 	fnox  Fnox
+	env   Env
 }
 
-// New returns a migrator reading store and writing through f.
-func New(ios cli.IOStreams, store *env.Store, f Fnox) *Migrator {
-	return &Migrator{ios: ios, store: store, fnox: f}
+// New returns a migrator reading store, writing secrets through f and plain
+// variables through e.
+func New(ios cli.IOStreams, store *env.Store, f Fnox, e Env) *Migrator {
+	return &Migrator{ios: ios, store: store, fnox: f, env: e}
 }
 
 // Target maps a legacy namespace onto its fnox home in the global config.
@@ -177,10 +188,12 @@ func (m *Migrator) namespace(ctx context.Context, opts Options, ns string) (Repo
 	return report, report.Failed > 0
 }
 
-// Files migrates .env.dotty templates: each becomes (or extends) the
-// fnox.toml in its directory, literals as defaults and references as values
-// resolved from the keychain. The template is left in place for the user to
-// delete once fnox exec works.
+// Files migrates .env.dotty templates. Plain KEY=value lines become
+// variables in the mise.toml beside the template — they are configuration,
+// not secrets, and mise loads them for the shell and its tasks alike — while
+// references become encrypted values in the fnox.toml beside it, which is
+// only created when the template has any. The template is left in place for
+// the user to delete once both work.
 func (m *Migrator) Files(ctx context.Context, opts Options) (Report, error) {
 	var report Report
 	for _, path := range opts.Files {
@@ -200,7 +213,99 @@ func (m *Migrator) file(ctx context.Context, opts Options, path string) (Report,
 	if err != nil {
 		return report, fmt.Errorf("read template: %w", err)
 	}
-	dst := filepath.Join(filepath.Dir(path), ProjectConfig)
+	var plain, refs []env.Line
+	for _, line := range env.Lines(string(src)) {
+		switch {
+		case line.Err != nil:
+			tui.Warnf(m.ios, "%s:%d: %v", path, line.N, line.Err)
+			report.Failed++
+		case line.Ref == nil:
+			plain = append(plain, line)
+		default:
+			refs = append(refs, line)
+		}
+	}
+
+	dir := filepath.Dir(path)
+	var wrote []string
+	if len(plain) > 0 {
+		dst := filepath.Join(dir, mise.ProjectConfig)
+		r, err := m.plain(ctx, opts, path, dst, plain)
+		report.Add(r)
+		if err != nil {
+			return report, err
+		}
+		wrote = append(wrote, dst)
+	}
+	if len(refs) > 0 {
+		dst := filepath.Join(dir, ProjectConfig)
+		r, err := m.secrets(ctx, opts, path, dst, refs)
+		report.Add(r)
+		if err != nil {
+			return report, err
+		}
+		wrote = append(wrote, dst)
+	}
+	if !opts.DryRun && len(wrote) > 0 {
+		tui.Infof(m.ios, "Wrote %s; once they work, delete %s%s", strings.Join(wrote, " and "), path,
+			checkHint(len(refs) > 0))
+	}
+	return report, nil
+}
+
+// checkHint is the follow-up for a template that had secrets.
+func checkHint(secrets bool) string {
+	if !secrets {
+		return ""
+	}
+	return " and run `fnox check --all`"
+}
+
+// plain carries a template's literal assignments into the mise config at
+// dst. mise loads a project file only once it is trusted, so a file this
+// run creates is trusted straight away; one that already existed keeps
+// whatever trust the user gave it.
+func (m *Migrator) plain(ctx context.Context, opts Options, path, dst string, lines []env.Line) (Report, error) {
+	var report Report
+	existing, err := m.existingEnv(opts, dst)
+	if err != nil {
+		return report, err
+	}
+	_, statErr := os.Stat(dst)
+	created := errors.Is(statErr, fs.ErrNotExist)
+
+	for _, line := range lines {
+		if !opts.Force && slices.Contains(existing, line.Key) {
+			report.Skipped++
+			continue
+		}
+		if mise.Expands(line.Value) {
+			tui.Warnf(m.ios, "%s:%d: mise expands $ and {{ }} in %s; check the value in %s", path, line.N, line.Key, dst)
+		}
+		if opts.DryRun {
+			tui.Infof(m.ios, "would set %s in %s", line.Key, dst)
+			report.Migrated++
+			continue
+		}
+		if err := m.env.Set(ctx, dst, line.Key, line.Value); err != nil {
+			tui.Warnf(m.ios, "%s:%d: %v", path, line.N, err)
+			report.Failed++
+			continue
+		}
+		report.Migrated++
+	}
+	if created && !opts.DryRun && report.Migrated > 0 {
+		if err := m.env.Trust(ctx, dst); err != nil {
+			tui.Warnf(m.ios, "%v (run mise trust %s)", err, dst)
+		}
+	}
+	return report, nil
+}
+
+// secrets carries a template's references into the fnox config at dst,
+// resolving each from the keychain.
+func (m *Migrator) secrets(ctx context.Context, opts Options, path, dst string, lines []env.Line) (Report, error) {
+	var report Report
 	t := fnox.Target{Config: dst}
 	if !opts.DryRun {
 		if err := ensureProjectConfig(dst); err != nil {
@@ -212,27 +317,13 @@ func (m *Migrator) file(ctx context.Context, opts Options, path string) (Report,
 		return report, err
 	}
 
-	for _, line := range env.Lines(string(src)) {
-		if line.Err != nil {
-			tui.Warnf(m.ios, "%s:%d: %v", path, line.N, line.Err)
-			report.Failed++
-			continue
-		}
+	for _, line := range lines {
 		if !opts.Force && slices.Contains(existing, line.Key) {
 			report.Skipped++
 			continue
 		}
 		if opts.DryRun {
 			tui.Infof(m.ios, "would set %s in %s", line.Key, t)
-			report.Migrated++
-			continue
-		}
-		if line.Ref == nil {
-			if err := m.fnox.SetDefault(ctx, t, line.Key, line.Value); err != nil {
-				tui.Warnf(m.ios, "%s:%d: %v", path, line.N, err)
-				report.Failed++
-				continue
-			}
 			report.Migrated++
 			continue
 		}
@@ -253,10 +344,16 @@ func (m *Migrator) file(ctx context.Context, opts Options, path string) (Report,
 		}
 		report.Migrated++
 	}
-	if !opts.DryRun {
-		tui.Infof(m.ios, "Wrote %s; once `fnox exec` works there, delete %s and run `fnox check --all`", dst, path)
-	}
 	return report, nil
+}
+
+// existingEnv lists the variables the mise config at dst already declares so
+// re-runs skip them.
+func (m *Migrator) existingEnv(opts Options, dst string) ([]string, error) {
+	if opts.Force {
+		return nil, nil
+	}
+	return m.env.Keys(dst)
 }
 
 // existingKeys lists what t already holds so re-runs skip it. A project file

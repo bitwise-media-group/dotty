@@ -462,8 +462,11 @@ the old `dotty env` store into it. The former verbs map one to one:
 | `dotty env use`    | `fnox export --all -o .env`             |
 
 A legacy namespace is a fnox profile (`-P ns`); the `default` namespace is the
-top-level `[secrets]` table. A project's `.env.dotty` template is a `fnox.toml`
-beside it: literals as `default = "…"` entries, secrets as encrypted values.
+top-level `[secrets]` table. A project's `.env.dotty` template splits in two:
+its literals are configuration, not secrets, so they become `[env]` variables in
+the `mise.toml` beside it — mise loads them into the shell and its tasks, where
+agents and `make` targets see them without fnox — and its references become
+encrypted values in a `fnox.toml` beside it.
 
 ## Provider bootstrap
 
@@ -515,14 +518,20 @@ dotty env migrate [--namespace <ns>]... [--skip-keychain] [--purge] [--force] [-
 
 Bootstraps the providers, then migrates every keychain namespace (or the
 `--namespace` set) into the global config and every PATH — a `.env.dotty`
-template, defaulting to the working directory's — into the `fnox.toml` beside
-it. Values travel on fnox's stdin, never argv; fnox trims surrounding
-whitespace, which is warned about per value. Keys fnox already has are skipped
-unless `--force`, failures are warned about per entry and counted rather than
-aborting, and nothing old is deleted unless `--purge` (confirmed, and only for a
-namespace whose every credential migrated). Templates stay for the user to
-delete once `fnox exec` works; a mixed value (`postgres://{{ … }}/db`) is
-reported for hand conversion to fnox's `default = "…${KEY}…"` interpolation.
+template, defaulting to the working directory's — into the files beside it.
+Plain `KEY=value` lines go to `mise.toml` through `mise set --file` (in argv:
+they were plaintext on disk already); a `mise.toml` dotty creates is trusted
+with `mise trust`, while an existing one keeps the trust the user gave it. mise
+renders `[env]` values as templates and expands `$VARS`, so a literal carrying
+`$` or `{{`/`{%`/`{#` is warned about. References go to a `fnox.toml`, created
+only when the template has any; their values travel on fnox's stdin, never argv,
+and fnox trims surrounding whitespace, which is warned about per value. Keys
+either file already has are skipped unless `--force`, failures are warned about
+per entry and counted rather than aborting, and nothing old is deleted unless
+`--purge` (confirmed, and only for a namespace whose every credential migrated).
+Templates stay for the user to delete once mise and `fnox exec` work; a mixed
+value (`postgres://{{ … }}/db`) is reported for hand conversion to fnox's
+`default = "…${KEY}…"` interpolation.
 
 The legacy store (`internal/env`) survives read-only for this verb: the keychain
 backend reads, enumerates (`security dump-keychain` without `-d`, so attributes
