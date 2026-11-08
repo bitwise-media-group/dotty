@@ -85,12 +85,12 @@ Covered on the [next page but one](agents.md).
 
 Which platforms the profile's `mise.lock` resolves tools for — `macos-arm64`,
 `macos-x64`, `linux-x64`, `linux-arm64`, their `-musl` variants, and
-`windows-x64`/`windows-arm64` (`--lockfile-platforms`). The machine running
-init is always included: it is ticked and cannot be unticked, and a
+`windows-x64`/`windows-arm64` (`--lockfile-platforms`). The machine running init
+is always included: it is ticked and cannot be unticked, and a
 `--lockfile-platforms` list without it gains it, so a profile shared across
 machines accumulates each one's platform. The picks are stored in
-`profile.json`, so a re-run or a reinstall offers them again, and they render
-as `lockfile_platforms` in the profile's `mise/conf.d/core.toml`. A
+`profile.json`, so a re-run or a reinstall offers them again, and they render as
+`lockfile_platforms` in the profile's `mise/conf.d/core.toml`. A
 `lockfile_platforms` you set in the profile's `config.toml` takes precedence
 over the pick.
 
