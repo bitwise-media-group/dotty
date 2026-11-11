@@ -21,7 +21,9 @@ func (f *fakeRunner) Output(_ context.Context, name string, args ...string) ([]b
 }
 
 // TestStatusArgs pins the exact tmux invocation each state produces — the
-// contract theme.conf's @agent_status rendering depends on.
+// contract theme.conf's @agent_status rendering and the sidebar's wake-ups
+// depend on. Each write is guarded so a repeat of the current state is a
+// no-op that signals nothing.
 func TestStatusArgs(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -31,22 +33,34 @@ func TestStatusArgs(t *testing.T) {
 		{
 			name:  "waiting sets",
 			state: "waiting",
-			want:  []string{"set-window-option", "-t", "%3", "@agent_status", "waiting"},
+			want: []string{
+				"if-shell", "-F", "-t", "%3", "#{!=:#{@agent_status},waiting}",
+				"set-window-option -t '%3' @agent_status waiting ; wait-for -S dotty-tree",
+			},
 		},
 		{
 			name:  "attention sets",
 			state: "attention",
-			want:  []string{"set-window-option", "-t", "%3", "@agent_status", "attention"},
+			want: []string{
+				"if-shell", "-F", "-t", "%3", "#{!=:#{@agent_status},attention}",
+				"set-window-option -t '%3' @agent_status attention ; wait-for -S dotty-tree",
+			},
 		},
 		{
 			name:  "clear unsets",
 			state: "clear",
-			want:  []string{"set-window-option", "-t", "%3", "-u", "@agent_status"},
+			want: []string{
+				"if-shell", "-F", "-t", "%3", "#{!=:#{@agent_status},}",
+				"set-window-option -t '%3' -u @agent_status ; wait-for -S dotty-tree",
+			},
 		},
 		{
 			name:  "unknown state unsets",
 			state: "bogus",
-			want:  []string{"set-window-option", "-t", "%3", "-u", "@agent_status"},
+			want: []string{
+				"if-shell", "-F", "-t", "%3", "#{!=:#{@agent_status},}",
+				"set-window-option -t '%3' -u @agent_status ; wait-for -S dotty-tree",
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -64,7 +78,7 @@ func TestSetStatus(t *testing.T) {
 	f := &fakeRunner{err: errors.New("no server running")}
 	SetStatus(context.Background(), f, "%3", "waiting")
 
-	want := []string{"tmux", "set-window-option", "-t", "%3", "@agent_status", "waiting"}
+	want := append([]string{"tmux"}, StatusArgs("%3", "waiting")...)
 	if len(f.calls) != 1 || !slices.Equal(f.calls[0], want) {
 		t.Errorf("SetStatus calls = %v, want [%v]", f.calls, want)
 	}

@@ -24,14 +24,22 @@ const (
 )
 
 // StatusArgs builds the tmux argv recording state on the pane's window:
-// waiting and attention set @agent_status, anything else unsets it.
+// waiting and attention set @agent_status, anything else unsets it. The write
+// is guarded so it only happens, and only signals Channel to wake the
+// sidebar, when the status actually changes — agents clear on every tool
+// call, and those repeats must neither wake anything nor redraw the status
+// bar.
 func StatusArgs(pane, state string) []string {
+	var cond, set string
 	switch state {
-	case "waiting", "attention":
-		return []string{"set-window-option", "-t", pane, "@agent_status", state}
+	case StatusWaiting, StatusAttention:
+		cond = "#{!=:#{@agent_status}," + state + "}"
+		set = "set-window-option -t " + quote(pane) + " @agent_status " + state
 	default:
-		return []string{"set-window-option", "-t", pane, "-u", "@agent_status"}
+		cond = "#{!=:#{@agent_status},}"
+		set = "set-window-option -t " + quote(pane) + " -u @agent_status"
 	}
+	return []string{"if-shell", "-F", "-t", pane, cond, set + " ; wait-for -S " + Channel}
 }
 
 // SetStatus applies state to the pane's window, discarding output and error.
