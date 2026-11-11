@@ -58,7 +58,8 @@ Custom maps on top of LazyVim's defaults (`lua/config/keymaps.lua`):
 | ++ctrl+e++                                        | Select all                                                      |
 | ++alt+s++                                         | Save without formatting                                         |
 | ++"<leader>"+exclam++ / ++"<leader>"+at++         | Add / remove word from spelling dictionary                      |
-| ++"<leader>"+f+s++                                | tmux session picker (see below)                                 |
+| ++"<leader>"+f+s++                                | Focus the tmux session sidebar (the picker outside tmux)        |
+| ++"<leader>"+f+shift+s++                          | tmux session picker (see below)                                 |
 | ++"<leader>"+f+x++                                | LuaSnip snippet picker                                          |
 | ++"<leader>"+s+f++                                | Search & replace in buffer (grug-far)                           |
 | ++ctrl+h++ / ++ctrl+j++ / ++ctrl+k++ / ++ctrl+l++ | Move across Neovim splits _and_ tmux panes (vim-tmux-navigator) |
@@ -72,9 +73,11 @@ Custom maps on top of LazyVim's defaults (`lua/config/keymaps.lua`):
 - **auto-save** — saves on `InsertLeave` (500 ms debounce); toggle with
   ++"<leader>"+u+v++.
 - **snacks** (customised) — hidden/ignored files visible in the explorer and
-  pickers, and a bespoke **tmux session picker** on ++"<leader>"+f+s++: it
-  renders repo sessions with their agent-worktree sessions nested beneath
-  (worktree root discovered from `$DOTTY_WORKTREES` — see
+  pickers, and a bespoke **tmux session picker** on ++"<leader>"+f+shift+s++
+  (++"<leader>"+f+s++ focuses the [session sidebar](tmux.md#the-session-sidebar)
+  instead when Neovim runs inside tmux): it renders repo sessions with their
+  agent-worktree sessions nested beneath (worktree root discovered from
+  `$DOTTY_WORKTREES` — see
   [Agent worktrees & re-signing](../guides/worktrees.md)), shows a git-status
   preview, and switches the tmux client on confirm.
 - **grug-far** — project-wide search and replace.
