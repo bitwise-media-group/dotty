@@ -6,9 +6,9 @@
 # symlink — activating a different profile swaps these values.
 export REPOS_DIR="{{.ReposDirShell}}"
 
-# Where agent worktrees live: a directory name inside each repository, or an
-# absolute path for one shared root. dotty worktree and the nvim session
-# picker read this.
+# Where agent worktrees live: an absolute (or ~-prefixed) path for one shared
+# root — the default — or a directory name inside each repository. dotty git
+# worktree and the nvim session picker read this.
 export DOTTY_WORKTREES="{{.Worktrees}}"
 {{- if .HasNvim }}
 export EDITOR=nvim

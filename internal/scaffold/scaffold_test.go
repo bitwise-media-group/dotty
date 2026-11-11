@@ -342,77 +342,118 @@ func TestRenderOpenClaudeWithoutClaude(t *testing.T) {
 	}
 }
 
-// TestRenderWorktreesShapes pins the two worktree layouts: the repo-relative
-// default rides the ReposDir sandbox grants and lands in the shared
-// gitignore; an absolute root becomes an explicit sandbox path and skips the
-// ignore.
-func TestRenderWorktreesShapes(t *testing.T) {
-	render := func(t *testing.T, worktrees string) (repo, machine string) {
-		t.Helper()
-		a := everything()
-		a.Worktrees = worktrees
-		a.Harden = true // the sandbox grants live in the hardened blocks
-		ops, err := Plan(a)
-		if err != nil {
-			t.Fatalf("Plan: %v", err)
-		}
-		repo, machine = t.TempDir(), t.TempDir()
-		if err := Render(ops, repo, machine, NewVars(a, "/home/x", repo)); err != nil {
-			t.Fatalf("Render: %v", err)
-		}
-		return repo, machine
+// renderWorktrees renders everything (hardened, so the sandbox grants are
+// present) with the given worktree setting and returns the repo and machine
+// render roots.
+func renderWorktrees(t *testing.T, worktrees string) (repo, machine string) {
+	t.Helper()
+	a := everything()
+	a.Worktrees = worktrees
+	a.Harden = true
+	ops, err := Plan(a)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
 	}
-	read := func(t *testing.T, root, rel string) string {
-		t.Helper()
-		data, err := os.ReadFile(filepath.Join(root, rel))
-		if err != nil {
-			t.Fatal(err)
+	repo, machine = t.TempDir(), t.TempDir()
+	if err := Render(ops, repo, machine, NewVars(a, "/home/x", repo)); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	return repo, machine
+}
+
+// readRendered returns the rendered file root/rel.
+func readRendered(t *testing.T, root, rel string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+// TestRenderWorktreesAbsolute pins the shared-root layouts — the default and
+// any other absolute root: explicit sandbox paths, a gitdir include for the
+// root, and a gitignore listing only the legacy in-repo .worktrees/ (kept so
+// leftovers from before the move do not surface as untracked).
+func TestRenderWorktreesAbsolute(t *testing.T) {
+	cases := []struct {
+		name, setting, abs string
+	}{
+		{"default shared root", "", "/home/x/.local/share/dotty/worktrees"},
+		{"custom absolute root", "~/.cache/agent/worktrees", "/home/x/.cache/agent/worktrees"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			repo, machine := renderWorktrees(t, c.setting)
+			got := readRendered(t, machine, "worktrees.gitconfig")
+			if !strings.Contains(got, "gitdir:"+c.abs+"/**") || !strings.Contains(got, "gitdir:**/.git/worktrees/**") {
+				t.Errorf("worktrees.gitconfig:\n%s", got)
+			}
+			ignore := readRendered(t, repo, "home/.config/git/ignore")
+			if !strings.Contains(ignore, "\n.worktrees/\n") || strings.Contains(ignore, c.abs) {
+				t.Errorf("gitignore should list only the legacy .worktrees/:\n%s", ignore)
+			}
+			codexCfg := readRendered(t, machine, "home/.config/codex/dotty.config.toml")
+			if !strings.Contains(codexCfg, `"`+c.abs+`",`) {
+				t.Error("codex writable_roots missing the absolute root")
+			}
+			settings := readRendered(t, machine, "home/.config/claude/settings.json")
+			if !strings.Contains(settings, `"`+c.abs+`",`) {
+				t.Error("claude allowWrite missing the absolute root")
+			}
+		})
+	}
+}
+
+// TestRenderWorktreesDefaultWiring pins what the default setting renders
+// beyond the layout: the exported location and the claude hook commands.
+func TestRenderWorktreesDefaultWiring(t *testing.T) {
+	_, machine := renderWorktrees(t, "")
+	got := readRendered(t, machine, "env.zsh")
+	if !strings.Contains(got, `DOTTY_WORKTREES="~/.local/share/dotty/worktrees"`) {
+		t.Errorf("env.zsh missing DOTTY_WORKTREES:\n%s", got)
+	}
+	settings := readRendered(t, machine, "home/.config/claude/settings.json")
+	for _, hook := range []string{`"dotty git worktree start"`, `"dotty git worktree remove --yes"`} {
+		if !strings.Contains(settings, hook) {
+			t.Errorf("claude settings missing hook command %s", hook)
 		}
-		return string(data)
+	}
+}
+
+// TestRenderWorktreesRelative pins the repo-relative layout: it rides the
+// ReposDir sandbox grants, so no explicit sandbox path, and lands in the
+// shared gitignore exactly once.
+func TestRenderWorktreesRelative(t *testing.T) {
+	repo, machine := renderWorktrees(t, ".worktrees")
+	got := readRendered(t, machine, "worktrees.gitconfig")
+	if !strings.Contains(got, "gitdir:**/.git/worktrees/**") || strings.Contains(got, "includeIf \"gitdir:/") {
+		t.Errorf("worktrees.gitconfig:\n%s", got)
+	}
+	if got := readRendered(t, repo, "home/.config/git/ignore"); strings.Count(got, "\n.worktrees/\n") != 1 {
+		t.Errorf("gitignore should list .worktrees/ exactly once:\n%s", got)
+	}
+	codexCfg := readRendered(t, machine, "home/.config/codex/dotty.config.toml")
+	if strings.Contains(codexCfg, `".worktrees`) || strings.Contains(codexCfg, "agent/worktrees") {
+		t.Error("codex writable_roots should not carry a relative worktree path")
+	}
+	settings := readRendered(t, machine, "home/.config/claude/settings.json")
+	if got := settings; !strings.Contains(got, `"Edit(**/.worktrees/**)"`) {
+		t.Errorf("claude Edit rule missing:\n%.400s", got)
+	}
+	opencodeCfg := readRendered(t, machine, "home/.config/opencode/opencode.jsonc")
+	if !strings.Contains(opencodeCfg, `"**/.worktrees": "allow"`) {
+		t.Error("opencode matrix missing worktree allow")
+	}
+	if got := readRendered(t, machine, "env.zsh"); !strings.Contains(got, `DOTTY_WORKTREES=".worktrees"`) {
+		t.Errorf("env.zsh missing DOTTY_WORKTREES:\n%s", got)
 	}
 
-	t.Run("relative default", func(t *testing.T) {
-		repo, machine := render(t, "")
-		got := read(t, machine, "worktrees.gitconfig")
-		if !strings.Contains(got, "gitdir:**/.git/worktrees/**") || strings.Contains(got, "includeIf \"gitdir:/") {
-			t.Errorf("worktrees.gitconfig:\n%s", got)
-		}
-		if got := read(t, repo, "home/.config/git/ignore"); !strings.Contains(got, "\n.worktrees/\n") {
-			t.Errorf("gitignore missing worktree dir:\n%s", got)
-		}
-		codexCfg := read(t, machine, "home/.config/codex/dotty.config.toml")
-		if strings.Contains(codexCfg, `".worktrees`) || strings.Contains(codexCfg, "agent/worktrees") {
-			t.Error("codex writable_roots should not carry a relative worktree path")
-		}
-		if got := read(t, machine, "home/.config/claude/settings.json"); !strings.Contains(got, `"Edit(**/.worktrees/**)"`) {
-			t.Errorf("claude Edit rule missing:\n%.400s", got)
-		}
-		opencodeCfg := read(t, machine, "home/.config/opencode/opencode.jsonc")
-		if !strings.Contains(opencodeCfg, `"**/.worktrees": "allow"`) {
-			t.Error("opencode matrix missing worktree allow")
-		}
-		if got := read(t, machine, "env.zsh"); !strings.Contains(got, `DOTTY_WORKTREES=".worktrees"`) {
-			t.Errorf("env.zsh missing DOTTY_WORKTREES:\n%s", got)
-		}
-	})
-
-	t.Run("absolute root", func(t *testing.T) {
-		repo, machine := render(t, "~/.cache/agent/worktrees")
-		abs := "/home/x/.cache/agent/worktrees"
-		got := read(t, machine, "worktrees.gitconfig")
-		if !strings.Contains(got, "gitdir:"+abs+"/**") || !strings.Contains(got, "gitdir:**/.git/worktrees/**") {
-			t.Errorf("worktrees.gitconfig:\n%s", got)
-		}
-		if got := read(t, repo, "home/.config/git/ignore"); strings.Contains(got, "worktrees") {
-			t.Error("gitignore should not list an absolute worktree root")
-		}
-		if got := read(t, machine, "home/.config/codex/dotty.config.toml"); !strings.Contains(got, `"`+abs+`",`) {
-			t.Error("codex writable_roots missing the absolute root")
-		}
-		if got := read(t, machine, "home/.config/claude/settings.json"); !strings.Contains(got, `"`+abs+`",`) {
-			t.Error("claude allowWrite missing the absolute root")
-		}
-	})
+	repo, _ = renderWorktrees(t, "wt")
+	if got := readRendered(t, repo, "home/.config/git/ignore"); !strings.Contains(got, "\n.worktrees/\n") ||
+		!strings.Contains(got, "\nwt/\n") {
+		t.Errorf("gitignore should list the legacy and configured dirs:\n%s", got)
+	}
 }
 
 // TestPrunePerProfileRemovesOrphans pins the re-render cleanup: renders left

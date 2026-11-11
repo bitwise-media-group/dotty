@@ -17,13 +17,18 @@ type Names struct {
 	Path   string // "<root>/<name>"
 }
 
-// Root resolves the configured worktree location against a repository: a
-// relative setting (the default .worktrees) is a directory inside the repo,
-// an absolute or ~-prefixed one is a shared root.
+// DefaultRoot is the shared worktree root an empty setting resolves to, and
+// the default init stores.
+const DefaultRoot = "~/.local/share/dotty/worktrees"
+
+// Root resolves the configured worktree location against a repository: an
+// absolute or ~-prefixed setting is a shared root, a relative one is a
+// directory inside the repo, and an empty one means DefaultRoot.
 func Root(repo, setting, home string) string {
+	if setting == "" {
+		setting = DefaultRoot
+	}
 	switch {
-	case setting == "":
-		return filepath.Join(repo, ".worktrees")
 	case strings.HasPrefix(setting, "~/"):
 		return filepath.Join(home, setting[2:])
 	case filepath.IsAbs(setting):
@@ -44,7 +49,7 @@ func Derive(repoPath, suffix, root string) Names {
 }
 
 // IsAgentBranch reports whether branch is an agent/* branch — the guard that
-// stops `worktree end` from deleting a non-agent branch.
+// stops `git worktree remove` from deleting a non-agent branch.
 func IsAgentBranch(branch string) bool {
 	return strings.HasPrefix(branch, "agent/")
 }

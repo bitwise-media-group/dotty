@@ -102,6 +102,10 @@ func Collect(ios cli.IOStreams, flags Flags, home string) (scaffold.Answers, str
 
 	var answers scaffold.Answers
 	if rerun {
+		if _, migrated := resolveWorktrees(prev.Worktrees, flags.Worktrees); migrated {
+			tui.Infof(ios, "Moving agent worktrees from %s inside each repository to %s",
+				scaffold.LegacyDefaultWorktrees, scaffold.DefaultWorktrees)
+		}
 		answers = mergeAnswers(prev, flags, reposDir, repo, home)
 	} else {
 		answers = scaffold.Answers{ProfileName: profileName, Description: flags.Description,
@@ -670,13 +674,25 @@ func mergeAnswers(prev scaffold.Answers, flags Flags, reposDir, repo, home strin
 	if flags.PIV {
 		prev.PIV = true
 	}
-	if flags.Worktrees != "" {
-		prev.Worktrees = flags.Worktrees
-	}
+	prev.Worktrees, _ = resolveWorktrees(prev.Worktrees, flags.Worktrees)
 	if flags.AllowedSerials != nil {
 		prev.AllowedSerials = flags.AllowedSerials
 	}
 	return prev
+}
+
+// resolveWorktrees picks a re-run's worktree location: an explicit
+// --worktrees flag wins, and a stored legacy default (the in-repo
+// .worktrees) migrates to the current default. migrated reports the latter.
+func resolveWorktrees(stored, flag string) (worktrees string, migrated bool) {
+	switch {
+	case flag != "":
+		return flag, false
+	case stored == scaffold.LegacyDefaultWorktrees:
+		return scaffold.DefaultWorktrees, true
+	default:
+		return stored, false
+	}
 }
 
 // askDefault prompts for a value with def as the placeholder;

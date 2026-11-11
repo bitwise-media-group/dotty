@@ -119,7 +119,8 @@ func registerInterviewFlags(cmd *cobra.Command, flags *wizard.Flags) {
 	cmd.Flags().StringSliceVar(&flags.AllowedSerials, "allowed-serials", nil,
 		"restrict the profile to these security-key serials")
 	cmd.Flags().StringVar(&flags.Worktrees, "worktrees", "",
-		"agent worktree location: a directory name inside each repo (default .worktrees) or an absolute path")
+		"agent worktree location: an absolute path for one shared root (default ~/.local/share/dotty/worktrees) "+
+			"or a directory name inside each repo")
 	cmd.Flags().StringVar(&flags.PrivateRepo, "private-repo", "",
 		"encrypted private dotfiles repository path (empty for none)")
 	cmd.Flags().StringSliceVar(&flags.MacOSDefaults, "macos-defaults", nil,

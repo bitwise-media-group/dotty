@@ -23,7 +23,7 @@ func TestSanitize(t *testing.T) {
 
 func TestRoot(t *testing.T) {
 	tests := []struct{ setting, want string }{
-		{"", "/r/repo/.worktrees"},
+		{"", "/home/x/.local/share/dotty/worktrees"},
 		{".worktrees", "/r/repo/.worktrees"},
 		{"wt", "/r/repo/wt"},
 		{"~/.cache/agent/worktrees", "/home/x/.cache/agent/worktrees"},

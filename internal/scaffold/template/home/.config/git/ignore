@@ -14,7 +14,11 @@ commit.sh
 fnox.local.toml
 
 **/.claude/.cc-writes/
-{{- if not .WorktreesAbs }}
+
+# agent worktrees: the former in-repo default, kept so leftovers from before
+# the move to a shared root stay out of git status
+.worktrees/
+{{- if and (not .WorktreesAbs) (ne .Worktrees ".worktrees") }}
 
 # agent worktrees live inside each repository
 {{.Worktrees}}/

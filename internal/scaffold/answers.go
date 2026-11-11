@@ -18,6 +18,7 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/cli"
 	"github.com/bitwise-media-group/dotty/internal/mise"
 	"github.com/bitwise-media-group/dotty/internal/version"
+	"github.com/bitwise-media-group/dotty/internal/worktree"
 )
 
 // AnswersFile is the profile document: the wizard's persisted answers plus
@@ -81,10 +82,10 @@ type Answers struct {
 	// class, so it travels with the profile and swaps on activation.
 	AllowedSerials []string `json:"allowedSerials,omitzero"`
 
-	// Worktrees is where agent worktrees live: a directory name relative to
-	// each repository (the default, .worktrees) or an absolute path for one
-	// shared root. Keep it identical across profiles — the gitignore entry
-	// renders into the shared repository.
+	// Worktrees is where agent worktrees live: an absolute or ~-prefixed
+	// path for one shared root (the default, DefaultWorktrees) or a
+	// directory name relative to each repository. Keep it identical across
+	// profiles — the gitignore entry renders into the shared repository.
 	Worktrees string `json:"worktrees,omitempty"`
 
 	// PrivateRepo is the encrypted private dotfiles repository, stored like
@@ -95,9 +96,14 @@ type Answers struct {
 	PrivateRepo string `json:"privateRepo"`
 }
 
-// DefaultWorktrees is the repo-relative directory agent worktrees live in
-// when init is not told otherwise.
-const DefaultWorktrees = ".worktrees"
+// DefaultWorktrees is the shared root agent worktrees live under when init
+// is not told otherwise. Outside every repository, so linters and mise never
+// walk into a worktree and a worktree never inherits its parent's config.
+const DefaultWorktrees = worktree.DefaultRoot
+
+// LegacyDefaultWorktrees is the repo-relative default earlier releases
+// stored; a re-run of init migrates it to DefaultWorktrees.
+const LegacyDefaultWorktrees = ".worktrees"
 
 // SaveAnswers writes a to profileDir/profile.json.
 func SaveAnswers(profileDir string, a Answers) error {
