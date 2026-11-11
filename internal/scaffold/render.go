@@ -169,9 +169,7 @@ func Render(ops []FileOp, repoDir, profileDir string, v Vars) error {
 			return fmt.Errorf("read template %s: %w", op.Src, err)
 		}
 		if op.Templated {
-			fileVars := v
-			fileVars.OpenClaudeSettings = op.Dst == "home/.config/openclaude/settings.json"
-			if data, err = render(op.Src, data, fileVars); err != nil {
+			if data, err = render(op.Src, data, v); err != nil {
 				return err
 			}
 		}

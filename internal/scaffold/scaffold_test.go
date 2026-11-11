@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/fs"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -197,9 +196,9 @@ func assertRenderedOps(t *testing.T, ops []FileOp, repo, machineDir string) {
 	}
 }
 
-// assertOpenClaudeDefaults checks OpenClaude shares every Claude settings
-// default, including hardening and marketplace toggles, except the model it
-// leaves to its provider.
+// assertOpenClaudeDefaults checks OpenClaude renders exactly Claude's
+// settings defaults, including hardening and marketplace toggles, and that
+// neither pins a model: Claude Code and OpenClaude's provider pick their own.
 func assertOpenClaudeDefaults(t *testing.T, machineDir string, settings map[string]any) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(machineDir, "home/.config/openclaude/settings.json"))
@@ -210,15 +209,13 @@ func assertOpenClaudeDefaults(t *testing.T, machineDir string, settings map[stri
 	if err := json.Unmarshal(data, &openClaudeSettings); err != nil {
 		t.Fatalf("openclaude settings.json is not valid JSON: %v", err)
 	}
+	if _, has := settings["model"]; has {
+		t.Error("claude must leave the model to Claude Code's default")
+	}
 	if _, has := openClaudeSettings["model"]; has {
 		t.Error("openclaude must leave the model to its provider")
 	}
-	if settings["model"] != "claude-fable-5[1m]" {
-		t.Error("Claude's pinned model default changed")
-	}
-	shared := maps.Clone(settings)
-	delete(shared, "model")
-	claudeDefaults, err := json.Marshal(shared)
+	claudeDefaults, err := json.Marshal(settings)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +224,7 @@ func assertOpenClaudeDefaults(t *testing.T, machineDir string, settings map[stri
 		t.Fatal(err)
 	}
 	if !bytes.Equal(claudeDefaults, openClaudeDefaults) {
-		t.Error("openclaude settings differ from Claude's shared defaults")
+		t.Error("openclaude settings differ from Claude's defaults")
 	}
 }
 

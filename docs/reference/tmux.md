@@ -58,13 +58,14 @@ Selecting the `openclaude` agent also renders settings and the cyberdream theme
 under `.config/openclaude/` and exports
 `OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`. Its settings reuse the
 Claude Code template, including permissions, sandbox settings, worktree and tmux
-hooks, status line, and the optional skills marketplace. The pinned Claude model
-is omitted so OpenClaude can resolve a model for the chosen provider. The shared
-instructions are available as `CLAUDE.md`; settings are per-profile, while
-OpenClaude's credentials, sessions, and provider profiles stay separate from
-Claude Code. OpenClaude normally uses `~/.openclaude` and falls back to
-`CLAUDE_CONFIG_DIR` when `OPENCLAUDE_CONFIG_DIR` is unset, so the explicit
-override also prevents accidentally sharing Claude Code's directory. See
+hooks, status line, and the optional skills marketplace. Neither pins a model,
+so Claude Code uses its own default and OpenClaude resolves one for the chosen
+provider. The shared instructions are available as `CLAUDE.md`; settings are
+per-profile, while OpenClaude's credentials, sessions, and provider profiles
+stay separate from Claude Code. OpenClaude normally uses `~/.openclaude` and
+falls back to `CLAUDE_CONFIG_DIR` when `OPENCLAUDE_CONFIG_DIR` is unset, so the
+explicit override also prevents accidentally sharing Claude Code's directory.
+See
 [OpenClaude's configuration guide](https://openclaude.gitlawb.com/docs/configuration).
 
 ### Copy mode (vi keys)

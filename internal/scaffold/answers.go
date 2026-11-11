@@ -323,10 +323,6 @@ type Vars struct {
 	HasOpenClaude bool
 	HasGrok       bool
 
-	// OpenClaudeSettings is scoped to rendering OpenClaude's settings from
-	// the shared Claude template; provider selection owns its model default.
-	OpenClaudeSettings bool
-
 	// DockGhostty, DockClaude and DockChatGPT pin the optional apps in the
 	// dock defaults group's fragment. An agent's app needs the agent
 	// selected, so a stale pick drops out with its agent.
