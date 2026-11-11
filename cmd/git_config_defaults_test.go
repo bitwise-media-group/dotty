@@ -205,7 +205,8 @@ func TestApplyGitConfigFlagDefaults(t *testing.T) {
 
 // TestGitConfigDefaultsWiring pins the mechanism to the real command tree:
 // every git verb runs it via the parent's PersistentPreRunE, and the flags
-// where a persistent default is destructive (resign --root) or meaningless
+// where a persistent default is destructive (resign --root, worktree remove
+// --yes/--force) or meaningless
 // (merge --up, a stack-relative quantity) are opted out.
 func TestGitConfigDefaultsWiring(t *testing.T) {
 	if gitCmd.PersistentPreRunE == nil {
@@ -217,6 +218,8 @@ func TestGitConfigDefaultsWiring(t *testing.T) {
 	}{
 		{gitResignCmd, "root"},
 		{gitMergeCmd, "up"},
+		{gitWorktreeRemoveCmd, "yes"},
+		{gitWorktreeRemoveCmd, "force"},
 	}
 	for _, e := range excluded {
 		f := e.verb.Flags().Lookup(e.flag)

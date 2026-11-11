@@ -8,17 +8,19 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/bitwise-media-group/dotty/internal/cli"
+	"github.com/bitwise-media-group/dotty/internal/git"
 	"github.com/bitwise-media-group/dotty/internal/tui"
 	"github.com/bitwise-media-group/dotty/internal/worktree"
 )
 
-var worktreeStartCmd = &cobra.Command{
+var gitWorktreeStartCmd = &cobra.Command{
 	Use:   "start [repo] [suffix]",
 	Short: "Create or reuse an agent/* worktree and print its path.",
 	Long: `Create (or reuse) a worktree for repo on an agent/<repo>-<suffix> branch at
@@ -28,9 +30,9 @@ command's result, so hooks and scripts capture stdout.
 repo falls back to $CLAUDE_PROJECT_DIR, then the enclosing repository.
 suffix falls back to the WorktreeCreate hook JSON on stdin ({"name": ...}),
 then a UTC timestamp.`,
-	Example: `  dotty worktree start
-  dotty worktree start ~/Repos/dotty fix-linker
-  echo '{"name":"fix-1"}' | dotty worktree start   # hook form`,
+	Example: `  dotty git worktree start
+  dotty git worktree start ~/Repos/dotty fix-linker
+  echo '{"name":"fix-1"}' | dotty git worktree start   # hook form`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ios := cli.System()
@@ -80,13 +82,16 @@ then a UTC timestamp.`,
 }
 
 func init() {
-	worktreeCmd.AddCommand(worktreeStartCmd)
+	gitWorktreeCmd.AddCommand(gitWorktreeStartCmd)
 }
 
 // startWorktree makes names.Path exist: reused when already there, checked
 // out when the branch survives from an earlier run, created fresh otherwise.
 func startWorktree(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunner, repo string, names worktree.Names) error {
 	if info, err := os.Stat(names.Path); err == nil && info.IsDir() {
+		if err := checkReusable(ctx, r, repo, names.Path); err != nil {
+			return err
+		}
 		tui.Warnf(ios, "Worktree already exists at %s; reusing", names.Path)
 		return nil
 	}
@@ -103,6 +108,37 @@ func startWorktree(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunner, re
 		return fmt.Errorf("create worktree: %w", err)
 	}
 	return nil
+}
+
+// checkReusable confirms the existing directory at path is a worktree of
+// repo. A shared worktree root holds every repository's worktrees, so a
+// same-named one may belong to another repository with the same basename —
+// handing that back would point the agent at the wrong code.
+func checkReusable(ctx context.Context, r *cli.ExecRunner, repo, path string) error {
+	notOurs := fmt.Errorf("%s exists but is not a worktree of %s; remove it or choose another name", path, repo)
+	top, err := r.Output(ctx, "git", "-C", path, "rev-parse", "--show-toplevel")
+	if err != nil || !samePath(strings.TrimSpace(string(top)), path) {
+		return notOurs
+	}
+	want, err := git.CommonDir(ctx, r, repo)
+	if err != nil {
+		return err
+	}
+	if got, err := git.CommonDir(ctx, r, path); err != nil || got != want {
+		return notOurs
+	}
+	return nil
+}
+
+// samePath reports whether a and b name the same location once symlinks
+// are resolved.
+func samePath(a, b string) bool {
+	ra, errA := filepath.EvalSymlinks(a)
+	rb, errB := filepath.EvalSymlinks(b)
+	if errA != nil || errB != nil {
+		return filepath.Clean(a) == filepath.Clean(b)
+	}
+	return ra == rb
 }
 
 // argAt returns args[i] or "".

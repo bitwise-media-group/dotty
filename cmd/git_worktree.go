@@ -14,26 +14,30 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/scaffold"
 )
 
-var worktreeCmd = &cobra.Command{
-	Use:   "worktree",
+var gitWorktreeCmd = &cobra.Command{
+	Use:   "worktree <verb>",
 	Short: "Manage agent git worktrees.",
 	Long: `The agent worktree lifecycle: start creates or reuses a worktree on an
-agent/<name> branch and prints its path; end removes the worktree, its tmux
-session, and the agent/* branch. Both verbs also accept their agent hook
+agent/<name> branch and prints its path; remove tears down the worktree, its
+tmux session, and the agent/* branch. Both verbs also accept their agent hook
 JSON on stdin (WorktreeCreate and WorktreeRemove), so they wire directly
 into claude's hooks.
 
 Worktrees live at the location the active profile configures (dotty init
---worktrees): a directory inside each repository — the default .worktrees,
-kept out of git by the shared ignore — or one absolute shared root. Inside
-them, commit and tag signing is off (sandboxed agents cannot reach the
-security key); re-sign afterwards with dotty git resign.`,
-	Example: `  dotty worktree start myrepo fix-tests
-  dotty worktree end`,
+--worktrees): one shared root outside every repository — the default
+~/.local/share/dotty/worktrees — or a directory inside each repository.
+Inside them, commit and tag signing is off (sandboxed agents cannot reach
+the security key); re-sign afterwards with dotty git resign.
+
+Agent hooks do not fire for every worktree (subagent worktrees never run
+WorktreeRemove), so dotty git done also removes the worktrees of branches
+it finds merged.`,
+	Example: `  dotty git worktree start myrepo fix-tests
+  dotty git worktree remove`,
 }
 
 func init() {
-	rootCmd.AddCommand(worktreeCmd)
+	gitCmd.AddCommand(gitWorktreeCmd)
 }
 
 // worktreesSetting resolves the configured worktree location: the exported
