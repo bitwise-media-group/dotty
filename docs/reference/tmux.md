@@ -150,5 +150,8 @@ Glance at the status bar to see which agent window needs you.
 [`dotty tmux new`](../cli/dotty_tmux_new.md) fuzzy-picks a repository and
 creates (or re-attaches to) a development session for it, with one window per
 installed coding agent. The scaffolded zsh config aliases it to `sts`. Agent
-worktree sessions created by [`dotty worktree start`](../guides/worktrees.md)
-appear grouped under their parent repo in the Neovim session picker.
+worktree sessions created by
+[`dotty git worktree start`](../guides/worktrees.md) appear grouped under their
+parent repo in the Neovim session picker;
+[`dotty git worktree remove`](../cli/dotty_git_worktree_remove.md) kills a
+worktree's session along with the worktree (but never the session it runs in).

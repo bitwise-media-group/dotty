@@ -26,7 +26,7 @@ dotty security-key add [--name=<name>] [--description=<description>] [flags]
 
 ```
       --description string   what this key is for
-  -h, --help                 help for add
+  -h, --help[=true|false]    help for add
       --name string          alias name (unique across all keys)
 ```
 

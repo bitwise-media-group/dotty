@@ -116,9 +116,10 @@ even on a shared repository.
 
 ### Agent worktrees
 
-Where sandboxed agents' git worktrees live: a directory name inside each repo
-(default `.worktrees`) or one absolute shared root. See
-[Agent worktrees & re-signing](../guides/worktrees.md).
+Where sandboxed agents' git worktrees live: one shared root outside every
+repository (default `~/.local/share/dotty/worktrees`) or a directory name inside
+each repo. A re-run moves a profile still on the old `.worktrees` default to the
+shared root. See [Agent worktrees & re-signing](../guides/worktrees.md).
 
 ### macOS
 

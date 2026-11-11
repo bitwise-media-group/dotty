@@ -19,7 +19,7 @@ dotty dotfiles track [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for track
+  -h, --help[=true|false]   help for track
 ```
 
 ### Options inherited from parent commands

@@ -43,12 +43,12 @@ dotty env migrate [PATH...] [flags]
 ### Options
 
 ```
-      --dry-run                 report what would be migrated without writing anything
-      --force                   overwrite keys fnox already has
-  -h, --help                    help for migrate
-      --namespace stringArray   keychain namespace to migrate (repeatable; default: all)
-      --purge                   delete each keychain namespace once every credential in it migrated
-      --skip-keychain           migrate only the given templates, not the keychain
+      --dry-run[=true|false]         report what would be migrated without writing anything
+      --force[=true|false]           overwrite keys fnox already has
+  -h, --help[=true|false]            help for migrate
+      --namespace stringArray        keychain namespace to migrate (repeatable; default: all)
+      --purge[=true|false]           delete each keychain namespace once every credential in it migrated
+      --skip-keychain[=true|false]   migrate only the given templates, not the keychain
 ```
 
 ### Options inherited from parent commands

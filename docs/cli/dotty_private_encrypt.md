@@ -25,7 +25,7 @@ dotty private encrypt <path> [flags]
 ### Options
 
 ```
-  -h, --help   help for encrypt
+  -h, --help[=true|false]   help for encrypt
 ```
 
 ### Options inherited from parent commands

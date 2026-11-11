@@ -65,12 +65,12 @@ dotty git propose [--all] [--auto-merge=merge|rebase|squash|comment] [--browse] 
 ### Options
 
 ```
-      --all               propose every layer in the stack, not only through the current branch
-      --auto-merge mode   auto-merge each proposed pull request with the given method (merge, rebase, or squash); mode comment posts a /auto-merge comment for a merge bot instead
-      --browse            open each proposed pull request in the browser
-      --copy              copy the proposed pull request URL(s) to the clipboard
-      --draft             open each pull request as a draft; proposing again without it readies them
-  -h, --help              help for propose
+      --all[=true|false]      propose every layer in the stack, not only through the current branch
+      --auto-merge mode       auto-merge each proposed pull request with the given method (merge, rebase, or squash); mode comment posts a /auto-merge comment for a merge bot instead
+      --browse[=true|false]   open each proposed pull request in the browser
+      --copy[=true|false]     copy the proposed pull request URL(s) to the clipboard
+      --draft[=true|false]    open each pull request as a draft; proposing again without it readies them
+  -h, --help[=true|false]     help for propose
 ```
 
 ### Options inherited from parent commands

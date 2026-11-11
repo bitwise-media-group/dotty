@@ -19,7 +19,7 @@ dotty dotfiles undo [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for undo
+  -h, --help[=true|false]   help for undo
 ```
 
 ### Options inherited from parent commands

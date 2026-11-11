@@ -98,7 +98,8 @@ includes so the repo itself never contains PII:
   inside agent worktrees — see
   [Agent worktrees & re-signing](../guides/worktrees.md).
 - **Global ignore**: `commit.sh`, local Claude settings and plans, `.DS_Store`,
-  `.env.*`, `fnox.local.toml`, and the worktrees directory.
+  `.env.*`, `fnox.local.toml`, the legacy `.worktrees/` directory, and a
+  repo-relative worktrees directory when one is configured.
 
 ## SSH
 

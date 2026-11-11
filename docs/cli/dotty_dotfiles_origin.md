@@ -19,7 +19,7 @@ dotty dotfiles origin [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for origin
+  -h, --help[=true|false]   help for origin
 ```
 
 ### Options inherited from parent commands

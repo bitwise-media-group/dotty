@@ -36,10 +36,10 @@ dotty git merge [--all | --up=N] [flags]
 ### Options
 
 ```
-      --all      merge every layer between the current one and the bottom of the stack
-  -h, --help     help for merge
-      --up int   merge the current layer with this many parents (default 1)
-  -y, --yes      rebase+resign an out-of-sync merge range without prompting
+      --all[=true|false]    merge every layer between the current one and the bottom of the stack
+  -h, --help[=true|false]   help for merge
+      --up int              merge the current layer with this many parents (default 1)
+  -y, --yes[=true|false]    rebase+resign an out-of-sync merge range without prompting
 ```
 
 ### Options inherited from parent commands

@@ -19,7 +19,7 @@ dotty dotfiles untrack [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for untrack
+  -h, --help[=true|false]   help for untrack
 ```
 
 ### Options inherited from parent commands

@@ -16,14 +16,22 @@ Check out the trunk branch (main)
 .IP "  2." 5
 Fetch all remotes with --prune
 .IP "  3." 5
+Remove the worktrees of local branches already merged into trunk
+ (prompting if a worktree has uncommitted changes)
+.IP "  4." 5
 Delete every local branch already merged into trunk (upstream/main when
  present, else origin/main), dropping it from any recorded stack
-.IP "  4." 5
-Delete every origin branch already merged into trunk
 .IP "  5." 5
-Fast-forward the local trunk branch to the remote
+Delete every origin branch already merged into trunk
 .IP "  6." 5
+Fast-forward the local trunk branch to the remote
+.IP "  7." 5
 Push the trunk branch to origin (keeps a fork's main in step)
+
+.PP
+Step 3 is what collects agent worktrees whose removal hook never fired. A
+worktree holding uncommitted changes is kept, along with its branch, unless
+you confirm on a terminal; so is the worktree you are standing in.
 
 .PP
 Any remaining stack that has diverged from trunk is reported; check it out

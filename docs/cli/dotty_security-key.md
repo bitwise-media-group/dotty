@@ -20,8 +20,8 @@ serial. Aliases live in the private dotty data directory
 ### Options
 
 ```
-  -h, --help            help for security-key
-      --serial string   serial number of the security key
+  -h, --help[=true|false]   help for security-key
+      --serial string       serial number of the security key
 ```
 
 ### Options inherited from parent commands

@@ -19,7 +19,7 @@ dotty dotfiles unapply [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for unapply
+  -h, --help[=true|false]   help for unapply
 ```
 
 ### Options inherited from parent commands

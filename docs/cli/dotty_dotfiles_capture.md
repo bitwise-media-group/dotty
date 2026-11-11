@@ -19,7 +19,7 @@ dotty dotfiles capture [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for capture
+  -h, --help[=true|false]   help for capture
 ```
 
 ### Options inherited from parent commands

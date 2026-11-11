@@ -23,9 +23,9 @@ dotty packages edit [--sync | --upgrade] [flags]
 ### Options
 
 ```
-  -h, --help                             help for edit
-      --sync dotty packages sync         run dotty packages sync after editing
-      --upgrade dotty packages upgrade   run dotty packages upgrade after editing
+  -h, --help[=true|false]      help for edit
+      --sync[=true|false]      run dotty packages sync after editing
+      --upgrade[=true|false]   run dotty packages upgrade after editing
 ```
 
 ### Options inherited from parent commands

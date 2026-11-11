@@ -22,7 +22,7 @@ dotty security-key disallow [<serial>|<alias>...] [flags]
 ### Options
 
 ```
-  -h, --help   help for disallow
+  -h, --help[=true|false]   help for disallow
 ```
 
 ### Options inherited from parent commands

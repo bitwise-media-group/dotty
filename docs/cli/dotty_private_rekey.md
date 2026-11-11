@@ -25,7 +25,7 @@ dotty private rekey [flags]
 ### Options
 
 ```
-  -h, --help   help for rekey
+  -h, --help[=true|false]   help for rekey
 ```
 
 ### Options inherited from parent commands

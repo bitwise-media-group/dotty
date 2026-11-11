@@ -24,8 +24,8 @@ whole private identity at once.
 ### Options
 
 ```
-  -h, --help          help for private
-      --repo string   private repository (default: the active profile's stored answer)
+  -h, --help[=true|false]   help for private
+      --repo string         private repository (default: the active profile's stored answer)
 ```
 
 ### Options inherited from parent commands

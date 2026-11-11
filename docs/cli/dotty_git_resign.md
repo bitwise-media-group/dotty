@@ -31,10 +31,10 @@ dotty git resign [--root | <commitish>] [--reset-author] [flags]
 ### Options
 
 ```
-  -h, --help           help for resign
-      --reset-author   reset author to user.name/user.email and rewrite matching trailers
-      --root           resign every commit from the start of history
-  -y, --yes            skip the confirmation prompt
+  -h, --help[=true|false]           help for resign
+      --reset-author[=true|false]   reset author to user.name/user.email and rewrite matching trailers
+      --root[=true|false]           resign every commit from the start of history
+  -y, --yes[=true|false]            skip the confirmation prompt
 ```
 
 ### Options inherited from parent commands

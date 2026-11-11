@@ -24,8 +24,8 @@ dotty security-key remove [--name=<name>] [flags]
 ### Options
 
 ```
-  -h, --help          help for remove
-      --name string   alias to remove
+  -h, --help[=true|false]   help for remove
+      --name string         alias to remove
 ```
 
 ### Options inherited from parent commands

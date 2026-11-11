@@ -27,8 +27,8 @@ dotty packages remove [--sync] [<id> ...] [flags]
 ### Options
 
 ```
-  -h, --help                       help for remove
-      --sync dotty packages sync   run dotty packages sync after removing
+  -h, --help[=true|false]   help for remove
+      --sync[=true|false]   run dotty packages sync after removing
 ```
 
 ### Options inherited from parent commands

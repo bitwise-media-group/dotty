@@ -33,8 +33,8 @@ dotty git expand [--auto-squash] [flags]
 ### Options
 
 ```
-      --auto-squash   squash each chore commit into the commit below it before expanding
-  -h, --help          help for expand
+      --auto-squash[=true|false]   squash each chore commit into the commit below it before expanding
+  -h, --help[=true|false]          help for expand
 ```
 
 ### Options inherited from parent commands

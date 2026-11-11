@@ -36,8 +36,8 @@ dotty signing-key import <path> [--rm] [flags]
 ### Options
 
 ```
-  -h, --help   help for import
-      --rm     remove the source stub files after a successful import
+  -h, --help[=true|false]   help for import
+      --rm[=true|false]     remove the source stub files after a successful import
 ```
 
 ### Options inherited from parent commands

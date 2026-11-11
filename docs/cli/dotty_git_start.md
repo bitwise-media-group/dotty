@@ -21,7 +21,7 @@ dotty git start <branch> [flags]
 ### Options
 
 ```
-  -h, --help   help for start
+  -h, --help[=true|false]   help for start
 ```
 
 ### Options inherited from parent commands

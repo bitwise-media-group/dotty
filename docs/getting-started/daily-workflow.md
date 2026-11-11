@@ -63,4 +63,5 @@ jumps between sessions and their agent worktrees.
 The repo is the sync channel — there is no daemon. Commit and push changes; on
 other machines pull, then `dotty dotfiles link` and `dotty packages sync` as
 needed. When an agent has been working in a worktree,
-[`dotty git resign`](../guides/worktrees.md) before you merge.
+[`dotty git resign`](../guides/worktrees.md) before you merge; after it lands,
+`dotty git done` removes the worktree along with the merged branch.

@@ -33,7 +33,7 @@ dotty private init [path] [flags]
 ### Options
 
 ```
-  -h, --help   help for init
+  -h, --help[=true|false]   help for init
 ```
 
 ### Options inherited from parent commands

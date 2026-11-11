@@ -22,7 +22,7 @@ dotty packages lock [flags]
 ### Options
 
 ```
-  -h, --help   help for lock
+  -h, --help[=true|false]   help for lock
 ```
 
 ### Options inherited from parent commands

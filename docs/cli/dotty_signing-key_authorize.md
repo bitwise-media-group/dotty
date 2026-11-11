@@ -38,9 +38,9 @@ dotty signing-key authorize <[user@]host> [flags]
 ### Options
 
 ```
-  -h, --help             help for authorize
-      --options string   authorized_keys option list to prefix (comma-separated; empty for none) (default "no-touch-required")
-      --path string      remote authorized_keys file to append to (default "~/.ssh/authorized_keys")
+  -h, --help[=true|false]   help for authorize
+      --options string      authorized_keys option list to prefix (comma-separated; empty for none) (default "no-touch-required")
+      --path string         remote authorized_keys file to append to (default "~/.ssh/authorized_keys")
 ```
 
 ### Options inherited from parent commands

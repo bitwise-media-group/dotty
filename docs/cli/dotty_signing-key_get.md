@@ -24,8 +24,8 @@ dotty signing-key get [--format=<text|key>] [flags]
 ### Options
 
 ```
-      --format string   output format: text (stub + public key) or key (git literal key line) (default "text")
-  -h, --help            help for get
+      --format string       output format: text (stub + public key) or key (git literal key line) (default "text")
+  -h, --help[=true|false]   help for get
 ```
 
 ### Options inherited from parent commands

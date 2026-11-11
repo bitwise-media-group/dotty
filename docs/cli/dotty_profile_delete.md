@@ -31,9 +31,9 @@ dotty profile delete [<name>] [flags]
 ### Options
 
 ```
-      --activate string   profile to activate in place of the deleted one
-  -h, --help              help for delete
-      --yes               skip the confirmation prompt
+      --activate string     profile to activate in place of the deleted one
+  -h, --help[=true|false]   help for delete
+      --yes[=true|false]    skip the confirmation prompt
 ```
 
 ### Options inherited from parent commands

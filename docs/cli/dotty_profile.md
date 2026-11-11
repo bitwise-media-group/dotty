@@ -21,7 +21,7 @@ the active-profile symlink.
 ### Options
 
 ```
-  -h, --help   help for profile
+  -h, --help[=true|false]   help for profile
 ```
 
 ### Options inherited from parent commands

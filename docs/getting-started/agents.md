@@ -55,11 +55,13 @@ finished and waiting, a red 🔔 when it needs an approval. Details in the
 ## Worktrees, in one paragraph
 
 Because hardened agents can't reach your signing key, dotty gives them git
-worktrees (on `agent/*` branches) where signing is disabled, wired
-automatically into Claude Code's worktree hooks; when the work is done you
-re-sign the branch with
-[`dotty git resign`](../cli/dotty_git_resign.md). The full flow — including
-where worktrees live and the `commit.sh` convention — is in
+worktrees (on `agent/*` branches, under `~/.local/share/dotty/worktrees`) where
+signing is disabled, wired automatically into Claude Code's worktree hooks; when
+the work is done you re-sign the branch with
+[`dotty git resign`](../cli/dotty_git_resign.md), and
+[`dotty git done`](../cli/dotty_git_done.md) clears away the worktrees of
+merged branches. The full flow — including where worktrees live and the
+`commit.sh` convention — is in
 [Agent worktrees & re-signing](../guides/worktrees.md).
 
 [Next: Daily workflow →](daily-workflow.md)

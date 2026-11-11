@@ -22,7 +22,7 @@ and need no touch per signature.
 ### Options
 
 ```
-  -h, --help                  help for signing-key
+  -h, --help[=true|false]     help for signing-key
       --security-key string   security key to use: a serial number or an alias
       --username string       username the key is enrolled under (default: the current user)
 ```

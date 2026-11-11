@@ -19,7 +19,7 @@ dotty dotfiles exclude [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for exclude
+  -h, --help[=true|false]   help for exclude
 ```
 
 ### Options inherited from parent commands

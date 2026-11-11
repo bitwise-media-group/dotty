@@ -35,7 +35,7 @@ dotty dotfiles link [flags]
 ### Options
 
 ```
-  -h, --help                 help for link
+  -h, --help[=true|false]    help for link
       --on-conflict string   existing-file resolution: backup, adopt, skip, or fail (default "fail")
 ```
 

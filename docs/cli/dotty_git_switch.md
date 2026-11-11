@@ -21,7 +21,7 @@ dotty git switch [flags]
 ### Options
 
 ```
-  -h, --help   help for switch
+  -h, --help[=true|false]   help for switch
 ```
 
 ### Options inherited from parent commands

@@ -19,7 +19,7 @@ dotty dotfiles sync [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for sync
+  -h, --help[=true|false]   help for sync
 ```
 
 ### Options inherited from parent commands

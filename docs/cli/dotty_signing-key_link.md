@@ -33,7 +33,7 @@ dotty signing-key link [path] [flags]
 ### Options
 
 ```
-  -h, --help   help for link
+  -h, --help[=true|false]   help for link
 ```
 
 ### Options inherited from parent commands

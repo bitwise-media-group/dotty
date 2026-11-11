@@ -19,7 +19,7 @@ dotty dotfiles watch [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for watch
+  -h, --help[=true|false]   help for watch
 ```
 
 ### Options inherited from parent commands

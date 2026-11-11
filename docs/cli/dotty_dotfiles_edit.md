@@ -19,7 +19,7 @@ dotty dotfiles edit [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for edit
+  -h, --help[=true|false]   help for edit
 ```
 
 ### Options inherited from parent commands

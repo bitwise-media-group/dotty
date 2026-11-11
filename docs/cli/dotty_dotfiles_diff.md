@@ -19,7 +19,7 @@ dotty dotfiles diff [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for diff
+  -h, --help[=true|false]   help for diff
 ```
 
 ### Options inherited from parent commands

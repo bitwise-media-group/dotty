@@ -21,7 +21,7 @@ dotty git up [num] [flags]
 ### Options
 
 ```
-  -h, --help   help for up
+  -h, --help[=true|false]   help for up
 ```
 
 ### Options inherited from parent commands

@@ -30,8 +30,8 @@ dotty dotfiles restore [path ...] [flags]
 ### Options
 
 ```
-  -h, --help               help for restore
-      --timestamp string   backup set to restore (a directory name under the backups dir)
+  -h, --help[=true|false]   help for restore
+      --timestamp string    backup set to restore (a directory name under the backups dir)
 ```
 
 ### Options inherited from parent commands

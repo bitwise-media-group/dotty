@@ -19,7 +19,7 @@ dotty dotfiles recover [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for recover
+  -h, --help[=true|false]   help for recover
 ```
 
 ### Options inherited from parent commands

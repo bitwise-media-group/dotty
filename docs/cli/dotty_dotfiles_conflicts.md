@@ -19,7 +19,7 @@ dotty dotfiles conflicts [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for conflicts
+  -h, --help[=true|false]   help for conflicts
 ```
 
 ### Options inherited from parent commands

@@ -21,8 +21,8 @@ signing keys that live on those keys (including git commit signing).
 ### Options
 
 ```
-  -h, --help             help for dotty
-      --profile string   profile to operate on (defaults to the active profile)
+  -h, --help[=true|false]   help for dotty
+      --profile string      profile to operate on (defaults to the active profile)
 ```
 
 ### SEE ALSO
@@ -38,5 +38,4 @@ signing keys that live on those keys (including git commit signing).
 * [dotty security-key](dotty_security-key.md)	 - Manage hardware security keys.
 * [dotty signing-key](dotty_signing-key.md)	 - Create and use SSH signing keys on hardware security keys.
 * [dotty tmux](dotty_tmux.md)	 - Tmux sessions for agent-driven development.
-* [dotty worktree](dotty_worktree.md)	 - Manage agent git worktrees.
 

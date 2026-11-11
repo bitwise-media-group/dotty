@@ -19,7 +19,7 @@ dotty dotfiles pull [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for pull
+  -h, --help[=true|false]   help for pull
 ```
 
 ### Options inherited from parent commands

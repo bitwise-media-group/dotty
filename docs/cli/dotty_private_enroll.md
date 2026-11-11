@@ -33,7 +33,7 @@ dotty private enroll [flags]
 ### Options
 
 ```
-  -h, --help                  help for enroll
+  -h, --help[=true|false]     help for enroll
       --pin-policy string     PIV PIN policy: always, once, or never (default "once")
       --security-key string   security-key alias (or serial) to enroll
       --serial string         YubiKey serial to enroll

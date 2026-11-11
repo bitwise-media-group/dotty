@@ -24,7 +24,7 @@ current stack position (merge --up).
 ### Options
 
 ```
-  -h, --help   help for git
+  -h, --help[=true|false]   help for git
 ```
 
 ### Options inherited from parent commands
@@ -49,4 +49,5 @@ current stack position (merge --up).
 * [dotty git switch](dotty_git_switch.md)	 - Pick a stack layer and check it out.
 * [dotty git sync](dotty_git_sync.md)	 - Fetch trunk, clean merged layers, refresh PR maps, rebase+resign if diverged.
 * [dotty git up](dotty_git_up.md)	 - Move toward the tip of the current stack.
+* [dotty git worktree](dotty_git_worktree.md)	 - Manage agent git worktrees.
 

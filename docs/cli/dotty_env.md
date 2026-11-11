@@ -33,7 +33,7 @@ dotty env <verb> [flags]
 ### Options
 
 ```
-  -h, --help   help for env
+  -h, --help[=true|false]   help for env
 ```
 
 ### Options inherited from parent commands

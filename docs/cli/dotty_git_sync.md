@@ -37,10 +37,10 @@ dotty git sync [--continue | --abort] [flags]
 ### Options
 
 ```
-      --abort      abort an in-progress stack rebase
-      --continue   resume after resolving rebase conflicts
-  -h, --help       help for sync
-  -y, --yes        rebase+resign without prompting when diverged
+      --abort[=true|false]      abort an in-progress stack rebase
+      --continue[=true|false]   resume after resolving rebase conflicts
+  -h, --help[=true|false]       help for sync
+  -y, --yes[=true|false]        rebase+resign without prompting when diverged
 ```
 
 ### Options inherited from parent commands

@@ -19,7 +19,7 @@ dotty dotfiles history [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for history
+  -h, --help[=true|false]   help for history
 ```
 
 ### Options inherited from parent commands

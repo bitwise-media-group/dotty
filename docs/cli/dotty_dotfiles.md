@@ -28,8 +28,8 @@ dotty dotfiles [flags]
 ### Options
 
 ```
-  -h, --help          help for dotfiles
-      --repo string   dotfiles repository (default: found via $REPOS_DIR)
+  -h, --help[=true|false]   help for dotfiles
+      --repo string         dotfiles repository (default: found via $REPOS_DIR)
 ```
 
 ### Options inherited from parent commands

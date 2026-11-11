@@ -29,7 +29,7 @@ resolve to whichever registry entry claims them.
 ### Options
 
 ```
-  -h, --help   help for packages
+  -h, --help[=true|false]   help for packages
 ```
 
 ### Options inherited from parent commands

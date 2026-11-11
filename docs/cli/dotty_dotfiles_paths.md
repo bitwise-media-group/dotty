@@ -19,7 +19,7 @@ dotty dotfiles paths [mise arguments] [flags]
 ### Options
 
 ```
-  -h, --help   help for paths
+  -h, --help[=true|false]   help for paths
 ```
 
 ### Options inherited from parent commands

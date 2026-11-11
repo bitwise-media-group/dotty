@@ -26,8 +26,8 @@ dotty packages sync [--force] [flags]
 ### Options
 
 ```
-      --force   remove undeclared packages without asking
-  -h, --help    help for sync
+      --force[=true|false]   remove undeclared packages without asking
+  -h, --help[=true|false]    help for sync
 ```
 
 ### Options inherited from parent commands

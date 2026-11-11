@@ -59,12 +59,12 @@ Claude Code's OS-level (Seatbelt) sandbox:
   sandboxed does not skip approval) and `allowUnsandboxedCommands: false`
   (nothing runs outside the sandbox).
 - **Filesystem**: writes allowed only under `~/Repos`, the agent-worktrees root
-  (when configured as an absolute path), and tool caches (`~/.cache`,
-  `~/.local/share/go`, `~/.local/bin`, `~/.npm`, `~/.config/helm`,
-  `~/.kubescape`, `~/.sigstore`, `/tmp`). Reads are allowed under `~/Repos`,
-  `~/.config`, `~/.cache`, `~/.local/{bin,runtime,share}`, `~/.npm`,
-  `/opt/homebrew`, and `/tmp` — and **denied** (read and write) for the
-  credential set.
+  (the default `~/.local/share/dotty/worktrees` or any other absolute path), and
+  tool caches (`~/.cache`, `~/.local/share/go`, `~/.local/bin`, `~/.npm`,
+  `~/.config/helm`, `~/.kubescape`, `~/.sigstore`, `/tmp`). Reads are allowed
+  under `~/Repos`, `~/.config`, `~/.cache`, `~/.local/{bin,runtime,share}`,
+  `~/.npm`, `/opt/homebrew`, and `/tmp` — and **denied** (read and write) for
+  the credential set.
 - **Keychain**: the sandbox's mach-lookup allowlist includes only trust
   evaluation and DNS/Open Directory services — notably _not_
   `com.apple.SecurityServer`, which is what blocks macOS keychain access.

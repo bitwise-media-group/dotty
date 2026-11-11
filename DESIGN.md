@@ -654,14 +654,15 @@ root. The profile's `env.zsh` also relocates every selected agent under XDG
 with `CLAUDE_CODE_PLUGIN_CACHE_DIR` pointed at XDG cache, `GROK_HOME`), so agent
 config lives in `~/.config/<agent>` like every other tool while runtime state
 and caches stay out of the dotfiles-linked directories. The agent worktree
-location is a profile setting too (`--worktrees`, default the repo-relative
-`.worktrees`, or an absolute path for one shared root): it lands in the shared
-gitignore when repo-relative, feeds the hardened agents' sandbox grants so
+location is a profile setting too (`--worktrees`, default the shared root
+`~/.local/share/dotty/worktrees` outside every repository, or a repo-relative
+directory): it lands in the shared gitignore when repo-relative (the legacy
+`.worktrees/` is always listed), feeds the hardened agents' sandbox grants so
 worktrees never prompt, renders the per-profile git include that disables
 commit/tag signing inside linked worktrees (git matches `includeIf gitdir:`
 against the resolved `.git/worktrees/<name>` path, so the blanket pattern covers
 them wherever they live), is exported as `DOTTY_WORKTREES` for tooling like the
-nvim session picker, and will drive `dotty worktree`. All of it lives under
+nvim session picker, and drives `dotty git worktree`. All of it lives under
 `profiles/<name>` in the repo, with `${XDG_CONFIG_HOME}/dotty/<name>` a symlink
 into it. Shared files never carry a profile-specific value; they reach profile
 values only through the `${XDG_CONFIG_HOME}/dotty/active-profile` symlink — the
@@ -828,31 +829,52 @@ dotty private rekey
 dotty private verify [--staged]
 ```
 
-# Command: Worktree
+# Command: git worktree
 
-Command: worktree
+Command: git worktree
 
-The agent worktree lifecycle. `start [repo] [suffix]` creates (or reuses) a
-worktree for repo on an `agent/<repo>-<suffix>` branch at the configured
-worktree location and prints its path — stdout is the result, so hooks and
-scripts capture it. repo falls back to `$CLAUDE_PROJECT_DIR`, then the enclosing
-repository; suffix falls back to the WorktreeCreate hook JSON on stdin
-(`{"name": ...}`), then a UTC timestamp. `end [path]` reports uncommitted and
-unpushed work, kills the tmux session named after the worktree, removes the
-worktree, and deletes its branch — but only an `agent/*` branch, so manually
-checked-out branches survive; path falls back to the WorktreeRemove hook JSON
-(`{"worktree_path": ...}`), and an already-gone worktree exits quietly.
+The agent worktree lifecycle, nested under `git` (formerly the top-level
+`dotty worktree`). `start [repo] [suffix]` creates (or reuses) a worktree for
+repo on an `agent/<repo>-<suffix>` branch at the configured worktree location
+and prints its path — stdout is the result, so hooks and scripts capture it.
+repo falls back to `$CLAUDE_PROJECT_DIR`, then the enclosing repository; suffix
+falls back to the WorktreeCreate hook JSON on stdin (`{"name": ...}`), then a
+UTC timestamp. An existing directory is reused only when it is a worktree of the
+same repository (same `--git-common-dir`): under a shared root, two repositories
+with the same basename derive the same name.
+
+`remove [path]` (alias `end`) tears a linked worktree down: it kills the tmux
+session named after the worktree (unless dotty is running inside it), removes
+the worktree, and deletes its branch — but only an `agent/*` branch, so manually
+checked-out branches survive. path falls back to the WorktreeRemove hook JSON
+(`{"worktree_path": ...}`), then the linked worktree enclosing the cwd; an
+already-gone worktree exits quietly and a main checkout is refused. Lost work —
+uncommitted changes, or commits on HEAD that no remote-tracking ref and no other
+local branch contains — is reported and needs `--yes`/`--force` or an
+interactive confirmation (default No); a refusal is an error so a hook caller
+keeps the worktree. Removal itself is `git worktree remove --force --force`
+(past submodules, locks, and dirty trees), falling back to deleting the
+directory, then `worktree unlock` and `worktree prune`.
 
 The location comes from the active profile (`DOTTY_WORKTREES`, set by
-`dotty init --worktrees`): repo-relative by default, or one absolute shared
-root. Names are tmux-safe (dots and other disallowed characters encode to
-dashes), and the claude template wires WorktreeCreate/WorktreeRemove hooks at
-these verbs. Inside the worktrees, commit/tag signing is off via the profile's
-worktrees.gitconfig; re-sign with `dotty git resign`.
+`dotty init --worktrees`): the shared root `~/.local/share/dotty/worktrees` by
+default — outside every repository, so linters and mise never walk into a
+worktree and a worktree never inherits its parent's mise config — or a
+repo-relative directory. A re-run of init migrates a stored legacy `.worktrees`
+default unless `--worktrees` is passed. Names are tmux-safe (dots and other
+disallowed characters encode to dashes), and the claude template wires
+WorktreeCreate → `start` and WorktreeRemove → `remove --yes` (Claude has asked
+keep/remove before the hook fires). Inside the worktrees, commit/tag signing is
+off via the profile's worktrees.gitconfig; re-sign with `dotty git resign`.
+
+Hooks cannot be the whole story: Claude Code never fires WorktreeRemove for
+subagent or workflow worktrees, keeps interactive worktrees with changes, and
+its cleanup sweep skips hook-created worktrees. `dotty git done` is the backstop
+— it removes the worktrees of the branches it finds merged.
 
 ```text
-dotty worktree start [repo] [suffix]
-dotty worktree end [path]
+dotty git worktree start [repo] [suffix]
+dotty git worktree remove [path] [--yes|-y] [--force|-f]
 ```
 
 # Command: git (stacks + navigation)
@@ -874,6 +896,11 @@ repos that land with ff-merge:
 - **up / down / switch** — navigate the current stack (switch is a fuzzy
   picklist, also reachable as `stack`).
 - **browse** — open the upstream (else origin) forge homepage.
+- **done** — return to trunk, then remove the worktrees of merged local branches
+  (prompting when one has uncommitted changes; a kept worktree keeps its branch,
+  and the worktree containing the cwd is skipped), delete merged local and
+  origin branches, fast-forward, and push trunk.
+- **worktree** — the agent worktree lifecycle (below).
 
 ```text
 dotty git start <branch>
@@ -885,5 +912,7 @@ dotty git up [num]
 dotty git down [num]
 dotty git switch    # alias: stack
 dotty git browse
+dotty git done
+dotty git worktree start|remove …
 dotty git resign …
 ```

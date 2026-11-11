@@ -29,7 +29,7 @@ dotty tmux new [query] [flags]
 ### Options
 
 ```
-  -h, --help   help for new
+  -h, --help[=true|false]   help for new
 ```
 
 ### Options inherited from parent commands

@@ -21,7 +21,7 @@ dotty git down [num] [flags]
 ### Options
 
 ```
-  -h, --help   help for down
+  -h, --help[=true|false]   help for down
 ```
 
 ### Options inherited from parent commands

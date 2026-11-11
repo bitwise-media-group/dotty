@@ -27,8 +27,8 @@ dotty profile activate [flags]
 ### Options
 
 ```
-  -h, --help          help for activate
-      --name string   profile to activate
+  -h, --help[=true|false]   help for activate
+      --name string         profile to activate
 ```
 
 ### Options inherited from parent commands

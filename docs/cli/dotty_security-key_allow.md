@@ -30,7 +30,7 @@ dotty security-key allow [<serial>|<alias>...] [flags]
 ### Options
 
 ```
-  -h, --help   help for allow
+  -h, --help[=true|false]   help for allow
 ```
 
 ### Options inherited from parent commands

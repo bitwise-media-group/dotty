@@ -20,7 +20,7 @@ dotty git browse [flags]
 ### Options
 
 ```
-  -h, --help   help for browse
+  -h, --help[=true|false]   help for browse
 ```
 
 ### Options inherited from parent commands

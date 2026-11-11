@@ -21,7 +21,7 @@ dotty git append <branch> [flags]
 ### Options
 
 ```
-  -h, --help   help for append
+  -h, --help[=true|false]   help for append
 ```
 
 ### Options inherited from parent commands

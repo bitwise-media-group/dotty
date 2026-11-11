@@ -32,8 +32,8 @@ dotty signing-key trust [flags]
 ### Options
 
 ```
-  -h, --help          help for trust
-      --path string   allowed_signers file to write (default: git gpg.ssh.allowedSignersFile, else ~/.ssh/allowed_signers)
+  -h, --help[=true|false]   help for trust
+      --path string         allowed_signers file to write (default: git gpg.ssh.allowedSignersFile, else ~/.ssh/allowed_signers)
 ```
 
 ### Options inherited from parent commands

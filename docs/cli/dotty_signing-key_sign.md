@@ -29,7 +29,7 @@ dotty signing-key sign [ssh-keygen args] [file ...] [flags]
 ### Options
 
 ```
-  -h, --help   help for sign
+  -h, --help[=true|false]   help for sign
 ```
 
 ### Options inherited from parent commands

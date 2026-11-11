@@ -29,9 +29,9 @@ dotty packages import [--all] [--brewfile <path>] [flags]
 ### Options
 
 ```
-      --all               import every linked formula, dependencies included
-      --brewfile string   convert this Brewfile instead of the installed formulae
-  -h, --help              help for import
+      --all[=true|false]    import every linked formula, dependencies included
+      --brewfile string     convert this Brewfile instead of the installed formulae
+  -h, --help[=true|false]   help for import
 ```
 
 ### Options inherited from parent commands

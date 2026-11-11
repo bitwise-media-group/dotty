@@ -32,8 +32,8 @@ dotty signing-key new [--type=<ed25519|ecdsa>] [flags]
 ### Options
 
 ```
-  -h, --help          help for new
-      --type string   key type: ed25519 or ecdsa (default "ed25519")
+  -h, --help[=true|false]   help for new
+      --type string         key type: ed25519 or ecdsa (default "ed25519")
 ```
 
 ### Options inherited from parent commands

@@ -30,8 +30,8 @@ dotty profile get [<name>] [flags]
 ### Options
 
 ```
-      --format string   output format: text (metadata plus machine state) or json (profile.json verbatim) (default "text")
-  -h, --help            help for get
+      --format string       output format: text (metadata plus machine state) or json (profile.json verbatim) (default "text")
+  -h, --help[=true|false]   help for get
 ```
 
 ### Options inherited from parent commands

@@ -1,4 +1,4 @@
-## dotty worktree start
+## dotty git worktree start
 
 Create or reuse an agent/* worktree and print its path.
 
@@ -13,21 +13,21 @@ suffix falls back to the WorktreeCreate hook JSON on stdin ({"name": ...}),
 then a UTC timestamp.
 
 ```
-dotty worktree start [repo] [suffix] [flags]
+dotty git worktree start [repo] [suffix] [flags]
 ```
 
 ### Examples
 
 ```
-  dotty worktree start
-  dotty worktree start ~/Repos/dotty fix-linker
-  echo '{"name":"fix-1"}' | dotty worktree start   # hook form
+  dotty git worktree start
+  dotty git worktree start ~/Repos/dotty fix-linker
+  echo '{"name":"fix-1"}' | dotty git worktree start   # hook form
 ```
 
 ### Options
 
 ```
-  -h, --help   help for start
+  -h, --help[=true|false]   help for start
 ```
 
 ### Options inherited from parent commands
@@ -38,5 +38,5 @@ dotty worktree start [repo] [suffix] [flags]
 
 ### SEE ALSO
 
-* [dotty worktree](dotty_worktree.md)	 - Manage agent git worktrees.
+* [dotty git worktree](dotty_git_worktree.md)	 - Manage agent git worktrees.
 

@@ -18,7 +18,7 @@ grok, codex, claude), and a shell window, all named after the repository.
 ### Options
 
 ```
-  -h, --help   help for tmux
+  -h, --help[=true|false]   help for tmux
 ```
 
 ### Options inherited from parent commands

@@ -25,8 +25,8 @@ dotty private verify [flags]
 ### Options
 
 ```
-  -h, --help     help for verify
-      --staged   check only the files staged in git (pre-commit mode)
+  -h, --help[=true|false]     help for verify
+      --staged[=true|false]   check only the files staged in git (pre-commit mode)
 ```
 
 ### Options inherited from parent commands

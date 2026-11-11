@@ -29,9 +29,9 @@ dotty private link [flags]
 ### Options
 
 ```
-  -h, --help                 help for link
-      --on-conflict string   existing-file resolution: backup, adopt, skip, or fail (default: ask; backup when not a terminal)
-      --strict               fail on any entry that cannot be decrypted or conflicts
+  -h, --help[=true|false]     help for link
+      --on-conflict string    existing-file resolution: backup, adopt, skip, or fail (default: ask; backup when not a terminal)
+      --strict[=true|false]   fail on any entry that cannot be decrypted or conflicts
 ```
 
 ### Options inherited from parent commands
