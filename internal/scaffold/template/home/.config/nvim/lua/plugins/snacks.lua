@@ -278,6 +278,19 @@ return {
     {
       "<leader>fs",
       function()
+        -- Inside tmux, focus the dotty session sidebar (nvim holds focus, so
+        -- the toggle focuses rather than hides it); the picker otherwise.
+        if vim.env.TMUX and vim.fn.executable("dotty") == 1 then
+          vim.system({ "dotty", "tmux", "sidebar", "toggle" })
+        else
+          Snacks.picker.pick("sessions")
+        end
+      end,
+      desc = "Session Sidebar (tmux)",
+    },
+    {
+      "<leader>fS",
+      function()
         Snacks.picker.pick("sessions")
       end,
       desc = "Find Sessions (tmux)",
