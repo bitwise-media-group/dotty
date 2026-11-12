@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.5.0](https://github.com/bitwise-media-group/dotty/compare/v0.4.0...v0.5.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **init:** the default agent worktree location moves from <repo>/.worktrees to ~/.local/share/dotty/worktrees. Pass --worktrees .worktrees to keep the old layout.
+* **git:** dotty worktree start/end are now dotty git worktree start/remove. Re-run dotty init to re-render the agent hooks.
+
+### Features
+
+* **git:** add user-owned profile.gitconfig for per-profile overrides ([e2fcf47](https://github.com/bitwise-media-group/dotty/commit/e2fcf47f940dad982fff57f22e040ac3390c7754))
+* **git:** move worktree under git, add remove ([e084ac1](https://github.com/bitwise-media-group/dotty/commit/e084ac18dfccf1e7f1aab9d41428f36cccb4b76a))
+* **git:** remove merged worktrees in git done ([ff1909c](https://github.com/bitwise-media-group/dotty/commit/ff1909c0e1dcf2b55a0185e14ea5cff6245b025d))
+* **git:** rename worktree start to add ([5c706da](https://github.com/bitwise-media-group/dotty/commit/5c706daaa90915d66db9ffa1963c8c0d2ae5caee))
+* **init:** default agent worktrees outside the repository ([7c0cc99](https://github.com/bitwise-media-group/dotty/commit/7c0cc99aecd17b23d7de3e4e717ef5fa2bb0522c))
+* **tmux:** add following session sidebar with agent status ([541fb7a](https://github.com/bitwise-media-group/dotty/commit/541fb7a80e85554552cf2333210c4a0071cf75d5))
+
+
+### Bug Fixes
+
+* **deps:** bump go to 1.27.4 ([9aa1cb3](https://github.com/bitwise-media-group/dotty/commit/9aa1cb39845a2e9657cc759086b1b057bf2fba8a))
+* **deps:** update bitwise-media-group/github-workflows action to v8.3.0 ([#240](https://github.com/bitwise-media-group/dotty/issues/240)) ([2117d7f](https://github.com/bitwise-media-group/dotty/commit/2117d7fb711e41e2e1128184b59363a34161a69f))
+* **scaffold:** update Claude settings for recent Claude Code changes ([3c12f17](https://github.com/bitwise-media-group/dotty/commit/3c12f179aa0b050b17db570505c6f7b2ff75fcae))
+
+
+### Performance Improvements
+
+* **tmux:** only signal agent status on change ([49f04f4](https://github.com/bitwise-media-group/dotty/commit/49f04f4276eb2dc51611e0786a96b9a08ef928ee))
+
 ## [0.4.0](https://github.com/bitwise-media-group/dotty/compare/v0.3.4...v0.4.0) (2026-11-10)
 
 
