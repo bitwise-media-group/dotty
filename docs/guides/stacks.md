@@ -93,7 +93,7 @@ or a higher layer to land the whole chain at once.
 
 ## With agent worktrees
 
-1. `dotty git worktree start` / agent commits (unsigned).
+1. `dotty git worktree add` / agent commits (unsigned).
 2. `dotty git resign <trunk>` (or layer parent) before propose.
 3. append/propose as above.
 4. Once the layers land, `dotty git done` removes their worktrees along with the

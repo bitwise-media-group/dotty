@@ -10,7 +10,7 @@ dotty-git-worktree - Manage agent git worktrees.
 
 
 .SH DESCRIPTION
-The agent worktree lifecycle: start creates or reuses a worktree on an
+The agent worktree lifecycle: add creates or reuses a worktree on an
 agent/ branch and prints its path; remove tears down the worktree, its
 tmux session, and the agent/* branch. Both verbs also accept their agent hook
 JSON on stdin (WorktreeCreate and WorktreeRemove), so they wire directly
@@ -41,10 +41,10 @@ it finds merged.
 
 .SH EXAMPLE
 .EX
-  dotty git worktree start myrepo fix-tests
+  dotty git worktree add myrepo fix-tests
   dotty git worktree remove
 .EE
 
 
 .SH SEE ALSO
-\fBdotty-git(1)\fP, \fBdotty-git-worktree-remove(1)\fP, \fBdotty-git-worktree-start(1)\fP
+\fBdotty-git(1)\fP, \fBdotty-git-worktree-add(1)\fP, \fBdotty-git-worktree-remove(1)\fP

@@ -20,9 +20,10 @@ import (
 	"github.com/bitwise-media-group/dotty/internal/worktree"
 )
 
-var gitWorktreeStartCmd = &cobra.Command{
-	Use:   "start [repo] [suffix]",
-	Short: "Create or reuse an agent/* worktree and print its path.",
+var gitWorktreeAddCmd = &cobra.Command{
+	Use:     "add [repo] [suffix]",
+	Aliases: []string{"start"},
+	Short:   "Create or reuse an agent/* worktree and print its path.",
 	Long: `Create (or reuse) a worktree for repo on an agent/<repo>-<suffix> branch at
 the configured worktree location, and print its path — the path is the
 command's result, so hooks and scripts capture stdout.
@@ -30,9 +31,9 @@ command's result, so hooks and scripts capture stdout.
 repo falls back to $CLAUDE_PROJECT_DIR, then the enclosing repository.
 suffix falls back to the WorktreeCreate hook JSON on stdin ({"name": ...}),
 then a UTC timestamp.`,
-	Example: `  dotty git worktree start
-  dotty git worktree start ~/Repos/dotty fix-linker
-  echo '{"name":"fix-1"}' | dotty git worktree start   # hook form`,
+	Example: `  dotty git worktree add
+  dotty git worktree add ~/Repos/dotty fix-linker
+  echo '{"name":"fix-1"}' | dotty git worktree add   # hook form`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ios := cli.System()
@@ -59,7 +60,7 @@ then a UTC timestamp.`,
 		suffix := argAt(args, 1)
 		if suffix == "" {
 			if data, ok := readIfPiped(cmd.InOrStdin()); ok {
-				suffix = worktree.ParseStartName(data)
+				suffix = worktree.ParseAddName(data)
 			}
 		}
 		if suffix == "" {
@@ -73,7 +74,7 @@ then a UTC timestamp.`,
 		}
 		names := worktree.Derive(repo, suffix, worktree.Root(repo, worktreesSetting(), home))
 
-		if err := startWorktree(ctx, ios, runner, repo, names); err != nil {
+		if err := addWorktree(ctx, ios, runner, repo, names); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintln(ios.Out, names.Path)
@@ -82,12 +83,12 @@ then a UTC timestamp.`,
 }
 
 func init() {
-	gitWorktreeCmd.AddCommand(gitWorktreeStartCmd)
+	gitWorktreeCmd.AddCommand(gitWorktreeAddCmd)
 }
 
-// startWorktree makes names.Path exist: reused when already there, checked
+// addWorktree makes names.Path exist: reused when already there, checked
 // out when the branch survives from an earlier run, created fresh otherwise.
-func startWorktree(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunner, repo string, names worktree.Names) error {
+func addWorktree(ctx context.Context, ios cli.IOStreams, r *cli.ExecRunner, repo string, names worktree.Names) error {
 	if info, err := os.Stat(names.Path); err == nil && info.IsDir() {
 		if err := checkReusable(ctx, r, repo, names.Path); err != nil {
 			return err

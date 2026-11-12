@@ -56,11 +56,11 @@ func TestIsAgentBranch(t *testing.T) {
 }
 
 func TestHookJSON(t *testing.T) {
-	if got := ParseStartName([]byte(`{"name":"fix-1"}`)); got != "fix-1" {
-		t.Errorf("ParseStartName = %q", got)
+	if got := ParseAddName([]byte(`{"name":"fix-1"}`)); got != "fix-1" {
+		t.Errorf("ParseAddName = %q", got)
 	}
-	if got := ParseStartName([]byte(`broken`)); got != "" {
-		t.Errorf("ParseStartName(broken) = %q", got)
+	if got := ParseAddName([]byte(`broken`)); got != "" {
+		t.Errorf("ParseAddName(broken) = %q", got)
 	}
 	if got := ParseEndPath([]byte(`{"worktree_path":"/w/x"}`)); got != "/w/x" {
 		t.Errorf("ParseEndPath = %q", got)

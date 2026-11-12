@@ -873,7 +873,7 @@ its cleanup sweep skips hook-created worktrees. `dotty git done` is the backstop
 — it removes the worktrees of the branches it finds merged.
 
 ```text
-dotty git worktree start [repo] [suffix]
+dotty git worktree add [repo] [suffix]
 dotty git worktree remove [path] [--yes|-y] [--force|-f]
 ```
 
@@ -913,6 +913,6 @@ dotty git down [num]
 dotty git switch    # alias: stack
 dotty git browse
 dotty git done
-dotty git worktree start|remove …
+dotty git worktree add|remove …
 dotty git resign …
 ```

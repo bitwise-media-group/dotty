@@ -411,7 +411,7 @@ func TestRenderWorktreesDefaultWiring(t *testing.T) {
 		t.Errorf("env.zsh missing DOTTY_WORKTREES:\n%s", got)
 	}
 	settings := readRendered(t, machine, "home/.config/claude/settings.json")
-	for _, hook := range []string{`"dotty git worktree start"`, `"dotty git worktree remove --yes"`} {
+	for _, hook := range []string{`"dotty git worktree add"`, `"dotty git worktree remove --yes"`} {
 		if !strings.Contains(settings, hook) {
 			t.Errorf("claude settings missing hook command %s", hook)
 		}

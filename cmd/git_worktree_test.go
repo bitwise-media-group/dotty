@@ -91,12 +91,12 @@ func dirExists(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-func TestGitWorktreeStartAndRemove(t *testing.T) {
+func TestGitWorktreeAddAndRemove(t *testing.T) {
 	repo := worktreeRepo(t)
 	want := worktreePath("fix-1")
 
-	if err := execWorktree(t, "start", repo, "fix-1"); err != nil {
-		t.Fatalf("start: %v", err)
+	if err := execWorktree(t, "add", repo, "fix-1"); err != nil {
+		t.Fatalf("add: %v", err)
 	}
 	if !dirExists(want) {
 		t.Fatalf("worktree not created at %s", want)
@@ -105,9 +105,10 @@ func TestGitWorktreeStartAndRemove(t *testing.T) {
 		t.Fatalf("worktree branch = %q, want agent/proj-fix-1", got)
 	}
 
-	// start is idempotent: an existing worktree of this repo is reused.
+	// add is idempotent: an existing worktree of this repo is reused. start
+	// survives as an alias of add.
 	if err := execWorktree(t, "start", repo, "fix-1"); err != nil {
-		t.Fatalf("re-start: %v", err)
+		t.Fatalf("re-add via start: %v", err)
 	}
 
 	// end survives as an alias of remove.
@@ -142,7 +143,7 @@ func TestGitWorktreeRemoveSparesNonAgentBranches(t *testing.T) {
 	}
 }
 
-func TestGitWorktreeStartRoots(t *testing.T) {
+func TestGitWorktreeAddRoots(t *testing.T) {
 	cases := []struct {
 		name    string
 		setting func(home, repo string) string
@@ -165,8 +166,8 @@ func TestGitWorktreeStartRoots(t *testing.T) {
 			home := os.Getenv("HOME")
 			t.Setenv("DOTTY_WORKTREES", c.setting(home, repo))
 
-			if err := execWorktree(t, "start", repo, "x"); err != nil {
-				t.Fatalf("start: %v", err)
+			if err := execWorktree(t, "add", repo, "x"); err != nil {
+				t.Fatalf("add: %v", err)
 			}
 			if want := c.want(home, repo); !dirExists(want) {
 				t.Fatalf("worktree not at %s", want)
@@ -175,18 +176,18 @@ func TestGitWorktreeStartRoots(t *testing.T) {
 	}
 }
 
-// TestGitWorktreeStartRefusesForeignRepo pins the shared-root collision: two
+// TestGitWorktreeAddRefusesForeignRepo pins the shared-root collision: two
 // repositories with the same basename derive the same worktree name, and the
 // second must not be handed the first one's checkout.
-func TestGitWorktreeStartRefusesForeignRepo(t *testing.T) {
+func TestGitWorktreeAddRefusesForeignRepo(t *testing.T) {
 	home := gitEnv(t)
 	first := newRepo(t, filepath.Join(home, "Repos", "a", "proj"))
 	second := newRepo(t, filepath.Join(home, "Repos", "b", "proj"))
 
-	if err := execWorktree(t, "start", first, "fix"); err != nil {
+	if err := execWorktree(t, "add", first, "fix"); err != nil {
 		t.Fatalf("start first: %v", err)
 	}
-	err := execWorktree(t, "start", second, "fix")
+	err := execWorktree(t, "add", second, "fix")
 	if err == nil || !strings.Contains(err.Error(), "not a worktree of") {
 		t.Fatalf("start second = %v, want a not-a-worktree-of error", err)
 	}
@@ -230,8 +231,8 @@ func TestGitWorktreeRemoveLostWork(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			repo := worktreeRepo(t)
 			path := worktreePath("dirty")
-			if err := execWorktree(t, "start", repo, "dirty"); err != nil {
-				t.Fatalf("start: %v", err)
+			if err := execWorktree(t, "add", repo, "dirty"); err != nil {
+				t.Fatalf("add: %v", err)
 			}
 			c.dirty(t, path)
 
@@ -259,8 +260,8 @@ func TestGitWorktreeRemoveLostWork(t *testing.T) {
 func TestGitWorktreeRemoveCommitFastForwardedLocally(t *testing.T) {
 	repo := worktreeRepo(t)
 	path := worktreePath("ff")
-	if err := execWorktree(t, "start", repo, "ff"); err != nil {
-		t.Fatalf("start: %v", err)
+	if err := execWorktree(t, "add", repo, "ff"); err != nil {
+		t.Fatalf("add: %v", err)
 	}
 	gitT(t, path, "commit", "--allow-empty", "-m", "agent work")
 	gitT(t, repo, "merge", "--ff-only", "agent/proj-ff")
@@ -276,8 +277,8 @@ func TestGitWorktreeRemoveCommitFastForwardedLocally(t *testing.T) {
 func TestGitWorktreeRemoveLocked(t *testing.T) {
 	repo := worktreeRepo(t)
 	path := worktreePath("locked")
-	if err := execWorktree(t, "start", repo, "locked"); err != nil {
-		t.Fatalf("start: %v", err)
+	if err := execWorktree(t, "add", repo, "locked"); err != nil {
+		t.Fatalf("add: %v", err)
 	}
 	gitT(t, repo, "worktree", "lock", "--reason", "agent running", path)
 
@@ -301,8 +302,8 @@ func TestGitWorktreeRemoveSubmodule(t *testing.T) {
 	gitT(t, repo, "commit", "-m", "add submodule")
 
 	path := worktreePath("sub")
-	if err := execWorktree(t, "start", repo, "sub"); err != nil {
-		t.Fatalf("start: %v", err)
+	if err := execWorktree(t, "add", repo, "sub"); err != nil {
+		t.Fatalf("add: %v", err)
 	}
 	gitT(t, path, "submodule", "update", "--init")
 	if !dirExists(filepath.Join(path, "sub", ".git")) && !fileExists(filepath.Join(path, "sub", ".git")) {

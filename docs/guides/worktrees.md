@@ -15,7 +15,7 @@ sequenceDiagram
     participant A as Agent
     participant W as Worktree (signing off)
     participant Y as You (YubiKey)
-    A->>W: dotty git worktree start (WorktreeCreate hook)
+    A->>W: dotty git worktree add (WorktreeCreate hook)
     A->>W: commits, unsigned
     Y->>W: dotty git resign --root
     Y->>W: review / merge
@@ -25,11 +25,10 @@ sequenceDiagram
 
 ## Lifecycle
 
-[`dotty git worktree start`](../cli/dotty_git_worktree_start.md) creates (or
-reuses) a worktree on an `agent/<repo>-<suffix>` branch and prints its path. It
-only reuses an existing directory that is a worktree of the same repository —
-two repositories with the same basename would otherwise collide under a shared
-root.
+[`dotty git worktree add`](../cli/dotty_git_worktree_add.md) creates (or reuses)
+a worktree on an `agent/<repo>-<suffix>` branch and prints its path. It only
+reuses an existing directory that is a worktree of the same repository — two
+repositories with the same basename would otherwise collide under a shared root.
 
 [`dotty git worktree remove`](../cli/dotty_git_worktree_remove.md) (alias `end`)
 removes the worktree, its tmux session, and the `agent/*` branch; any other
@@ -72,7 +71,7 @@ finds and groups worktree sessions under ++"<leader>"+f+s++.
 
 Both verbs also accept their agent hook JSON on stdin, so they wire directly
 into agent hooks with no glue: the scaffolded Claude Code settings map
-`WorktreeCreate` → `dotty git worktree start` and `WorktreeRemove` →
+`WorktreeCreate` → `dotty git worktree add` and `WorktreeRemove` →
 `dotty git worktree remove --yes` (Claude has already asked whether to keep the
 worktree by the time the hook fires). When Claude Code creates an isolated
 worktree for a task, dotty places it in the configured location and names the
@@ -121,7 +120,7 @@ Signing is restored two ways:
 ## A typical run
 
 1. An agent session starts a task; the `WorktreeCreate` hook calls
-   `dotty git worktree start`, and work happens on `agent/myrepo-fix-tests` in
+   `dotty git worktree add`, and work happens on `agent/myrepo-fix-tests` in
    `~/.local/share/dotty/worktrees/myrepo-fix-tests`.
 2. The agent commits as it goes — unsigned, Conventional Commits.
 3. You review, then `dotty git resign main` — every commit after `main` is

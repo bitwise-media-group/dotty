@@ -120,7 +120,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dotty git worktree start"
+            "command": "dotty git worktree add"
           }
         ]
       }

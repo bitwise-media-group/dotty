@@ -5,9 +5,9 @@ package worktree
 
 import "encoding/json"
 
-// ParseStartName extracts ".name" from WorktreeCreate hook JSON on stdin.
+// ParseAddName extracts ".name" from WorktreeCreate hook JSON on stdin.
 // Invalid or empty input yields "".
-func ParseStartName(data []byte) string {
+func ParseAddName(data []byte) string {
 	var h struct {
 		Name string `json:"name"`
 	}

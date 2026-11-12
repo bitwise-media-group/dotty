@@ -29,8 +29,8 @@ func doneRepo(t *testing.T) string {
 // fast-forward + push publish it.
 func mergedAgentWorktree(t *testing.T, repo, suffix string) string {
 	t.Helper()
-	if err := execWorktree(t, "start", repo, suffix); err != nil {
-		t.Fatalf("start: %v", err)
+	if err := execWorktree(t, "add", repo, suffix); err != nil {
+		t.Fatalf("add: %v", err)
 	}
 	path := worktreePath(suffix)
 	gitT(t, path, "commit", "--allow-empty", "-m", "agent "+suffix)
