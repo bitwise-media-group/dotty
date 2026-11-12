@@ -36,7 +36,8 @@ var CopyDirs = []string{".config/grok/hooks"}
 var templated = map[string]bool{
 	"template/repo/dotty-marker":                    true,
 	"template/machine/env.zsh":                      true,
-	"template/machine/git.gitconfig":                true,
+	"template/machine/profile.gitconfig":            true,
+	"template/machine/security-keys.gitconfig":      true,
 	"template/machine/worktrees.gitconfig":          true,
 	"template/home/.config/git/ignore":              true,
 	"template/home/.config/claude/settings.json":    true,
@@ -57,7 +58,8 @@ var templated = map[string]bool{
 var perProfile = map[string]bool{
 	"template/mise/config.toml":                     true,
 	"template/machine/env.zsh":                      true,
-	"template/machine/git.gitconfig":                true,
+	"template/machine/profile.gitconfig":            true,
+	"template/machine/security-keys.gitconfig":      true,
 	"template/machine/worktrees.gitconfig":          true,
 	"template/home/.config/claude/settings.json":    true,
 	"template/home/.config/codex/dotty.config.toml": true,
@@ -71,9 +73,11 @@ var perProfile = map[string]bool{
 
 // keepExisting lists the embedded files rendered once and then owned by the
 // user: the profile's mise config.toml, which `dotty packages add` and
-// `mise use -g` write into, so a re-render must not reset it.
+// `mise use -g` write into, and the profile's git config overrides, so a
+// re-render must not reset them.
 var keepExisting = map[string]bool{
-	"template/mise/config.toml": true,
+	"template/mise/config.toml":          true,
+	"template/machine/profile.gitconfig": true,
 }
 
 // executable lists the embedded files written 0o755 — go:embed does not
@@ -100,12 +104,13 @@ var manifest = []Component{
 			"template/home/.zshenv",
 		},
 		Renames: map[string]string{
-			"template/repo/CREDITS.md":             "CREDITS.md",
-			"template/repo/dotty-marker":           ".dotty-version",
-			"template/machine/env.zsh":             "env.zsh",
-			"template/machine/git.gitconfig":       "git.gitconfig",
-			"template/machine/worktrees.gitconfig": "worktrees.gitconfig",
-			"template/mise/config.toml":            "mise/config.toml",
+			"template/repo/CREDITS.md":                 "CREDITS.md",
+			"template/repo/dotty-marker":               ".dotty-version",
+			"template/machine/env.zsh":                 "env.zsh",
+			"template/machine/profile.gitconfig":       "profile.gitconfig",
+			"template/machine/security-keys.gitconfig": "security-keys.gitconfig",
+			"template/machine/worktrees.gitconfig":     "worktrees.gitconfig",
+			"template/mise/config.toml":                "mise/config.toml",
 		},
 		Mise: "template/mise.d/core.toml",
 		// .config/dotty stays a real directory so the machine-local

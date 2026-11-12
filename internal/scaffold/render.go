@@ -184,10 +184,17 @@ func Render(ops []FileOp, repoDir, profileDir string, v Vars) error {
 // machine-rendered: an unplanned entry under them is never a user file.
 var prunedRoots = []string{"home", MiseFragmentsDir}
 
-// PrunePerProfile removes entries under the profile's rendered trees — the
-// home/ tree and the mise fragments — that ops no longer render: orphans
-// left behind when a template file relocates (~/.claude/settings.json →
-// ~/.config/claude/settings.json) or a component is deselected. The trees
+// retiredRenders are profile-relative files an older dotty rendered on every
+// run and the current template no longer produces. They were never safe to
+// edit, so removing them loses nothing: git.gitconfig became
+// security-keys.gitconfig, with user overrides moving to profile.gitconfig.
+var retiredRenders = []string{"git.gitconfig"}
+
+// PrunePerProfile removes the retired renders and the entries under the
+// profile's rendered trees — the home/ tree and the mise fragments — that ops
+// no longer render: orphans left behind when a template file relocates
+// (~/.claude/settings.json → ~/.config/claude/settings.json) or a component
+// is deselected. The trees
 // are wholly machine-rendered, so an unplanned entry is never a user file;
 // directories the pruning empties go too. It returns the pruned paths
 // relative to the profile directory, so the caller can heal the live
@@ -201,6 +208,16 @@ func PrunePerProfile(profileDir string, ops []FileOp) ([]string, error) {
 	}
 
 	var pruned []string
+	for _, rel := range retiredRenders {
+		err := os.Remove(filepath.Join(profileDir, rel))
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return pruned, fmt.Errorf("prune %s: %w", rel, err)
+		}
+		pruned = append(pruned, rel)
+	}
 	for _, rootRel := range prunedRoots {
 		root := filepath.Join(profileDir, rootRel)
 		var orphans []string

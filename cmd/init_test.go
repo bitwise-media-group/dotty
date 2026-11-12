@@ -185,7 +185,7 @@ func assertRepoAndProfile(t *testing.T, home, repo string) {
 			t.Errorf("%s missing from profile: %v", machineFile, err)
 		}
 	}
-	for _, f := range []string{"env.zsh", "git.gitconfig"} {
+	for _, f := range []string{"env.zsh", "security-keys.gitconfig", "profile.gitconfig"} {
 		if _, err := os.Stat(filepath.Join(profileDir, f)); err != nil {
 			t.Errorf("profile missing %s: %v", f, err)
 		}
@@ -600,9 +600,9 @@ func assertKeyWiring(t *testing.T, home, repo string) {
 		t.Errorf("~/.ssh/config: %v\n%s", err, sshConfig)
 	}
 
-	gitcfg, err := os.ReadFile(filepath.Join(home, ".config", "dotty", "active-profile", "git.gitconfig"))
+	gitcfg, err := os.ReadFile(filepath.Join(home, ".config", "dotty", "active-profile", "security-keys.gitconfig"))
 	if err != nil || !containsLine(string(gitcfg), "\tformat = ssh") {
-		t.Errorf("profile git.gitconfig missing gpg block: %v\n%s", err, gitcfg)
+		t.Errorf("profile security-keys.gitconfig missing gpg block: %v\n%s", err, gitcfg)
 	}
 
 	askpass := filepath.Join(home, ".local", "share", "dotty", "dotty-ssh-askpass")
@@ -698,9 +698,9 @@ func TestInitWithoutSecurityKeys(t *testing.T) {
 	}
 
 	// No gpg config anywhere, unsigned commits, no ssh config rendered.
-	gitcfg, err := os.ReadFile(filepath.Join(home, ".config", "dotty", "active-profile", "git.gitconfig"))
+	gitcfg, err := os.ReadFile(filepath.Join(home, ".config", "dotty", "active-profile", "security-keys.gitconfig"))
 	if err != nil {
-		t.Fatalf("profile git.gitconfig: %v", err)
+		t.Fatalf("profile security-keys.gitconfig: %v", err)
 	}
 	if containsLine(string(gitcfg), "\tformat = ssh") {
 		t.Errorf("gpg block rendered without security keys:\n%s", gitcfg)

@@ -149,9 +149,9 @@ func TestRenderEverything(t *testing.T) {
 				t.Errorf("env.zsh missing %s:\n%s", want, env)
 			}
 		}
-		gitcfg, err := os.ReadFile(filepath.Join(machineDir, "git.gitconfig"))
+		gitcfg, err := os.ReadFile(filepath.Join(machineDir, "security-keys.gitconfig"))
 		if err != nil || !bytes.Contains(gitcfg, []byte("format = ssh")) {
-			t.Errorf("git.gitconfig missing signing block (securityKeys=true): %v", err)
+			t.Errorf("security-keys.gitconfig missing signing block (securityKeys=true): %v", err)
 		}
 	}
 }
@@ -472,6 +472,7 @@ func TestPrunePerProfileRemovesOrphans(t *testing.T) {
 	orphans := []string{
 		filepath.Join("home", ".claude", "settings.json"), // pre-XDG location
 		filepath.Join("home", ".grok", "sandbox.toml"),
+		"git.gitconfig", // retired: now security-keys.gitconfig
 	}
 	for _, rel := range orphans {
 		path := filepath.Join(profileDir, rel)
@@ -488,13 +489,14 @@ func TestPrunePerProfileRemovesOrphans(t *testing.T) {
 		t.Fatalf("PrunePerProfile: %v", err)
 	}
 	slices.Sort(pruned)
-	want := []string{"home/.claude/settings.json", "home/.grok/sandbox.toml"}
+	want := []string{"git.gitconfig", "home/.claude/settings.json", "home/.grok/sandbox.toml"}
 	if !slices.Equal(pruned, want) {
 		t.Errorf("pruned = %v, want %v", pruned, want)
 	}
 	for _, gone := range []string{
 		filepath.Join(profileDir, "home", ".claude"), // emptied directory goes too
 		filepath.Join(profileDir, "home", ".grok"),
+		filepath.Join(profileDir, "git.gitconfig"),
 	} {
 		if _, err := os.Lstat(gone); err == nil {
 			t.Errorf("%s survived the prune", gone)
@@ -638,5 +640,43 @@ func TestUnfoldCoversAgentStateDirs(t *testing.T) {
 		if !slices.Contains(dirs, want) {
 			t.Errorf("Unfold missing %s (got %v)", want, dirs)
 		}
+	}
+}
+
+// TestRenderKeepsProfileGitconfig pins the profile's git overrides as
+// user-owned: the first render seeds profile.gitconfig, a re-render leaves
+// the user's edits alone, while security-keys.gitconfig is rewritten.
+func TestRenderKeepsProfileGitconfig(t *testing.T) {
+	a := Answers{ProfileName: "t", ReposDir: "/r"}
+	ops, err := Plan(a)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	repo, profileDir := t.TempDir(), t.TempDir()
+	vars := NewVars(a, "/home/x", repo)
+	if err := Render(ops, repo, profileDir, vars); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+
+	overrides := filepath.Join(profileDir, "profile.gitconfig")
+	signing := filepath.Join(profileDir, "security-keys.gitconfig")
+	if _, err := os.Stat(overrides); err != nil {
+		t.Fatalf("profile.gitconfig not seeded: %v", err)
+	}
+	const custom = "[user]\n\tsigningKey = mine\n"
+	for _, path := range []string{overrides, signing} {
+		if err := os.WriteFile(path, []byte(custom), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := Render(ops, repo, profileDir, vars); err != nil {
+		t.Fatalf("re-Render: %v", err)
+	}
+	if got, err := os.ReadFile(overrides); err != nil || string(got) != custom {
+		t.Errorf("profile.gitconfig = %q, %v; want the user's edit kept", got, err)
+	}
+	if got, err := os.ReadFile(signing); err != nil || string(got) == custom {
+		t.Errorf("security-keys.gitconfig = %q, %v; want it re-rendered", got, err)
 	}
 }

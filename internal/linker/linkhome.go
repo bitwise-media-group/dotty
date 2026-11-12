@@ -127,7 +127,7 @@ func linkHome(
 	for _, op := range ops {
 		rel, ok := strings.CutPrefix(op.Dst, "home/")
 		if !op.PerProfile || !ok {
-			continue // env.zsh and git.gitconfig are reached by path, not linked
+			continue // env.zsh and the gitconfigs are reached by path, not linked
 		}
 		site := filepath.Join(home, rel)
 		dest := filepath.Join(configDir, "active-profile", op.Dst)

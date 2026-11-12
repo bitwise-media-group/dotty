@@ -24,8 +24,9 @@ dotfiles/
 │   │   ├── profile.json      # metadata + the profile's stored init answers
 │   │   ├── mise/             # packages + dotfiles: config.toml (yours),
 │   │   │                     #   conf.d/<component>.toml (rendered), mise.lock
-│   │   ├── env.zsh           # profile-varying files (also git.gitconfig,
-│   │   │                     #   worktrees.gitconfig)
+│   │   ├── env.zsh           # profile-varying files (also
+│   │   │                     #   security-keys.gitconfig, worktrees.gitconfig,
+│   │   │                     #   profile.gitconfig — the last one is yours)
 │   │   └── home/             # profile-varying $HOME entries
 │   └── work/
 └── home/                     # everything below maps into $HOME

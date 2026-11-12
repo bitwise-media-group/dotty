@@ -1,0 +1,14 @@
+# Security-key signing config for profile {{.ProfileName}}, rendered by
+# `dotty init` on every run and included by the shared git config through
+# the active-profile symlink. Edits here are overwritten — customise
+# profile.gitconfig instead.
+{{- if .SecurityKeys }}
+
+[gpg]
+	format = ssh
+
+[gpg "ssh"]
+	allowedSignersFile = ~/.ssh/allowed_signers
+	defaultKeyCommand = "dotty signing-key get --format=key"
+	program = dotty
+{{- end }}

@@ -20,8 +20,9 @@ profiles/work/
 ├── profile.json         # metadata + the stored init answers (addons, agents, …)
 ├── mise/                # the profile's package set: config.toml, conf.d/, mise.lock
 ├── env.zsh              # per-profile environment (DOTTY_WORKTREES, agent homes)
-├── git.gitconfig        # signing config, when this class uses security keys
-├── worktrees.gitconfig  # signing-off include for agent worktrees
+├── security-keys.gitconfig  # signing config, when this class uses security keys
+├── worktrees.gitconfig      # signing-off include for agent worktrees
+├── profile.gitconfig        # your git overrides — seeded empty, never rewritten
 └── home/                # profile-varying $HOME entries, linked like the repo's
 ```
 
@@ -32,7 +33,7 @@ question with that profile's previous answers.
 The **only machine-local state** is one symlink:
 `~/.config/dotty/active-profile` → the active profile's directory. Shared config
 (git, zsh) references files _through_ that symlink — for example
-`~/.config/dotty/active-profile/git.gitconfig` — so switching profiles
+`~/.config/dotty/active-profile/security-keys.gitconfig` — so switching profiles
 atomically swaps every profile-varying value at once, with no re-templating.
 
 ## Creating a profile
@@ -127,6 +128,9 @@ Two security controls are profile content, so they swap on activation:
   [`dotty security-key allow`](../cli/dotty_security-key_allow.md) restricts
   which hardware keys the profile may use; every signing-key operation checks
   it. A work profile can be limited to employer-issued keys.
-- **Signing config** — the profile's `git.gitconfig` turns SSH commit signing on
-  (or not) per class; machines whose profile skips security keys sign nothing
-  and git silently skips the missing include.
+- **Signing config** — the profile's `security-keys.gitconfig` turns SSH commit
+  signing on (or not) per class; machines whose profile skips security keys sign
+  nothing. `dotty init` re-renders it on every run, so don't edit it.
+- **Git overrides** — the profile's `profile.gitconfig` is seeded empty by
+  `dotty init` and never rewritten. The shared git config includes it last, so
+  anything set there overrides every default above it.

@@ -37,7 +37,7 @@
 # keys) rendered into the active dotty profile; git silently skips a missing
 # include, so machines without keys sign nothing.
 [include]
-	path = ~/.config/dotty/active-profile/git.gitconfig
+	path = ~/.config/dotty/active-profile/security-keys.gitconfig
 
 # Stacked-branch workflow via dotty: signature-preserving, trunk-based stacks
 # with ff-merge. done returns to a clean trunk, prunes merged branches, and
@@ -73,7 +73,13 @@
 
 # Agent worktrees disable commit/tag signing so sandboxed agents don't block
 # on a security key. The worktree location is configurable per profile, so
-# the gitdir condition renders there; loaded last so it overrides anything
-# in the private overlay.
+# the gitdir condition renders there; loaded after the private overlay so it
+# overrides anything there.
 [include]
 	path = ~/.config/dotty/active-profile/worktrees.gitconfig
+
+# Per-profile overrides: seeded empty by dotty init and never rewritten, so
+# it is the safe place to customise git. Loaded last so it can override
+# anything above, including the worktree signing switch.
+[include]
+	path = ~/.config/dotty/active-profile/profile.gitconfig

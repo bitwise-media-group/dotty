@@ -40,8 +40,8 @@ public stub lands in `$XDG_DATA_HOME/dotty` (mode 0700).
 ## Wire git up
 
 If you ran `init` with security keys enabled, this is **already done**: the
-active profile's rendered `git.gitconfig` sets `gpg.format=ssh`, routes signing
-through dotty, and resolves the key at commit time with
+active profile's rendered `security-keys.gitconfig` sets `gpg.format=ssh`,
+routes signing through dotty, and resolves the key at commit time with
 `dotty signing-key get --format=key`. For any other machine or a non-dotty
 setup, print the exact config to paste:
 

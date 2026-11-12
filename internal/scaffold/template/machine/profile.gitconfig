@@ -1,0 +1,4 @@
+# Git config for profile {{.ProfileName}}, seeded once by `dotty init` and
+# never rewritten afterwards. The shared git config includes it last, so
+# anything set here overrides the defaults, the private overlay, and the
+# rendered security-keys and worktree configs above it.

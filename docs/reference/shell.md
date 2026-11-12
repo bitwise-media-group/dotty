@@ -91,12 +91,14 @@ includes so the repo itself never contains PII:
   written once by `dotty init`, kept outside the repo (see
   [Where things live](layout.md)).
 - **Per-profile signing include**:
-  `~/.config/dotty/active-profile/git.gitconfig` — SSH signing via
+  `~/.config/dotty/active-profile/security-keys.gitconfig` — SSH signing via
   `dotty signing-key` on machines whose profile uses security keys; silently
   skipped elsewhere.
-- **Worktrees include** (loaded last, so it wins): disables commit/tag signing
-  inside agent worktrees — see
-  [Agent worktrees & re-signing](../guides/worktrees.md).
+- **Worktrees include**: disables commit/tag signing inside agent worktrees —
+  see [Agent worktrees & re-signing](../guides/worktrees.md).
+- **Profile overrides include** (loaded last, so it wins):
+  `~/.config/dotty/active-profile/profile.gitconfig` — seeded empty by
+  `dotty init` and never rewritten; put your own git customisations here.
 - **Global ignore**: `commit.sh`, local Claude settings and plans, `.DS_Store`,
   `.env.*`, `fnox.local.toml`, the legacy `.worktrees/` directory, and a
   repo-relative worktrees directory when one is configured.
