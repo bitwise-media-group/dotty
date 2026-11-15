@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/bitwise-media-group/dotty/compare/v0.5.0...v0.5.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/lipgloss/v2 to v2.1.0 ([#252](https://github.com/bitwise-media-group/dotty/issues/252)) ([400f9d7](https://github.com/bitwise-media-group/dotty/commit/400f9d720ce42f59c27b69957cff04da9f2fe261))
+* **deps:** update module golang.org/x/term to v0.48.0 ([#253](https://github.com/bitwise-media-group/dotty/issues/253)) ([d248d4c](https://github.com/bitwise-media-group/dotty/commit/d248d4cced2a3816b10487383eace8c5098aaaad))
+
 ## [0.5.0](https://github.com/bitwise-media-group/dotty/compare/v0.4.0...v0.5.0) (2026-11-12)
 
 
