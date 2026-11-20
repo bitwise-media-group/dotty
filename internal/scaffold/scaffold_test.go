@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -198,9 +199,10 @@ func assertRenderedOps(t *testing.T, ops []FileOp, repo, machineDir string) {
 	}
 }
 
-// assertOpenClaudeDefaults checks OpenClaude renders exactly Claude's
-// settings defaults, including hardening and marketplace toggles, and that
-// neither pins a model: Claude Code and OpenClaude's provider pick their own.
+// assertOpenClaudeDefaults checks OpenClaude renders Claude's settings
+// defaults, including hardening and marketplace toggles, minus Claude's model
+// pick: Claude Code pins Opus over its own default, while OpenClaude leaves
+// the model to its provider, where Claude's model aliases may not exist.
 func assertOpenClaudeDefaults(t *testing.T, machineDir string, settings map[string]any) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(machineDir, "home/.config/openclaude/settings.json"))
@@ -211,22 +213,45 @@ func assertOpenClaudeDefaults(t *testing.T, machineDir string, settings map[stri
 	if err := json.Unmarshal(data, &openClaudeSettings); err != nil {
 		t.Fatalf("openclaude settings.json is not valid JSON: %v", err)
 	}
-	if _, has := settings["model"]; has {
-		t.Error("claude must leave the model to Claude Code's default")
+	if got := settings["model"]; got != "opus" {
+		t.Errorf("claude model = %v, want opus", got)
 	}
-	if _, has := openClaudeSettings["model"]; has {
-		t.Error("openclaude must leave the model to its provider")
+	modelKeys := []string{"model", "modelSettings"}
+	claudeDefaults := maps.Clone(settings)
+	for _, key := range modelKeys {
+		if _, has := openClaudeSettings[key]; has {
+			t.Errorf("openclaude must leave %s to its provider", key)
+		}
+		delete(claudeDefaults, key)
 	}
-	claudeDefaults, err := json.Marshal(settings)
+	claudeJSON, err := json.Marshal(claudeDefaults)
 	if err != nil {
 		t.Fatal(err)
 	}
-	openClaudeDefaults, err := json.Marshal(openClaudeSettings)
+	openClaudeJSON, err := json.Marshal(openClaudeSettings)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(claudeDefaults, openClaudeDefaults) {
-		t.Error("openclaude settings differ from Claude's defaults")
+	if !bytes.Equal(claudeJSON, openClaudeJSON) {
+		t.Error("openclaude settings differ from Claude's defaults beyond the model pick")
+	}
+}
+
+func TestAgentOf(t *testing.T) {
+	cases := []struct {
+		dst, want string
+	}{
+		{"home/.config/claude/settings.json", "claude"},
+		{"home/.config/openclaude/settings.json", "openclaude"},
+		{"home/.config/pi/dotty/sandbox.json", "pi"},
+		{"home/.config/git", ""},
+		{"env.zsh", ""},
+		{"mise/conf.d/agent-pi.toml", ""},
+	}
+	for _, c := range cases {
+		if got := agentOf(c.dst); got != c.want {
+			t.Errorf("agentOf(%q) = %q, want %q", c.dst, got, c.want)
+		}
 	}
 }
 

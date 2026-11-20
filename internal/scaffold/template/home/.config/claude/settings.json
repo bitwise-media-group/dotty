@@ -345,7 +345,6 @@
   },
 {{- end }}
   "feedbackSurveyRate": 0,
-  "effortLevel": "high",
   "autoUpdatesChannel": "stable",
   "plansDirectory": "./.claude/plans",
   "tui": "fullscreen",
@@ -354,5 +353,23 @@
   "editorMode": "vim",
   "remoteControlAtStartup": false,
   "agentPushNotifEnabled": true,
-  "showClearContextOnPlanAccept": true
+  "showClearContextOnPlanAccept": true,
+{{- if ne .Agent "openclaude" }}
+  "model": "opus",
+  "modelSettings": {
+    "haiku": {
+      "effortLevel": "high"
+    },
+    "opus": {
+      "effortLevel": "high"
+    },
+    "fable": {
+      "effortLevel": "high"
+    },
+    "mythos": {
+      "effortLevel": "high"
+    }
+  },
+{{- end }}
+  "effortLevel": "high"
 }

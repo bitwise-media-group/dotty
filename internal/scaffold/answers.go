@@ -315,6 +315,11 @@ type Vars struct {
 	Harden       bool
 	Marketplace  bool
 
+	// Agent is the agent whose config a file renders for — its directory
+	// under home/.config — set per file by Render, so one template can serve
+	// two agents (OpenClaude renders Claude Code's settings.json).
+	Agent string
+
 	HasNvim       bool
 	HasLsd        bool
 	HasYazi       bool

@@ -169,7 +169,9 @@ func Render(ops []FileOp, repoDir, profileDir string, v Vars) error {
 			return fmt.Errorf("read template %s: %w", op.Src, err)
 		}
 		if op.Templated {
-			if data, err = render(op.Src, data, v); err != nil {
+			fileVars := v
+			fileVars.Agent = agentOf(op.Dst)
+			if data, err = render(op.Src, data, fileVars); err != nil {
 				return err
 			}
 		}
@@ -178,6 +180,20 @@ func Render(ops []FileOp, repoDir, profileDir string, v Vars) error {
 		}
 	}
 	return nil
+}
+
+// agentOf returns the home/.config directory a destination renders into —
+// the agent name for an agent's config — or "" for any other destination.
+func agentOf(dst string) string {
+	rest, ok := strings.CutPrefix(dst, "home/.config/")
+	if !ok {
+		return ""
+	}
+	dir, _, ok := strings.Cut(rest, "/")
+	if !ok {
+		return ""
+	}
+	return dir
 }
 
 // prunedRoots are the profile-relative trees that are wholly
