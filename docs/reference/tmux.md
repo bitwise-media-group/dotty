@@ -106,20 +106,20 @@ yanking.
 
 Notable settings from `conf/options.conf`:
 
-| Option                           | Value                 | Why                                                           |
-| -------------------------------- | --------------------- | ------------------------------------------------------------- |
-| `mouse`                          | `on`                  | Click panes, drag splits, wheel-scroll                        |
-| `status-position`                | `top`                 | Status bar above the panes                                    |
-| `base-index` / `pane-base-index` | `1`                   | Windows and panes number from 1                               |
-| `renumber-windows`               | `1`                   | No gaps when windows close                                    |
-| `escape-time`                    | `0`                   | No Esc delay (vim-friendly)                                   |
-| `history-limit`                  | `50000`               | Deep scrollback                                               |
-| `set-clipboard`                  | `on`                  | Yanks reach the system clipboard, including over SSH (OSC 52) |
-| `extended-keys`                  | `on` (`xterm` format) | Modifier-rich chords pass through to apps                     |
-| `allow-passthrough`              | `on`                  | Escape-sequence passthrough (images, OSC)                     |
-| `focus-events`                   | `on`                  | Neovim autoread etc. work inside tmux                         |
-| `aggressive-resize`              | `on`                  | Windows resize to the smallest _viewing_ client only          |
-| `lock-after-time`                | `3600`                | Lock idle sessions after an hour                              |
+| Option                           | Value                 | Why                                                               |
+| -------------------------------- | --------------------- | ----------------------------------------------------------------- |
+| `mouse`                          | `on`                  | Click panes, drag splits, wheel-scroll                            |
+| `status-position`                | `top`                 | Status bar above the panes                                        |
+| `base-index` / `pane-base-index` | `1`                   | Windows and panes number from 1                                   |
+| `renumber-windows`               | `1`                   | No gaps when windows close                                        |
+| `escape-time`                    | `0`                   | No Esc delay (vim-friendly)                                       |
+| `history-limit`                  | `50000`               | Deep scrollback                                                   |
+| `set-clipboard`                  | `on`                  | Yanks reach the system clipboard, including over SSH (OSC 52)     |
+| `extended-keys`                  | `on` (`csi-u` format) | Modifier-rich chords pass through to apps (csi-u for Pi and Grok) |
+| `allow-passthrough`              | `on`                  | Escape-sequence passthrough (images, OSC)                         |
+| `focus-events`                   | `on`                  | Neovim autoread etc. work inside tmux                             |
+| `aggressive-resize`              | `on`                  | Windows resize to the smallest _viewing_ client only              |
+| `lock-after-time`                | `3600`                | Lock idle sessions after an hour                                  |
 
 The config also exports `CLAUDE_CODE_TMUX_TRUECOLOR` and
 `CLAUDE_CODE_NO_FLICKER` so Claude Code renders correctly under tmux, and keeps
