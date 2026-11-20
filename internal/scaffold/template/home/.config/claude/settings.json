@@ -241,6 +241,7 @@
         "vuln.go.dev",
 
         "mise.jdx.dev",
+        "mise-versions.jdx.dev",
 
         "registry.terraform.io",
 
@@ -267,6 +268,7 @@
         "*.quay.io",
         "*.pkg.dev",
         "production.cloudflare.docker.com",
+        "cgr.dev",
 
         "*.s3.dualstack.eu-west-1.amazonaws.com",
         "*.s3.dualstack.eu-west-2.amazonaws.com",
