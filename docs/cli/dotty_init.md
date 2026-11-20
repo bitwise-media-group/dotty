@@ -51,7 +51,7 @@ dotty init [flags]
 
 ```
       --addons strings                 optional add-ons: nvim,btop,kubernetes,lazygit,lsd,tmux,yazi
-      --agents strings                 coding agents: claude-code,codex,opencode,antigravity,grok,openclaude
+      --agents strings                 coding agents: claude-code,codex,opencode,antigravity,grok,openclaude,pi
       --allowed-serials strings        restrict the profile to these security-key serials
       --description string             short description of the profile
       --dock-apps strings              optional apps the dock defaults group pins: ghostty,claude-code,codex (empty for none)

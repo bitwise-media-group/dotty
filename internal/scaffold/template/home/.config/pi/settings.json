@@ -1,0 +1,11 @@
+{
+  "$schema": "https://pi.dev/schemas/settings.schema.json",
+{{- if .Harden }}
+  "extensions": ["dotty/policy.ts"],
+{{- end }}
+  "theme": "cyberdream",
+  "quietStartup": true,
+  "enableInstallTelemetry": false,
+  "selfUpdateCommand": ["mise", "up", "aqua:earendil-works/pi"],
+  "defaultProjectTrust": "ask"
+}

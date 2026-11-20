@@ -76,6 +76,7 @@ var toolForFormula = map[string]string{
 	// agents
 	"anomalyco/tap/opencode": "aqua:anomalyco/opencode",
 	"opencode":               "aqua:anomalyco/opencode",
+	"pi-coding-agent":        "aqua:earendil-works/pi",
 	// runtimes mise implements itself
 	"go":     "go",
 	"dotnet": "dotnet",

@@ -20,7 +20,7 @@ func everything() Answers {
 		ProfileName:  "test",
 		ReposDir:     "/repos",
 		AddOns:       []string{"nvim", "btop", "kubernetes", "lazygit", "lsd", "tmux", "yazi"},
-		Agents:       []string{"claude-code", "codex", "opencode", "antigravity", "grok", "openclaude"},
+		Agents:       []string{"claude-code", "codex", "opencode", "antigravity", "grok", "openclaude", "pi"},
 		SecurityKeys: true,
 		HushLogin:    true,
 	}
@@ -136,6 +136,7 @@ func TestRenderEverything(t *testing.T) {
 		}
 
 		assertHardenToggles(t, machineDir, settings, grok, marketplace)
+		assertPiConfig(t, machineDir, v, settings, marketplace)
 
 		// The machine env carries the per-machine values the repo no longer does.
 		env, err := os.ReadFile(filepath.Join(machineDir, "env.zsh"))
@@ -144,6 +145,7 @@ func TestRenderEverything(t *testing.T) {
 		}
 		for _, want := range []string{
 			`REPOS_DIR="/repos"`, "EDITOR=nvim", "CODEX_HOME", `OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"`,
+			`PI_CODING_AGENT_DIR="${XDG_CONFIG_HOME}/pi"`, "PI_SKIP_VERSION_CHECK=1",
 		} {
 			if !bytes.Contains(env, []byte(want)) {
 				t.Errorf("env.zsh missing %s:\n%s", want, env)
@@ -260,8 +262,102 @@ func assertHardenToggles(t *testing.T, machineDir string, settings map[string]an
 	}
 }
 
+// assertPiConfig checks Pi's rendered config: strict JSON in both branches, the
+// policy gate listed only when hardened, and srt settings that carry the
+// worktrees root, deny writes to the dotfiles repository the gate is linked
+// from, and otherwise copy Claude's sandbox lists exactly.
+func assertPiConfig(t *testing.T, machineDir string, v Vars, claude map[string]any, harden bool) {
+	t.Helper()
+	var settings struct {
+		Extensions        []string `json:"extensions"`
+		SelfUpdateCommand []string `json:"selfUpdateCommand"`
+	}
+	data := readRendered(t, machineDir, "home/.config/pi/settings.json")
+	if err := json.Unmarshal([]byte(data), &settings); err != nil {
+		t.Fatalf("pi settings.json (harden=%v) is not valid JSON: %v", harden, err)
+	}
+	if got := slices.Contains(settings.Extensions, "dotty/policy.ts"); got != harden {
+		t.Errorf("pi policy extension listed = %v, want %v", got, harden)
+	}
+	if len(settings.SelfUpdateCommand) == 0 {
+		t.Error("pi selfUpdateCommand missing")
+	}
+
+	var sandbox struct {
+		Network struct {
+			AllowedDomains []string `json:"allowedDomains"`
+			DeniedDomains  []string `json:"deniedDomains"`
+		} `json:"network"`
+		Filesystem struct {
+			AllowWrite []string `json:"allowWrite"`
+			DenyRead   []string `json:"denyRead"`
+			DenyWrite  []string `json:"denyWrite"`
+		} `json:"filesystem"`
+	}
+	data = readRendered(t, machineDir, "home/.config/pi/dotty/sandbox.json")
+	if err := json.Unmarshal([]byte(data), &sandbox); err != nil {
+		t.Fatalf("pi dotty/sandbox.json is not valid JSON: %v", err)
+	}
+	if len(sandbox.Network.AllowedDomains) == 0 || sandbox.Network.DeniedDomains == nil {
+		t.Error("pi sandbox.json lacks srt's required network lists")
+	}
+	if !slices.Contains(sandbox.Filesystem.AllowWrite, v.WorktreesAbs) {
+		t.Errorf("pi sandbox allowWrite missing the worktrees root %s", v.WorktreesAbs)
+	}
+	for _, want := range []string{"~/.ssh", "**/.env*", "~/.config/pi", v.DotfilesDir} {
+		if !slices.Contains(sandbox.Filesystem.DenyWrite, want) {
+			t.Errorf("pi sandbox denyWrite missing %s", want)
+		}
+	}
+	if !slices.Contains(sandbox.Filesystem.DenyRead, "~/.ssh") {
+		t.Error("pi sandbox denyRead missing the credential set")
+	}
+	if harden {
+		assertPiSandboxMatchesClaude(t, data, claude)
+	}
+}
+
+// assertPiSandboxMatchesClaude pins Pi's srt settings to Claude's sandbox
+// block, list for list, so an edit to one cannot silently skip the other.
+// denyWrite is the exception: Pi's adds the paths that protect its gate.
+func assertPiSandboxMatchesClaude(t *testing.T, piSandbox string, claude map[string]any) {
+	t.Helper()
+	var pi map[string]any
+	if err := json.Unmarshal([]byte(piSandbox), &pi); err != nil {
+		t.Fatal(err)
+	}
+	lists := func(root map[string]any, section string) map[string]any {
+		m, _ := root[section].(map[string]any)
+		return m
+	}
+	claudeSandbox, _ := claude["sandbox"].(map[string]any)
+	for _, c := range []struct{ section, key string }{
+		{"network", "allowedDomains"},
+		{"network", "allowUnixSockets"},
+		{"network", "allowMachLookup"},
+		{"network", "allowLocalBinding"},
+		{"filesystem", "allowWrite"},
+		{"filesystem", "denyRead"},
+		{"filesystem", "allowRead"},
+	} {
+		got, want := lists(pi, c.section)[c.key], lists(claudeSandbox, c.section)[c.key]
+		gotJSON, _ := json.Marshal(got)
+		wantJSON, _ := json.Marshal(want)
+		if want == nil || !bytes.Equal(gotJSON, wantJSON) {
+			t.Errorf("pi sandbox %s.%s = %s, want Claude's %s", c.section, c.key, gotJSON, wantJSON)
+		}
+	}
+	piDeny, _ := lists(pi, "filesystem")["denyWrite"].([]any)
+	claudeDeny, _ := lists(claudeSandbox, "filesystem")["denyWrite"].([]any)
+	for _, want := range claudeDeny {
+		if !slices.Contains(piDeny, want) {
+			t.Errorf("pi sandbox denyWrite missing Claude's %v", want)
+		}
+	}
+}
+
 func TestRenderSharedDocLinks(t *testing.T) {
-	a := Answers{ProfileName: "t", ReposDir: "/r", Agents: []string{"codex", "grok", "claude-code", "openclaude"}}
+	a := Answers{ProfileName: "t", ReposDir: "/r", Agents: []string{"codex", "grok", "claude-code", "openclaude", "pi"}}
 	ops, err := Plan(a)
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
@@ -278,6 +374,7 @@ func TestRenderSharedDocLinks(t *testing.T) {
 	}
 	for _, doc := range []string{
 		"home/.config/codex/AGENTS.md", "home/.config/grok/AGENTS.md", "home/.config/openclaude/CLAUDE.md",
+		"home/.config/pi/AGENTS.md",
 	} {
 		info, err := os.Lstat(filepath.Join(repo, doc))
 		if err != nil || info.Mode()&os.ModeSymlink == 0 {
@@ -636,7 +733,9 @@ func TestUnfoldCoversAgentStateDirs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unfold: %v", err)
 	}
-	for _, want := range []string{".config", ".config/claude", ".config/grok", ".config/codex", ".ssh"} {
+	for _, want := range []string{
+		".config", ".config/claude", ".config/grok", ".config/codex", ".config/pi", ".config/pi/dotty", ".ssh",
+	} {
 		if !slices.Contains(dirs, want) {
 			t.Errorf("Unfold missing %s (got %v)", want, dirs)
 		}

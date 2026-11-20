@@ -408,6 +408,37 @@ func TestConverterMapMatchesFragments(t *testing.T) {
 	}
 }
 
+// TestPiFragmentHardening pins the agent-pi fragment: Pi itself in both
+// branches, on the line the Brewfile converter writes for its formula so an
+// imported Brewfile never installs it twice, and srt (with the node its npm
+// backend needs) only when hardening wraps Pi's bash tool in it.
+func TestPiFragmentHardening(t *testing.T) {
+	conv := mise.ConvertBrewfile([]byte("brew \"pi-coding-agent\"\n"))
+	if len(conv.Tools) != 1 {
+		t.Fatalf("pi-coding-agent converted to %v, want one tool", conv.Tools)
+	}
+	for _, harden := range []bool{false, true} {
+		a := Answers{ProfileName: "t", ReposDir: "/r", Agents: []string{"pi"}, Harden: harden}
+		ops, err := Plan(a)
+		if err != nil {
+			t.Fatalf("Plan: %v", err)
+		}
+		repo, profileDir := t.TempDir(), t.TempDir()
+		if err := Render(ops, repo, profileDir, NewVars(a, "/home/x", repo)); err != nil {
+			t.Fatalf("Render(harden=%v): %v", harden, err)
+		}
+		got := readRendered(t, profileDir, filepath.Join(MiseFragmentsDir, "agent-pi.toml"))
+		if !strings.Contains(got, "\n"+conv.Tools[0].Line+"\n") {
+			t.Errorf("harden=%v: fragment misses the converter's line %s:\n%s", harden, conv.Tools[0].Line, got)
+		}
+		for _, line := range []string{`"npm:@anthropic-ai/sandbox-runtime" = "latest"`, `node = "lts"`} {
+			if strings.Contains(got, line) != harden {
+				t.Errorf("harden=%v: fragment carries %s = %v:\n%s", harden, line, !harden, got)
+			}
+		}
+	}
+}
+
 // TestConfigTemplateMatchesDefault pins that the template's config.toml and
 // the mise package's DefaultConfig (used for hand-made profiles) agree.
 func TestConfigTemplateMatchesDefault(t *testing.T) {

@@ -28,10 +28,13 @@ type SessionRunner interface {
 // glyphs are lobe-icons brand codepoints (U+F4000–U+F47FF), which render only
 // with the lobe-icons font installed and mapped in the terminal — both wired
 // up by `dotty init` (~/Library/Fonts/lobe-icons.ttf + ghostty's
-// font-codepoint-map); the pinned release lives in internal/fonts.
+// font-codepoint-map); the pinned release lives in internal/fonts. lobe-icons
+// has no Pi mark, so pi takes the Nerd Font nf-md-pi glyph (U+F03FF), which
+// the terminal's Nerd Font already covers.
 var agentWindows = []struct {
 	bin, window string
 }{
+	{"pi", "\U000F03FF  pi"},
 	{"opencode", "\U000F40D3  opencode"},
 	{"grok", "\U000F4079  grok"},
 	{"codex", "\U000F403E  codex"},

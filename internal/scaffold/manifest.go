@@ -45,6 +45,9 @@ var templated = map[string]bool{
 	"template/home/.config/opencode/opencode.jsonc": true,
 	"template/home/.config/grok/config.toml":        true,
 	"template/home/.config/grok/sandbox.toml":       true,
+	"template/home/.config/pi/settings.json":        true,
+	"template/home/.config/pi/dotty/sandbox.json":   true,
+	"template/mise.d/agent-pi.toml":                 true,
 	"template/mise.d/core.toml":                     true,
 	"template/mise.d/macos-dock.toml":               true,
 }
@@ -66,6 +69,9 @@ var perProfile = map[string]bool{
 	"template/home/.config/opencode/opencode.jsonc": true,
 	"template/home/.config/grok/config.toml":        true,
 	"template/home/.config/grok/sandbox.toml":       true,
+	"template/home/.config/pi/settings.json":        true,
+	"template/home/.config/pi/dotty/sandbox.json":   true,
+	"template/mise.d/agent-pi.toml":                 true,
 	// Per profile because it is a per-machine-class choice: a profile that
 	// declines it must not inherit another profile's file from the shared tree.
 	"template/home/.hushlogin": true,
@@ -202,6 +208,17 @@ var manifest = []Component{
 		Mise:     "template/mise.d/agent-grok.toml",
 		Unfold:   []string{".config/grok"},
 		Doc:      "home/.config/grok/AGENTS.md",
+	},
+	{
+		// Pi keeps auth.json and trust.json beside its config, so its
+		// directory stays real. dotty/ unfolds too: it mixes shared files
+		// (the policy gate) with the per-profile sandbox.json, and a folded
+		// link would route that per-profile render into the shared tree.
+		ID:       "agent:pi",
+		Prefixes: []string{"template/home/.config/pi"},
+		Mise:     "template/mise.d/agent-pi.toml",
+		Unfold:   []string{".config/pi", ".config/pi/dotty"},
+		Doc:      "home/.config/pi/AGENTS.md",
 	},
 
 	{

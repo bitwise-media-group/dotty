@@ -322,6 +322,7 @@ type Vars struct {
 	HasClaude     bool
 	HasOpenClaude bool
 	HasGrok       bool
+	HasPi         bool
 
 	// DockGhostty, DockClaude and DockChatGPT pin the optional apps in the
 	// dock defaults group's fragment. An agent's app needs the agent
@@ -376,6 +377,7 @@ func NewVars(a Answers, home, dotfilesDir string) Vars {
 		HasClaude:     slices.Contains(a.Agents, "claude-code"),
 		HasOpenClaude: slices.Contains(a.Agents, "openclaude"),
 		HasGrok:       slices.Contains(a.Agents, "grok"),
+		HasPi:         slices.Contains(a.Agents, "pi"),
 	}
 	if a.LockfilePlatforms != nil {
 		v.LockfilePlatforms = mise.PlatformsTOML(a.LockfilePlatforms)

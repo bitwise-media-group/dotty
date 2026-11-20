@@ -46,6 +46,7 @@ the agent isn't installed:
 | ++shift+c++ | Claude Code |
 | ++shift+g++ | Grok        |
 | ++shift+o++ | OpenCode    |
+| ++shift+p++ | Pi          |
 | ++shift+x++ | Codex       |
 
 OpenClaude starts with its saved provider configuration. Use its `/provider`
@@ -67,6 +68,15 @@ falls back to `CLAUDE_CONFIG_DIR` when `OPENCLAUDE_CONFIG_DIR` is unset, so the
 explicit override also prevents accidentally sharing Claude Code's directory.
 See
 [OpenClaude's configuration guide](https://openclaude.gitlawb.com/docs/configuration).
+
+Pi's window uses the Nerd Font `nf-md-pi` glyph, since lobe-icons has no Pi
+mark. Selecting the `pi` agent renders its settings, the cyberdream theme, and a
+tmux-status extension under `.config/pi/`, and exports
+`PI_CODING_AGENT_DIR="${XDG_CONFIG_HOME}/pi"` (Pi defaults to `~/.pi/agent`)
+with sessions under `${XDG_DATA_HOME}/pi/sessions`. On a hardened profile,
+++alt+shift+p++ opens `pi --no-sandbox`, which runs bash without the srt sandbox
+while dotty's policy gate still applies — see
+[Agent sandboxing](agent-sandboxing.md#pi).
 
 ### Copy mode (vi keys)
 
@@ -144,9 +154,9 @@ Each window's status also renders an `@agent_status` token:
 
 The token is set by the internal `dotty tmux set-status` command, which every
 scaffolded agent calls from its lifecycle hooks (Claude Code and Codex hooks,
-Grok's `hooks/tmux-status.json`, OpenCode's `plugin/agent-tmux-status.js`).
-Glance at the status bar to see which agent window needs you, or at the session
-sidebar below for every session at once.
+Grok's `hooks/tmux-status.json`, OpenCode's `plugin/agent-tmux-status.js`, Pi's
+`extensions/tmux-status.ts`). Glance at the status bar to see which agent window
+needs you, or at the session sidebar below for every session at once.
 
 `set-status` only writes (and wakes the sidebar) when the status actually
 changes: agents clear the token on every tool call, and those repeats are no-ops

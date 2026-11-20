@@ -20,8 +20,8 @@ path; each step links deeper when you want the details.
 - A **[mise package directory](../guides/packages.md)** that makes your package
   set reproducible — locked tools plus the Homebrew bottles and casks mise pours
   for you.
-- Optional: **[coding agents](agents.md)** (Claude Code, Codex, OpenCode, Grok)
-  confined by a shared [sandbox policy](../reference/agent-sandboxing.md).
+- Optional: **[coding agents](agents.md)** (Claude Code, Codex, OpenCode, Grok,
+  Pi) confined by a shared [sandbox policy](../reference/agent-sandboxing.md).
 - Optional: **[commit signing](signing.md)** with SSH keys that live on a
   YubiKey and never touch disk.
 

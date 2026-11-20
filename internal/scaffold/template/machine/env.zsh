@@ -41,3 +41,14 @@ export OPENCLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME}/openclaude"
 # Relocate Grok's home under XDG config (it defaults to ~/.grok).
 export GROK_HOME="${XDG_CONFIG_HOME}/grok"
 {{- end }}
+{{- if .HasPi }}
+
+# Relocate Pi's agent dir under XDG config (it defaults to ~/.pi/agent) and its
+# sessions under XDG data so transcripts never land in the dotfiles-linked dir.
+# mise owns updates, so skip Pi's version check; and opt out of its install
+# telemetry.
+export PI_CODING_AGENT_DIR="${XDG_CONFIG_HOME}/pi"
+export PI_CODING_AGENT_SESSION_DIR="${XDG_DATA_HOME}/pi/sessions"
+export PI_SKIP_VERSION_CHECK=1
+export PI_TELEMETRY=0
+{{- end }}

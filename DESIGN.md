@@ -357,10 +357,11 @@ entries mise pours into the Homebrew prefix or the OS package manager at their
 latest version — for what has no static build (git, curl, zsh, native libraries)
 and for GUI apps and fonts. The coding-agent CLIs are tools, not casks: the
 registry carries `aqua:anthropics/claude-code`, `aqua:openai/codex`,
-`aqua:google-antigravity/antigravity-cli`, `npm:@gitlawb/openclaude`, and
-`http:grok` — the last spelled out with its URL template and version list, since
-a bare http id has no URL. Registry shorthand (`git`, `flux`) is refused
-everywhere: it resolves to whichever registry entry claims the name.
+`aqua:google-antigravity/antigravity-cli`, `npm:@gitlawb/openclaude`,
+`aqua:earendil-works/pi`, and `http:grok` — the last spelled out with its URL
+template and version list, since a bare http id has no URL. Registry shorthand
+(`git`, `flux`) is refused everywhere: it resolves to whichever registry entry
+claims the name.
 
 Ownership splits by file: the fragments under `conf.d/` are rendered by
 `dotty init` from the selected components — including one `macos-<group>.toml`
@@ -593,9 +594,9 @@ repository. The wizard also asks for a profile name when creating one (machine
 name by default), whether to import the installed Homebrew formulae into the
 profile's packages, optional add-ons (nvim, btop, kubernetes, lazygit, lsd,
 tmux, yazi), and coding agents (claude-code, codex, opencode, antigravity, grok,
-openclaude). Once at least one agent is selected, init offers the bitwise skills
-marketplace; choosing it wires the marketplace into every selected agent that
-supports one. ghostty, oh-my-posh, vivid, zsh, and git config are always
+openclaude, pi). Once at least one agent is selected, init offers the bitwise
+skills marketplace; choosing it wires the marketplace into every selected agent
+that supports one. ghostty, oh-my-posh, vivid, zsh, and git config are always
 included.
 
 With agents selected, init also asks whether to harden them. Hardening mirrors
@@ -604,9 +605,14 @@ writes limited to the repositories directory and tool caches, denied reads of
 credential paths (~/.ssh, ~/.aws, ~/.gnupg, .env files), and ask-first
 permissions — claude's sandbox/permissions blocks, codex's Seatbelt
 workspace-write plus a PreToolUse deny hook, grok's sandbox profile and
-permission rules plus the same hook, and opencode's permission matrix.
-Unhardened agents keep only theme, hooks, and marketplace config. The choice is
-per profile: a work class can run hardened while a personal one does not.
+permission rules plus the same hook, opencode's permission matrix, and pi's
+policy extension (Pi has no approvals or sandbox of its own): a tool-call gate
+with Claude's permission semantics plus a bash tool that runs every command
+through Anthropic's `srt`, whose per-profile settings copy claude's sandbox
+lists and add the dotfiles repository to the write denies so the gate cannot be
+rewritten from inside it. Unhardened agents keep only theme, hooks, and
+marketplace config. The choice is per profile: a work class can run hardened
+while a personal one does not.
 
 init then asks whether the machine class uses security keys. Answering yes
 renders the profile's signing config (gpg/ssh via dotty), the `~/.ssh/config`
@@ -635,12 +641,13 @@ enforcement — off unless chosen, confirmed with a lock-out warning, and applie
 through sudo. Each selected group renders as its own mise fragment
 (`conf.d/macos-<group>.toml`, on every OS — mise's macOS sections are inert
 elsewhere, so the committed profile stays identical across machines), and mise
-applies them; the Dock fragment is the one templated fragment, its app list
-following the Dock answer. The default-terminal group points the UTIs Ghostty
-declares at it through `duti` in a hook, because Launch Services handlers are a
-single array mise could only replace whole. PIV stays in dotty — it writes
-`/Library/Preferences` through sudo, which mise's user defaults cannot — and
-runs last and best-effort, so a declined sudo never unwinds a completed init.
+applies them; the Dock fragment is the one templated macOS fragment, its app
+list following the Dock answer. The default-terminal group points the UTIs
+Ghostty declares at it through `duti` in a hook, because Launch Services
+handlers are a single array mise could only replace whole. PIV stays in dotty —
+it writes `/Library/Preferences` through sudo, which mise's user defaults cannot
+— and runs last and best-effort, so a declined sudo never unwinds a completed
+init.
 
 Profiles are shared through the repository and activated per machine: one
 dotfiles repo serves every machine, and a profile (personal, work) captures how
@@ -651,9 +658,10 @@ repositories directory, agent sandbox roots, marketplace enablement, signing
 config), and loose files like `env.zsh` and the git includes at the profile
 root. The profile's `env.zsh` also relocates every selected agent under XDG
 (`CODEX_HOME` with `CODEX_SQLITE_HOME` pointed at XDG data, `CLAUDE_CONFIG_DIR`
-with `CLAUDE_CODE_PLUGIN_CACHE_DIR` pointed at XDG cache, `GROK_HOME`), so agent
-config lives in `~/.config/<agent>` like every other tool while runtime state
-and caches stay out of the dotfiles-linked directories. The agent worktree
+with `CLAUDE_CODE_PLUGIN_CACHE_DIR` pointed at XDG cache, `GROK_HOME`,
+`PI_CODING_AGENT_DIR` with `PI_CODING_AGENT_SESSION_DIR` pointed at XDG data),
+so agent config lives in `~/.config/<agent>` like every other tool while runtime
+state and caches stay out of the dotfiles-linked directories. The agent worktree
 location is a profile setting too (`--worktrees`, default the shared root
 `~/.local/share/dotty/worktrees` outside every repository, or a repo-relative
 directory): it lands in the shared gitignore when repo-relative (the legacy

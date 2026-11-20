@@ -77,9 +77,9 @@ vivid, and git config are always included. The
 
 ### Coding agents
 
-`claude-code`, `codex`, `opencode`, `grok`, `antigravity`, `openclaude` — plus
-whether to **harden** them and whether to add the bitwise skills marketplace.
-Covered on the [next page but one](agents.md).
+`claude-code`, `codex`, `opencode`, `grok`, `antigravity`, `openclaude`, `pi` —
+plus whether to **harden** them and whether to add the bitwise skills
+marketplace. Covered on the [next page but one](agents.md).
 
 ### Lockfile platforms
 

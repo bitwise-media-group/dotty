@@ -95,6 +95,7 @@ func TestHasSession(t *testing.T) {
 func TestNewSession(t *testing.T) {
 	f := &fakeSessionRunner{
 		installed: map[string]string{
+			"pi":     "/opt/homebrew/bin/pi",
 			"grok":   "/opt/homebrew/bin/grok",
 			"codex":  "/opt/homebrew/bin/codex",
 			"claude": "/opt/homebrew/bin/claude",
@@ -114,6 +115,7 @@ func TestNewSession(t *testing.T) {
 		{"tmux", "display-message", "-p", "-t", "%1", "#{window_id}"},
 		{"tmux", "split-window", "-t", "%1", "-v", "-l", "10%", "-c", "/repo"},
 		{"tmux", "select-pane", "-t", "%1"},
+		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "\U000F03FF  pi", "/opt/homebrew/bin/pi"},
 		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󴁹  grok", "/opt/homebrew/bin/grok"},
 		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󴀾  codex", "/opt/homebrew/bin/codex"},
 		{"tmux", "new-window", "-a", "-d", "-t", "@1", "-c", "/repo", "-n", "󴀶  claude", "/opt/homebrew/bin/claude"},

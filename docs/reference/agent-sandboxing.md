@@ -3,7 +3,7 @@
   SPDX-License-Identifier: MIT
 -->
 
-<!-- Source of truth: internal/scaffold/template/home/.config/{claude,codex,grok,opencode}/
+<!-- Source of truth: internal/scaffold/template/home/.config/{claude,codex,grok,opencode,pi}/
      — update this page when those templates change. -->
 
 # Agent sandboxing
@@ -16,10 +16,10 @@ an agent that goes wrong — or gets prompt-injected — should not be able to
 keychain), **write outside your repos**, or **talk to arbitrary hosts** without
 you approving it first.
 
-Claude Code's sandbox is the reference policy; Codex, Grok, and OpenCode mirror
-it with their own primitives, filling the gaps with hooks where their sandboxes
-can't express a rule. Without `--harden`, agents get only the non-security parts
-(theme, tmux status hooks, marketplace, shared memory doc).
+Claude Code's sandbox is the reference policy; Codex, Grok, OpenCode, and Pi
+mirror it with their own primitives, filling the gaps with hooks where their
+sandboxes can't express a rule. Without `--harden`, agents get only the
+non-security parts (theme, tmux status hooks, marketplace, shared memory doc).
 
 !!! note "The rendered files are yours"
 
@@ -30,18 +30,18 @@ can't express a rule. Without `--harden`, agents get only the non-security parts
 
 ## The shared baseline
 
-|                  | Claude Code                     | Codex                            | Grok                                 | OpenCode                      |
-| ---------------- | ------------------------------- | -------------------------------- | ------------------------------------ | ----------------------------- |
-| Config file      | `settings.json`                 | `config.toml`                    | `config.toml` + `sandbox.toml`       | `opencode.jsonc`              |
-| OS sandbox       | Seatbelt (full: FS + network)   | Seatbelt (`workspace-write`)     | Seatbelt (custom `dotfiles` profile) | — (permission layer only)     |
-| Network policy   | per-domain allowlist            | on/off only (on)                 | unrestricted                         | webfetch: ask                 |
-| Credential reads | sandbox `denyRead`              | PreToolUse hook                  | kernel `deny` + hook                 | permission denies             |
-| Keychain block   | no `SecurityServer` mach lookup | hook denies `security` CLI       | `Bash(security *)` deny + hook       | `security *` bash deny        |
-| fnox block       | `Bash(fnox get/exec/export *)`  | hook + rule deny `fnox`          | `Bash(fnox *)` deny + hook           | `fnox *` bash deny            |
-| Approval default | ask unless allow-listed         | `approval_policy = "on-request"` | prompt + explicit allows             | `"*": "ask"`                  |
-| tmux status      | hooks in `settings.json`        | `[[hooks.*]]` in `config.toml`   | `hooks/tmux-status.json`             | `plugin/agent-tmux-status.js` |
+|                  | Claude Code                     | Codex                            | Grok                                 | OpenCode                      | Pi                                     |
+| ---------------- | ------------------------------- | -------------------------------- | ------------------------------------ | ----------------------------- | -------------------------------------- |
+| Config file      | `settings.json`                 | `config.toml`                    | `config.toml` + `sandbox.toml`       | `opencode.jsonc`              | `settings.json` + `dotty/sandbox.json` |
+| OS sandbox       | Seatbelt (full: FS + network)   | Seatbelt (`workspace-write`)     | Seatbelt (custom `dotfiles` profile) | — (permission layer only)     | srt (Seatbelt/bubblewrap), bash only   |
+| Network policy   | per-domain allowlist            | on/off only (on)                 | unrestricted                         | webfetch: ask                 | per-domain allowlist (bash only)       |
+| Credential reads | sandbox `denyRead`              | PreToolUse hook                  | kernel `deny` + hook                 | permission denies             | srt `denyRead` + policy gate           |
+| Keychain block   | no `SecurityServer` mach lookup | hook denies `security` CLI       | `Bash(security *)` deny + hook       | `security *` bash deny        | no `SecurityServer` mach lookup + gate |
+| fnox block       | `Bash(fnox get/exec/export *)`  | hook + rule deny `fnox`          | `Bash(fnox *)` deny + hook           | `fnox *` bash deny            | gate denies `fnox`                     |
+| Approval default | ask unless allow-listed         | `approval_policy = "on-request"` | prompt + explicit allows             | `"*": "ask"`                  | ask unless allow-listed                |
+| tmux status      | hooks in `settings.json`        | `[[hooks.*]]` in `config.toml`   | `hooks/tmux-status.json`             | `plugin/agent-tmux-status.js` | `extensions/tmux-status.ts`            |
 
-All four share the same Bash allowlist (read-only inspection commands, read-only
+All five share the same Bash allowlist (read-only inspection commands, read-only
 `mise` (`ls`, `registry`, `outdated`, `config ls`, `bootstrap packages status`)
 and `git`, plus `git add`/`restore`/`checkout`/`switch`/ `commit`) and deny the
 same credential set: `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.ssh`,
@@ -175,6 +175,56 @@ permission matrix with `"*": "ask"` as the default:
   there is no OS layer underneath to catch what slips through.
 - **web**: `websearch: allow`, `webfetch: ask`, and `doom_loop: deny`.
 
+## Pi
+
+Pi has no approvals or sandbox of its own, so dotty supplies both as a Pi
+extension. `~/.config/pi/settings.json` lists `dotty/policy.ts` under
+`extensions` only when the profile is hardened; the gate lives outside the
+auto-discovered `extensions/` directory, so an unhardened profile carries it
+inert.
+
+- **Sandbox**: the gate replaces Pi's `bash` tool with one that runs every
+  command — and your own `!` commands — through
+  [`srt`](https://github.com/anthropics/sandbox-runtime), the sandbox runtime
+  behind Claude Code's sandbox. Its settings, `dotty/sandbox.json`, are rendered
+  per profile and copy Claude Code's `sandbox.network` and `sandbox.filesystem`
+  lists exactly, so bash gets the same per-domain network allowlist, writable
+  roots, and credential denies. The hardened `agent-pi` fragment installs srt
+  (and the `node` its npm package needs).
+- **Fails closed**: if `srt` is not on `PATH`, or the platform is neither macOS
+  nor Linux, bash is blocked with a reason telling you to run `mise install` —
+  it never quietly runs unconfined. A policy file that fails to load blocks
+  every tool call.
+- **Permissions**: `dotty/policy.ts` gates every tool call with Claude Code's
+  semantics. `read`, `grep`, `find`, and `ls` are allowed except on the
+  credential set (and a `grep`/`find` rooted above a credential directory is
+  blocked, since Pi's search tools include hidden files). `write` and `edit` are
+  blocked on `denyWrite` and the credential set, allowed under `/tmp` and the
+  worktrees root, and asked everywhere else. `bash` is blocked on the shared
+  credential/`security`/`fnox` patterns, allowed when it matches the shared
+  allowlist (`dotty/policy.json`) and carries no shell metacharacter (`;`, `&`,
+  `|`, `$`, a backtick, `<`, `>`, `(`, `)`), and asked otherwise. Any other tool
+  is asked. Without a UI (`pi -p`, JSON mode) whatever would be asked is blocked
+  instead.
+- **Tamper resistance**: paths are resolved through symlinks before matching, so
+  a write into the Pi agent directory — or into the dotfiles files its entries
+  link to — is denied. `dotty/sandbox.json` also denies bash writes to
+  `~/.config/pi` and the whole dotfiles repository, which holds everything that
+  decides how Pi starts (its settings, the gate, `env.zsh`, the tmux bindings).
+  Pi therefore cannot edit your dotfiles repository; do that from another agent
+  or your editor.
+- **`--no-sandbox`**: `pi --no-sandbox` (or ++ctrl+a++ then ++alt+shift+p++)
+  drops only the srt wrapper; the gate still applies.
+- **Extras**: `PI_SKIP_VERSION_CHECK=1` (mise owns updates, and
+  `selfUpdateCommand` points `pi update` at it), install telemetry off, and
+  `defaultProjectTrust: "ask"`.
+- **Limits**: Pi's own `read`, `write`, and `edit` tools run inside the Pi
+  process, so they are gated rather than kernel-sandboxed — only bash runs under
+  srt. A trusted project's `.pi/extensions` load after the gate and can rewrite
+  a tool call after it was approved, or replace the gate's tools; keep
+  `defaultProjectTrust` at `ask` and trust projects deliberately.
+  `pi --no-extensions` turns the gate off entirely.
+
 ## Shared guardrails
 
 Beyond confinement, every agent gets the same working agreements:
@@ -189,7 +239,7 @@ Beyond confinement, every agent gets the same working agreements:
   containing the exact commit (or re-signing) commands for you to run outside
   the sandbox. `commit.sh` is in the global gitignore. See
   [Agent worktrees & re-signing](../guides/worktrees.md).
-- **tmux status.** All four agents report their state (waiting / needs
+- **tmux status.** All five agents report their state (waiting / needs
   attention) into the tmux status bar via `dotty tmux set-status` — see
   [tmux](tmux.md).
 
@@ -198,7 +248,9 @@ Beyond confinement, every agent gets the same working agreements:
 Tighten or loosen any of this by editing the rendered files in your repo and
 re-linking (`dotty dotfiles link`). Common tweaks: adding a domain to Claude
 Code's `network.allowedDomains`, editing Codex's `dotty.config.toml`, trusting
-another command prefix in Codex's `rules/default.rules`, or promoting an
-OpenCode `ask` to `allow`. Keep the credential denies — they are the point.
-After upgrading dotty itself, re-run `dotty init --yes` (not just
-`dotfiles link`) so the per-profile renders pick up template changes.
+another command prefix in Codex's `rules/default.rules`, promoting an OpenCode
+`ask` to `allow`, or extending Pi's `dotty/policy.json` allowlist. Pi's
+`dotty/sandbox.json` copies Claude Code's sandbox lists, so change both
+together. Keep the credential denies — they are the point. After upgrading dotty
+itself, re-run `dotty init --yes` (not just `dotfiles link`) so the per-profile
+renders pick up template changes.

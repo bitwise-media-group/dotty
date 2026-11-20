@@ -5,8 +5,8 @@
 
 # Coding agents & hardening
 
-dotty scaffolds configuration for four terminal coding agents — **Claude
-Code**, **Codex**, **OpenCode**, and **Grok** — plus the Antigravity and
+dotty scaffolds configuration for five terminal coding agents — **Claude
+Code**, **Codex**, **OpenCode**, **Grok**, and **Pi** — plus the Antigravity and
 OpenClaude CLIs — and can confine all of them behind one consistent security
 policy. Pick agents in the wizard or with `--agents=claude-code,codex,…`; each
 selection adds the agent's locked tool to the profile's packages and renders
@@ -17,12 +17,13 @@ its config into your repo under `home/.config/<agent>/`.
 Hardening mirrors one policy into every agent's native config:
 
 - **An OS-level sandbox** (macOS Seatbelt) restricting writes to your
-  repos, worktrees, and tool caches.
+  repos, worktrees, and tool caches. Pi, which has none of its own, runs its
+  shell commands through Anthropic's `srt` behind a dotty policy extension.
 - **Credential-read denies** — `~/.ssh`, `~/.aws`, `~/.azure`,
   `~/.config/gcloud`, `~/.gnupg`, and any `.env` file are unreadable, the
   macOS Keychain is unreachable, and `fnox` cannot be asked for a secret.
-- **A network allowlist** (Claude Code) limited to code hosts and package
-  registries.
+- **A network allowlist** (Claude Code, and Pi's shell commands) limited to
+  code hosts and package registries.
 - **Ask-first approvals** — only read-only inspection commands and safe
   git operations are pre-approved.
 
@@ -30,7 +31,7 @@ Hardening mirrors one policy into every agent's native config:
 
     Without `--harden`, agents get theme, hooks, and marketplace config
     only — a stock install. The full per-agent policy, including how
-    Codex, Grok, and OpenCode compensate for sandbox features they lack,
+    Codex, Grok, OpenCode, and Pi compensate for sandbox features they lack,
     is documented in [Agent sandboxing](../reference/agent-sandboxing.md).
 
 ## One memory doc for every agent
@@ -47,7 +48,8 @@ commits (see [Agent worktrees & re-signing](../guides/worktrees.md)).
 With the tmux addon, [`dotty tmux new`](../cli/dotty_tmux_new.md) opens a
 development session for a repo with a window per installed agent — or
 launch one ad hoc with ++ctrl+a++ then ++shift+c++ (Claude Code),
-++shift+g++ (Grok), ++shift+o++ (OpenCode), or ++shift+x++ (Codex). Every
+++shift+g++ (Grok), ++shift+o++ (OpenCode), ++shift+p++ (Pi), or ++shift+x++
+(Codex). Every
 agent reports into the status bar via lifecycle hooks: a peach ● when it's
 finished and waiting, a red 🔔 when it needs an approval. Details in the
 [tmux reference](../reference/tmux.md).
