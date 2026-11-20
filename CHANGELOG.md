@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.2](https://github.com/bitwise-media-group/dotty/compare/v0.5.1...v0.5.2) (2026-11-20)
+
+
+### Features
+
+* **agents:** add Pi as a coding-agent harness ([8fbb7ed](https://github.com/bitwise-media-group/dotty/commit/8fbb7ed96993b56c1a5371c09a6d54a5dbc2399b))
+* **agents:** allow cgr.dev and mise-versions.jdx.dev through the sandbox ([1490e29](https://github.com/bitwise-media-group/dotty/commit/1490e29f0c2af293aa8d8e0f3af3128398f35812))
+* **agents:** default Claude Code to Opus with per-model high effort ([4f16d72](https://github.com/bitwise-media-group/dotty/commit/4f16d72ccf0a41322156280dfbd8d35de447f5c3))
+
+
+### Bug Fixes
+
+* **deps:** update bitwise-media-group/github-workflows action to v8.4.0 ([#256](https://github.com/bitwise-media-group/dotty/issues/256)) ([3df1f83](https://github.com/bitwise-media-group/dotty/commit/3df1f83d83327de2b7ee8726d3ee11026502a00f))
+* **deps:** update module charm.land/lipgloss/v2 to v2.1.1 ([#259](https://github.com/bitwise-media-group/dotty/issues/259)) ([f9be7a9](https://github.com/bitwise-media-group/dotty/commit/f9be7a959d78d96e3a1cca2b1f91439e24a9a1b7))
+* **deps:** update module golang.org/x/crypto to v0.59.0 ([177f847](https://github.com/bitwise-media-group/dotty/commit/177f8473fb7984c939ddb38e9ccec51864b69546))
+* **tmux:** report extended keys in csi-u format ([cdd9e0e](https://github.com/bitwise-media-group/dotty/commit/cdd9e0e2a9b4ef2f04b9e83c6a612ec4e92d76fd))
+
 ## [0.5.1](https://github.com/bitwise-media-group/dotty/compare/v0.5.0...v0.5.1) (2026-11-15)
 
 
