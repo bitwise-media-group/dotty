@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/bitwise-media-group/dotty/compare/v0.5.2...v0.5.3) (2026-11-21)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/bubbletea/v2 to v2.1.2 ([#264](https://github.com/bitwise-media-group/dotty/issues/264)) ([a68ec88](https://github.com/bitwise-media-group/dotty/commit/a68ec8876b9eefa01fff472d3007544710087674))
+
 ## [0.5.2](https://github.com/bitwise-media-group/dotty/compare/v0.5.1...v0.5.2) (2026-11-20)
 
 
