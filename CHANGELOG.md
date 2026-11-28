@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.3](https://github.com/bitwise-media-group/dotty/compare/v0.5.2...v0.5.3) (2026-11-28)
+
+
+### Bug Fixes
+
+* **deps:** update bitwise-media-group/github-workflows action to v8.5.0 ([#269](https://github.com/bitwise-media-group/dotty/issues/269)) ([ee39a58](https://github.com/bitwise-media-group/dotty/commit/ee39a58c061e03130f7129a8aef9e3a001c2e975))
+* **deps:** update module charm.land/bubbles/v2 to v2.2.2 ([#267](https://github.com/bitwise-media-group/dotty/issues/267)) ([343dde0](https://github.com/bitwise-media-group/dotty/commit/343dde0af69ed1f4bf7ebfe79c9af966752836b3))
+* **deps:** update module charm.land/bubbletea/v2 to v2.1.2 ([#264](https://github.com/bitwise-media-group/dotty/issues/264)) ([a68ec88](https://github.com/bitwise-media-group/dotty/commit/a68ec8876b9eefa01fff472d3007544710087674))
+* **deps:** update module charm.land/bubbletea/v2 to v2.1.3 ([#271](https://github.com/bitwise-media-group/dotty/issues/271)) ([a3cbb21](https://github.com/bitwise-media-group/dotty/commit/a3cbb21dc3a21c55190b7cea2f8dad0f367d7a9f))
+* **deps:** update module github.com/charmbracelet/x/ansi to v0.11.10 ([#266](https://github.com/bitwise-media-group/dotty/issues/266)) ([2d42ea1](https://github.com/bitwise-media-group/dotty/commit/2d42ea119662dbfb1066be8f360d6fd145c47b3b))
+
 ## [0.5.2](https://github.com/bitwise-media-group/dotty/compare/v0.5.1...v0.5.2) (2026-11-20)
 
 
